@@ -23,6 +23,7 @@ import {
   stateLabel,
   suggestBatchNumber,
 } from '../lib/production';
+import { RecipesScreen } from './RecipesScreen';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 
@@ -36,7 +37,7 @@ interface Copy {
 
 const copyKey = (db: string) => `production/v1/${db}`;
 
-type View_ = { page: 'list' } | { page: 'start' } | { page: 'batch'; id: number };
+type View_ = { page: 'list' } | { page: 'recipes' } | { page: 'start' } | { page: 'batch'; id: number };
 
 /** Production: today's batches, start a batch, finish it with a batch number and use-by date. */
 export function ProductionScreen() {
@@ -81,6 +82,7 @@ export function ProductionScreen() {
     load();
   }, [load]);
 
+  if (view.page === 'recipes') return <RecipesScreen onBack={() => { setView({ page: 'list' }); load(); }} />;
   if (view.page === 'start')
     return <StartBatch recipes={data?.recipes ?? []} onBack={() => setView({ page: 'list' })} onSaved={() => { setView({ page: 'list' }); load(); }} />;
   if (view.page === 'batch') {
@@ -108,6 +110,7 @@ export function ProductionScreen() {
           ))}
         </Card>
       ) : null}
+      <Row title="Recipes" detail="Change a recipe or make a new one" onPress={() => setView({ page: 'recipes' })} testID="open-recipes" />
       <Button label="Refresh" kind="plain" onPress={load} busy={busy} />
     </Screen>
   );

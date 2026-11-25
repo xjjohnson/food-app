@@ -43,6 +43,7 @@ export class FakeOdoo {
     'stock.move.line': [],
     'stock.quant': [],
     'stock.scrap': [],
+    'product.template': [],
     'pos.config': [],
     'pos.payment.method': [],
     'stock.warehouse.orderpoint': [],
@@ -54,6 +55,7 @@ export class FakeOdoo {
   /** Which of these fields this pretend Odoo has (to test an Odoo that lacks one). */
   batchFields = ['lot_producing_ids', 'qty_producing', 'move_raw_ids'];
   productFields = ['expiration_time', 'free_qty'];
+  templateFields = ['expiration_time', 'list_price'];
   private nextId = 100;
 
   /** A batch (manufacturing order) made from a recipe: draft, with one ingredient line per recipe line. */
@@ -148,7 +150,20 @@ export class FakeOdoo {
       case 'create': {
         const vals = { ...(args[0] as Record<string, unknown>) };
         if (model === 'mrp.production') return this.createBatch(vals);
+        if (model === 'mrp.bom.line') {
+          const prod = this.tables['product.product']!.find((x) => x.id === vals.product_id);
+          const id = this.create(model, { ...vals, product_id: [vals.product_id, prod?.name ?? ''] });
+          const bom = this.tables['mrp.bom']!.find((b) => b.id === vals.bom_id);
+          if (bom) bom.bom_line_ids = [...((bom.bom_line_ids as number[]) ?? []), id];
+          return id;
+        }
         return this.create(model, model === 'stock.scrap' || model === 'purchase.order' ? { state: 'draft', ...vals } : vals);
+      }
+      case 'unlink': {
+        const ids = args[0] as number[];
+        this.tables[model] = table.filter((x) => !ids.includes(x.id));
+        if (model === 'mrp.bom.line') for (const b of this.tables['mrp.bom']!) b.bom_line_ids = ((b.bom_line_ids as number[]) ?? []).filter((x) => !ids.includes(x));
+        return true;
       }
       case 'action_confirm':
         for (const r of table.filter((x) => (args[0] as number[]).includes(x.id))) {
@@ -230,6 +245,7 @@ export class FakeOdoo {
       case 'fields_get': {
         if (model === 'mrp.production') return Object.fromEntries(this.batchFields.map((f) => [f, {}]));
         if (model === 'product.product') return Object.fromEntries(this.productFields.map((f) => [f, {}]));
+        if (model === 'product.template') return Object.fromEntries(this.templateFields.map((f) => [f, {}]));
         return {};
       }
     }

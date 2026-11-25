@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Body, Button, Card, ErrorText, Field, Row, Screen, Segments } from '../components/ui';
-import { fmtQty } from '../lib/production';
+import { editLotChange } from '../lib/edit';
+import { fmtQty, isDate } from '../lib/production';
 import { BatchTrace, CountLine, countChange, ExpiringLot, findLots, loadCountLines, loadExpiring, ProductRow, searchProducts, throwOutChange, traceLot } from '../lib/stock';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
@@ -184,6 +185,9 @@ function FindBatch({ onBack }: { onBack: () => void }) {
   const [found, setFound] = useState<{ id: number; name: string; product: string }[]>([]);
   const [trace, setTrace] = useState<BatchTrace | null>(null);
   const [error, setError] = useState('');
+  const { save } = useQueue();
+  const [edit, setEdit] = useState<{ name: string; useBy: string } | null>(null);
+  const [note, setNote] = useState('');
 
   useEffect(() => {
     if (!client || offline || trace) return;
@@ -218,7 +222,37 @@ function FindBatch({ onBack }: { onBack: () => void }) {
         <Card title="Went out on">
           {trace.wentOutOn.length ? trace.wentOutOn.map((o) => <Row key={o.name} title={o.customer || o.name} detail={`${o.origin || o.name} · ${fmtQty(o.qty)}`} />) : <Body muted>Not sent to any customer yet.</Body>}
         </Card>
-        <Button label="Back to search" kind="plain" onPress={() => setTrace(null)} />
+        {edit ? (
+          <Card title="Change this batch">
+            <Field label="Batch number" value={edit.name} onChangeText={(v) => setEdit({ ...edit, name: v })} autoCapitalize="characters" testID="edit-lot-name" />
+            <Field label="Use by (year-month-day)" value={edit.useBy} onChangeText={(v) => setEdit({ ...edit, useBy: v })} placeholder="2026-12-25" testID="edit-lot-useby" />
+            {edit.useBy && !isDate(edit.useBy) ? <ErrorText>Use the form 2026-12-25.</ErrorText> : null}
+            {note ? <Body>{note}</Body> : null}
+            <Button
+              label="Save"
+              disabled={!edit.name.trim() || (!!edit.useBy && !isDate(edit.useBy)) || !!note}
+              testID="save-lot"
+              onPress={async () => {
+                setError('');
+                try {
+                  const r = await save(editLotChange(trace.lot.id, edit));
+                  setNote(r.status === 'queued' ? 'Saved on the phone. It goes to Odoo when signal is back.' : 'Saved in Odoo.');
+                  setTrace({ ...trace, lot: { ...trace.lot, name: edit.name.trim(), useBy: edit.useBy || trace.lot.useBy } });
+                  setTimeout(() => {
+                    setEdit(null);
+                    setNote('');
+                  }, 900);
+                } catch (e) {
+                  setError(`Odoo said no: ${why(e)}`);
+                }
+              }}
+            />
+          </Card>
+        ) : (
+          <Button label="Change batch number or use-by date" kind="plain" onPress={() => setEdit({ name: trace.lot.name, useBy: trace.lot.useBy })} testID="edit-lot" />
+        )}
+        {error ? <ErrorText>{error}</ErrorText> : null}
+        <Button label="Back to search" kind="plain" onPress={() => { setTrace(null); setEdit(null); }} />
       </Screen>
     );
 
