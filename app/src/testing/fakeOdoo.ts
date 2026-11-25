@@ -124,6 +124,16 @@ export class FakeOdoo {
     return out;
   }
 
+  private createBomLine(model: string, vals: Record<string, unknown>): number {
+    const prod = this.tables['product.product']!.find((x) => x.id === vals.product_id);
+    const uom = (this.tables['uom.uom'] ?? []).find((x) => x.id === vals.product_uom_id);
+    const id = this.create(model, { ...vals, product_id: [vals.product_id, prod?.name ?? ''], ...(vals.product_uom_id ? { product_uom_id: [vals.product_uom_id, String(uom?.name ?? '')] } : {}) });
+    const bom = this.tables['mrp.bom']!.find((b) => b.id === vals.bom_id);
+    const field = model === 'mrp.bom.line' ? 'bom_line_ids' : 'byproduct_ids';
+    if (bom) bom[field] = [...((bom[field] as number[]) ?? []), id];
+    return id;
+  }
+
   private model(uid: number, model: string, method: string, args: unknown[], kw: Record<string, unknown>): unknown {
     this.calls.push({ model, method, args, kwargs: kw, uid });
     const why = this.refuse[`${model}.${method}`];
@@ -159,11 +169,15 @@ export class FakeOdoo {
           if (t) t.seller_ids = [...((t.seller_ids as number[]) ?? []), id];
           return id;
         }
-        if (model === 'mrp.bom.line') {
-          const prod = this.tables['product.product']!.find((x) => x.id === vals.product_id);
-          const id = this.create(model, { ...vals, product_id: [vals.product_id, prod?.name ?? ''] });
-          const bom = this.tables['mrp.bom']!.find((b) => b.id === vals.bom_id);
-          if (bom) bom.bom_line_ids = [...((bom.bom_line_ids as number[]) ?? []), id];
+        if (model === 'mrp.bom.line' || model === 'mrp.bom.byproduct') return this.createBomLine(model, vals);
+        if (model === 'mrp.bom' && (vals.bom_line_ids || vals.byproduct_ids)) {
+          const lines = (vals.bom_line_ids as [number, number, Record<string, unknown>][]) ?? [];
+          const by = (vals.byproduct_ids as [number, number, Record<string, unknown>][]) ?? [];
+          delete vals.bom_line_ids;
+          delete vals.byproduct_ids;
+          const id = this.create(model, { ...vals, bom_line_ids: [], byproduct_ids: [] });
+          for (const l of lines) this.createBomLine('mrp.bom.line', { ...l[2], bom_id: id });
+          for (const l of by) this.createBomLine('mrp.bom.byproduct', { ...l[2], bom_id: id });
           return id;
         }
         return this.create(model, model === 'stock.scrap' || model === 'purchase.order' ? { state: 'draft', ...vals } : vals);
@@ -173,6 +187,7 @@ export class FakeOdoo {
         this.tables[model] = table.filter((x) => !ids.includes(x.id));
         if (model === 'product.supplierinfo') for (const t of this.tables['product.template']!) t.seller_ids = ((t.seller_ids as number[]) ?? []).filter((x) => !ids.includes(x));
         if (model === 'mrp.bom.line') for (const b of this.tables['mrp.bom']!) b.bom_line_ids = ((b.bom_line_ids as number[]) ?? []).filter((x) => !ids.includes(x));
+        if (model === 'mrp.bom.byproduct') for (const b of this.tables['mrp.bom']!) b.byproduct_ids = ((b.byproduct_ids as number[]) ?? []).filter((x) => !ids.includes(x));
         return true;
       }
       case 'action_confirm':

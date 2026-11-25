@@ -11,6 +11,19 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.9',
+    changes: ['Recipes: the recipe screen now holds what Odoo’s recipe form holds. Product and variant, how many it makes and its unit, a reference, Made here or Kit, a unit for every ingredient, ingredient order, and by-products. One Save for the whole recipe.'],
+    test: [
+      'Production, then Recipes. Open Apricot Preserves (8 oz, Ball). Check Makes, its unit, the reference and the type match Odoo.',
+      'Each ingredient shows an Amount and a Unit. Change one amount and one unit.',
+      'Use Move up and Move down on an ingredient, then tap Add an ingredient and pick one.',
+      'Tap Add a by-product, pick a product, give an amount and a share of the cost.',
+      'Tap the single Save button at the bottom. In Odoo, open the recipe: every change is there, in the same order.',
+      'Tap New recipe, pick a product, fill it in and Save. It shows in Odoo.',
+      'Turn on airplane mode, change a recipe, Save. It says saved on the phone. Turn signal back on and check Odoo.',
+    ],
+  },
+  {
     release: '0.1.8',
     changes: ['Ingredients: a new Ingredient list to see, add and change ingredients, with their category, cost, purchase taxes and vendor prices.'],
     test: [
