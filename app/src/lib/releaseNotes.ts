@@ -11,6 +11,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.2',
+    changes: ['Website orders: see orders waiting to be packed, pack them taking the batch that expires first, and mark each as delivered or picked up.'],
+    test: [
+      'In the test Odoo, place a website order for a product that has batch numbers, and confirm it so a delivery is made.',
+      'Open Website orders. The order shows under Waiting to be packed.',
+      'Open it. Each line says which batch to take, the one with the earliest use-by date first.',
+      'Choose Delivery or Pickup and tap the green button.',
+      'In Odoo the delivery is Done, uses those batches, and has a note saying delivered or picked up.',
+      'An order Odoo is still waiting on stock for shows "Waiting for stock" and can’t be handed over.',
+    ],
+  },
+  {
     release: '0.1.1',
     changes: ['Production: start a batch from a recipe, see its ingredients, and finish it with a batch number and use-by date. Works without signal too.'],
     test: [

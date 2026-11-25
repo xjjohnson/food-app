@@ -38,6 +38,9 @@ export class FakeOdoo {
     'mrp.production': [],
     'stock.move': [],
     'stock.lot': [],
+    'stock.picking': [],
+    'stock.move.line': [],
+    'stock.quant': [],
     'product.product': [],
     'ir.module.module': ['mrp', 'stock', 'sale_management', 'website_sale', 'purchase', 'point_of_sale', 'hr', 'contacts', 'product_expiry'].map((name, i) => ({ id: i + 1, name, state: 'installed' })),
   };
@@ -141,6 +144,17 @@ export class FakeOdoo {
           }
         }
         return true;
+      case 'button_validate':
+        for (const r of table.filter((x) => (args[0] as number[]).includes(x.id))) {
+          if (r.state === 'done') throw { message: 'Odoo Server Error', data: { name: 'odoo.exceptions.UserError', message: `${r.name} is already done.` } };
+          r.state = 'done';
+          for (const m of this.tables['stock.move']!.filter((x) => x.picking_id === r.id))
+            for (const l of this.tables['stock.move.line']!.filter((x) => (m.move_line_ids as number[] | undefined)?.includes(x.id))) {
+              const q = this.tables['stock.quant']!.find((x) => (Array.isArray(x.lot_id) ? x.lot_id[0] : x.lot_id) === (Array.isArray(l.lot_id) ? l.lot_id[0] : l.lot_id));
+              if (q) q.quantity = (q.quantity as number) - (l.quantity as number);
+            }
+        }
+        return true;
       case 'button_mark_done':
         for (const r of table.filter((x) => (args[0] as number[]).includes(x.id))) {
           if (!(r.lot_producing_ids as number[] | undefined)?.length) throw { message: 'Odoo Server Error', data: { name: 'odoo.exceptions.UserError', message: 'Please enter a lot or serial number for the product.' } };
@@ -158,6 +172,13 @@ export class FakeOdoo {
                 if (op === 3) cur.delete(id);
               }
               r.category_ids = [...cur];
+            } else if (k === 'move_line_ids' && Array.isArray(v)) {
+              let cur = (r.move_line_ids as number[]) ?? [];
+              for (const [op, a, vals] of v as [number, number, Record<string, unknown>][]) {
+                if (op === 5) cur = [];
+                if (op === 0) cur = [...cur, this.create('stock.move.line', { ...vals, move_id: [r.id, 'Move'], lot_id: [vals.lot_id, 'Lot'] })];
+              }
+              r.move_line_ids = cur;
             } else if (k === 'lot_producing_ids' && Array.isArray(v)) {
               const cur = new Set((r.lot_producing_ids as number[]) ?? []);
               for (const [op, a, vals] of v as [number, number, Record<string, unknown>][]) {
