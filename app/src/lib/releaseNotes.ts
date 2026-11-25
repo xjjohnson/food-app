@@ -11,6 +11,16 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.6',
+    changes: ['Home: a Today card with what is waiting for you, and Find a product (price, photo and stock by batch).'],
+    test: [
+      'Open the home screen. Today shows counts for your roles: batches to finish, website orders to pack, batches close to their use-by date, ingredients running low, deliveries to check in.',
+      'Tap a Today row. It opens that area.',
+      'Tap Find a product and type part of a name. The price matches the product in Odoo.',
+      'Tap a product: its photo and each batch with its use-by date and amount show.',
+    ],
+  },
+  {
     release: '0.1.4',
     changes: ['Ingredients: see what is running low, set the low and full levels, order from a supplier (or add a new one), and check a delivery in with batch numbers and use-by dates.'],
     test: [
