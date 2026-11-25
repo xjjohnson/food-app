@@ -53,7 +53,6 @@ export const PRODUCT_SECTIONS: Section[] = [
     id: 'online',
     title: 'Online',
     fields: [
-      { name: 'product_packaging_ids', label: 'Packagings', kind: 'many', relation: 'product.packaging', readOnly: true, hint: 'Change these in Odoo.' },
       { name: 'optional_product_ids', label: 'Optional products', kind: 'many', relation: 'product.template' },
       { name: 'accessory_product_ids', label: 'Accessory products', kind: 'many', relation: 'product.product' },
       { name: 'alternative_product_ids', label: 'Alternative products', kind: 'many', relation: 'product.template' },

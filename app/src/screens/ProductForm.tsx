@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Body, Card, Row } from '../components/ui';
+import { Body, Button, Card, Row } from '../components/ui';
+import { PACKAGINGS } from '../lib/subRecords';
+import { LinesScreen } from './SubRecordsEditor';
 import { m2oId } from '../lib/odoo';
 import { loadLots, loadVariants, PRODUCT_SECTIONS, type LotRow, type VariantRow } from '../lib/productForm';
 import { useOdoo } from '../lib/useOdoo';
@@ -16,6 +18,7 @@ export function ProductForm({ productId, templateId, onBack }: { productId?: num
   const [tmplId, setTmplId] = useState<number | null>(templateId ?? (productId ? null : 0));
   const [variants, setVariants] = useState<VariantRow[]>([]);
   const [lots, setLots] = useState<LotRow[]>([]);
+  const [packs, setPacks] = useState(false);
 
   useEffect(() => {
     if ((!productId && !templateId) || !client || offline) return;
@@ -32,6 +35,18 @@ export function ProductForm({ productId, templateId, onBack }: { productId?: num
     })().catch(() => setTmplId(0));
   }, [client, offline, productId, templateId]);
 
+  if (packs && variants.length)
+    return (
+      <LinesScreen
+        title="Packagings"
+        onBack={() => setPacks(false)}
+        spec={PACKAGINGS}
+        domain={[['product_id', 'in', variants.map((v) => v.id)]]}
+        base={{ product_id: variants[0]!.id }}
+        label="Packaging"
+        addLabel="Add a packaging"
+      />
+    );
   if ((productId || templateId) && tmplId === null) return <Body muted>Opening the product…</Body>;
   return (
     <GenericForm
@@ -45,6 +60,11 @@ export function ProductForm({ productId, templateId, onBack }: { productId?: num
       onBack={onBack}
       testID="product-form"
       extraTabs={[
+        {
+          id: 'packs',
+          label: 'Packagings',
+          render: () => <Button label="Edit packagings (Pack of 6 and so on)" onPress={() => setPacks(true)} testID="product-packs" />,
+        },
         {
           id: 'batches',
           label: 'Batches',

@@ -11,6 +11,16 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.11',
+    changes: ['Edit the lines of a purchase order (quantity, unit, price, add, remove), the ingredients of one production batch, and a product’s packagings (like Pack of 6).'],
+    test: [
+      'Ingredients, Purchase orders, open a draft order, tap the Lines tab, then Edit the order lines. Change a quantity and a price, add a line (pick a product, its unit fills in), Save. Check the order in Odoo.',
+      'Open an order that is already confirmed. The lines show but can’t change.',
+      'Production, open a batch, tap All batch details, then the Ingredients tab and Change the ingredients of this batch. Change an amount, remove one and add one, Save. Check the batch in Odoo. The recipe itself does not change.',
+      'Find a product, open it, tap the Packagings tab, then Edit packagings. Add Pack of 6 with quantity 6, Save. Check it in Odoo under the product’s Sales tab.',
+    ],
+  },
+  {
     release: '0.1.10',
     changes: [
       'Product screen now has the fields of Odoo’s product form in tabs: Main, Stock, Online, Point of Sale and Batches. You can switch on Track Inventory, batch tracking and expiry for a product.',
