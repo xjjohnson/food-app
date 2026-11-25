@@ -28,7 +28,8 @@ export class FakeOdoo {
   refuse: Record<string, string> = {};
   users: FakeUser[] = [];
   tables: Record<string, Rec[]> = {
-    'res.company': [{ id: 1, name: 'Hivemind Bakery', logo_web: 'iVBORw0KGgoAAAANSUhEUg==', primary_color: '#C2185B', secondary_color: '#FFC107' }],
+    'res.company': [{ id: 1, name: 'Hivemind Bakery', logo_web: 'iVBORw0KGgoAAAANSUhEUg==', currency_id: [1, 'USD'], primary_color: '#C2185B', secondary_color: '#FFC107' }],
+    'res.currency': [{ id: 1, name: 'USD', symbol: '$' }],
     'res.partner': [],
     'hr.employee': [],
     'hr.employee.category': [],

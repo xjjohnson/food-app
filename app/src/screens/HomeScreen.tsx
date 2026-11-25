@@ -1,20 +1,29 @@
 import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { Body, Button, Card, Chip, Row, Screen, useUi } from '../components/ui';
 import { AREAS } from '../lib/areas';
 import { canSee, hasAnyRole, roleNames } from '../lib/roles';
+import { loadToday, TodayItem } from '../lib/today';
 import { useBrand } from '../lib/useBrand';
 import { useOdoo } from '../lib/useOdoo';
 import { useRoles } from '../lib/useRoles';
 
 /** The home screen: the areas this person's roles open, and the owner's management area. */
 export function HomeScreen() {
-  const { client } = useOdoo();
+  const { client, offline } = useOdoo();
   const { roles, mine, loading } = useRoles();
   const { name } = useBrand();
   const s = useUi();
   const areas = AREAS.filter((a) => canSee(roles, a.role));
   const first = client?.session.name.split(' ')[0] ?? '';
+  const [today, setToday] = useState<TodayItem[]>([]);
+  useEffect(() => {
+    if (!client || offline || !hasAnyRole(roles)) return;
+    loadToday(client, roles)
+      .then(setToday)
+      .catch(() => undefined);
+  }, [client, offline, roles]);
 
   return (
     <Screen title={name} back={false} testID="home-screen" right={<Button label="Settings" kind="plain" onPress={() => router.push('/settings')} testID="open-settings" />}>
@@ -32,6 +41,16 @@ export function HomeScreen() {
           </Body>
         </Card>
       ) : null}
+
+      {today.length ? (
+        <Card title="Today" testID="today-card">
+          {today.map((t) => (
+            <Row key={t.id} title={t.title} value={String(t.count)} onPress={() => router.push(`/area/${t.area}`)} testID={`today-${t.id}`} />
+          ))}
+        </Card>
+      ) : null}
+
+      {hasAnyRole(roles) ? <Row title="Find a product" detail="Price, photo and stock by batch" onPress={() => router.push('/lookup')} testID="open-lookup" /> : null}
 
       {areas.length ? (
         <Card title="Your work">
