@@ -82,7 +82,7 @@ everyone, run the Android APK workflow by hand on main with "production".
    `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, optional
    `ANDROID_KEY_PASSWORD`, and the variable `ANDROID_KEY_ALIAS` if it isn't
    `foodapp`). Make one with:
-   `keytool -genkeypair -storetype PKCS12 -keystore foodapp-release.p12 -alias foodapp -keyalg RSA -keysize 4096 -validity 10000`
+   `keytool -genkeypair -storetype PKCS12 -keystore foodapp-release.p12 -alias foodapp -keyalg RSA -keysize 2048 -validity 10000`
    then `base64 -w0 foodapp-release.p12` for the secret. Keep the file safe:
    phones can only update with the same key.
    No computer? Save a password of 16 or more characters as the secret
