@@ -19,16 +19,30 @@ const day = (v: unknown) => (typeof v === 'string' ? v.slice(0, 10) : '');
 
 export interface ProductRow {
   id: number;
+  /** The full name, with the variant (size, jar) when it has one. */
   name: string;
+  /** Set when asked for: this product already has a recipe. */
+  hasRecipe?: boolean;
 }
 
-/** Products matching what was typed, from Odoo. */
-export async function searchProducts(c: Client, text: string): Promise<ProductRow[]> {
+/**
+ * Products matching what was typed, from Odoo, by their full name (Odoo's
+ * display name includes the variant). With `markRecipes`, each says whether it
+ * already has a recipe, and those come first.
+ */
+export async function searchProducts(c: Client, text: string, markRecipes = false): Promise<ProductRow[]> {
   const domain: unknown[] = text.trim() ? [['name', 'ilike', text.trim()]] : [];
   const fields = (await c.call('product.product', 'fields_get', [], { attributes: ['string'] })) as Record<string, unknown>;
   if ('is_storable' in fields) domain.push(['is_storable', '=', true]);
-  const rows = (await c.call('product.product', 'search_read', [domain], { fields: ['name'], order: 'name asc', limit: 30 })) as { id: number; name: string }[];
-  return rows.map((r) => ({ id: r.id, name: r.name }));
+  const rows = (await c.call('product.product', 'search_read', [domain], { fields: ['display_name', 'name', 'product_tmpl_id'], order: 'name asc, id asc', limit: 40 })) as Record<string, unknown>[];
+  const out: ProductRow[] = rows.map((r) => ({ id: r.id as number, name: String(r.display_name || r.name) }));
+  if (!markRecipes || !rows.length) return out;
+  const tmpl = (r: Record<string, unknown>) => (Array.isArray(r.product_tmpl_id) ? (r.product_tmpl_id[0] as number) : 0);
+  const boms = (await c.call('mrp.bom', 'search_read', [[['product_tmpl_id', 'in', rows.map(tmpl)]]], { fields: ['product_tmpl_id', 'product_id'] })) as Record<string, unknown>[];
+  const withRecipe = (r: Record<string, unknown>) =>
+    boms.some((b) => (Array.isArray(b.product_tmpl_id) ? b.product_tmpl_id[0] : b.product_tmpl_id) === tmpl(r) && (!b.product_id || (Array.isArray(b.product_id) ? b.product_id[0] : b.product_id) === r.id));
+  const marked = out.map((o, i) => ({ ...o, hasRecipe: withRecipe(rows[i]!) }));
+  return [...marked.filter((m) => m.hasRecipe), ...marked.filter((m) => !m.hasRecipe)];
 }
 
 export interface CountLine {

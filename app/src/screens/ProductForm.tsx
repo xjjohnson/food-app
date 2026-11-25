@@ -1,3 +1,4 @@
+import { useInnerBack } from '../lib/innerBack';
 import { useEffect, useState } from 'react';
 import { Body, Button, Card, Row } from '../components/ui';
 import { PACKAGINGS } from '../lib/subRecords';
@@ -19,6 +20,7 @@ export function ProductForm({ productId, templateId, onBack }: { productId?: num
   const [variants, setVariants] = useState<VariantRow[]>([]);
   const [lots, setLots] = useState<LotRow[]>([]);
   const [packs, setPacks] = useState(false);
+  useInnerBack(packs ? () => setPacks(false) : null);
 
   useEffect(() => {
     if ((!productId && !templateId) || !client || offline) return;

@@ -1,3 +1,4 @@
+import { useInnerBack } from '../lib/innerBack';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Body, Button, ErrorText, Screen, Segments } from '../components/ui';
 import { allFields, blankValue, changedValues, formProblems, loadDraft, onlyPresent, presentFields, type Draft, type FieldDef, type Section, type Val } from '../lib/odooForm';
@@ -51,6 +52,7 @@ export function GenericForm({ model, recordId, title, sections: all, required = 
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  useInnerBack(picking ? () => setPicking(null) : null);
 
   const blank = (secs: Section[]): Draft => {
     const d: Draft = {};

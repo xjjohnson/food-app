@@ -1,3 +1,4 @@
+import { useInnerBack } from '../lib/innerBack';
 import { useEffect, useState } from 'react';
 import { Body, Button, Card, ErrorText, Field, Row, Screen, Segments } from '../components/ui';
 import { editLotChange } from '../lib/edit';
@@ -16,6 +17,7 @@ type Page = 'menu' | 'count' | 'expiring' | 'find';
 export function StockScreen() {
   const [page, setPage] = useState<Page>('menu');
   const back = () => setPage('menu');
+  useInnerBack(page === 'menu' ? null : back);
   if (page === 'count') return <CountStock onBack={back} />;
   if (page === 'expiring') return <Expiring onBack={back} />;
   if (page === 'find') return <FindBatch onBack={back} />;
@@ -48,6 +50,7 @@ function CountStock({ onBack }: { onBack: () => void }) {
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  useInnerBack(product ? () => setProduct(null) : null);
 
   useEffect(() => {
     if (!client || offline || product) return;
@@ -191,6 +194,7 @@ function FindBatch({ onBack }: { onBack: () => void }) {
   const [edit, setEdit] = useState<{ name: string; useBy: string } | null>(null);
   const [note, setNote] = useState('');
   const [form, setForm] = useState<{ id?: number } | null>(null);
+  useInnerBack(form ? () => setForm(null) : trace ? () => { setTrace(null); setEdit(null); } : null);
 
   useEffect(() => {
     if (!client || offline || trace || form) return;

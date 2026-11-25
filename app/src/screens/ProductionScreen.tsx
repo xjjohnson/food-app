@@ -1,3 +1,4 @@
+import { useInnerBack } from '../lib/innerBack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
@@ -85,6 +86,7 @@ export function ProductionScreen() {
   useEffect(() => {
     load();
   }, [load]);
+  useInnerBack(view.page === 'list' ? null : () => { setView({ page: 'list' }); load(); });
 
   if (view.page === 'recipes') return <RecipesScreen onBack={() => { setView({ page: 'list' }); load(); }} />;
   if (view.page === 'start')
@@ -132,6 +134,7 @@ function StartBatch({ recipes, onBack, onSaved }: { recipes: Recipe[]; onBack: (
 
   const qty = Number(qtyText.replace(',', '.'));
   const okQty = Number.isFinite(qty) && qty > 0;
+  useInnerBack(recipe ? () => setRecipe(null) : null);
 
   const pick = async (r: Recipe) => {
     setRecipe(r);
@@ -233,6 +236,7 @@ function BatchPage({ id, known, onBack }: { id: number; known?: Batch; onBack: (
   useEffect(() => {
     load();
   }, [load]);
+  useInnerBack(parts ? () => { setParts(false); load(); } : all ? () => { setAll(false); load(); } : null);
 
   const shown = d ?? (known ? { ...known, ingredients: [], lots: [], canRecordLot: true } : null);
   if (!shown)

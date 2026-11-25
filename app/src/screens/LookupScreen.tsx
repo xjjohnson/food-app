@@ -1,3 +1,4 @@
+import { useInnerBack } from '../lib/innerBack';
 import { useEffect, useState } from 'react';
 import { Image } from 'react-native';
 import { Body, Button, Card, ErrorText, Field, Row, Screen } from '../components/ui';
@@ -18,6 +19,7 @@ export function LookupScreen() {
   const [error, setError] = useState('');
   const [form, setForm] = useState<{ id?: number } | null>(null);
   const [tick, setTick] = useState(0);
+  useInnerBack(form ? () => { setForm(null); setTick((n) => n + 1); } : null);
 
   useEffect(() => {
     if (client && !offline) currencySymbol(client, client.session.companyId).then(setSymbol);

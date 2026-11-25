@@ -1,3 +1,4 @@
+import { useInnerBack } from '../lib/innerBack';
 import { useEffect, useState } from 'react';
 import { Body, Button, Card, ErrorText, Field, Row, Screen } from '../components/ui';
 import { GenericForm } from './GenericForm';
@@ -16,10 +17,27 @@ const toNum = (t: string) => Number(t.replace(',', '.'));
 
 type Page = { p: 'menu' } | { p: 'list' } | { p: 'low' } | { p: 'order'; item: LowItem } | { p: 'levels'; item?: LowItem } | { p: 'receipts' } | { p: 'checkin'; receipt: Receipt } | { p: 'rule'; id: number } | { p: 'pos' } | { p: 'po'; id?: number; lines?: boolean };
 
+/** The page Back goes to from each page. */
+function upFrom(p: Page): Page {
+  switch (p.p) {
+    case 'order':
+    case 'levels':
+    case 'rule':
+      return { p: 'low' };
+    case 'po':
+      return p.lines ? { p: 'po', id: p.id } : { p: 'pos' };
+    case 'checkin':
+      return { p: 'receipts' };
+    default:
+      return { p: 'menu' };
+  }
+}
+
 /** Ingredients: what is running low, ordering, and checking deliveries in. */
 export function IngredientsScreen() {
   const [page, setPage] = useState<Page>({ p: 'menu' });
   const menu = () => setPage({ p: 'menu' });
+  useInnerBack(page.p === 'menu' ? null : () => setPage(upFrom(page)));
   switch (page.p) {
     case 'list':
       return <IngredientListScreen onBack={menu} />;
