@@ -59,6 +59,8 @@ export class FakeOdoo {
   batchFields = ['lot_producing_ids', 'qty_producing', 'move_raw_ids'];
   /** Fields a test says Odoo has, for models whose fields_get is built from rows. */
   declared: Record<string, string[]> = {};
+  /** True to behave like Odoo 18 and older, whose name search takes `args` instead of `domain`. */
+  oldNameSearch = false;
   /** Field details (label, type, relation) for fields_get with attributes, by model and field. */
   fieldInfo: Record<string, Record<string, { string?: string; type?: string; relation?: string }>> = {};
   productFields = ['expiration_time', 'free_qty'];
@@ -172,8 +174,12 @@ export class FakeOdoo {
       case 'search':
         return table.filter((r) => this.match(r, (args[0] as unknown[]) ?? [])).map((r) => r.id);
       case 'name_search': {
+        // Odoo 19 takes `domain`; older Odoo takes `args`. Like Odoo, refuse the one it doesn't know.
+        const wrong = this.oldNameSearch ? 'domain' : 'args';
+        if (wrong in kw) throw { message: 'Odoo Server Error', data: { name: 'builtins.TypeError', message: `BaseModel.name_search() got an unexpected keyword argument '${wrong}'` } };
         const t = String(kw.name ?? '').toLowerCase();
-        return table.filter((r) => String(r.display_name ?? r.name ?? '').toLowerCase().includes(t)).slice(0, (kw.limit as number) ?? 30).map((r) => [r.id, String(r.display_name ?? r.name ?? '')]);
+        const dom = ((this.oldNameSearch ? kw.args : kw.domain) as unknown[] | undefined) ?? [];
+        return table.filter((r) => this.match(r, dom)).filter((r) => String(r.display_name ?? r.name ?? '').toLowerCase().includes(t)).slice(0, (kw.limit as number) ?? 30).map((r) => [r.id, String(r.display_name ?? r.name ?? '')]);
       }
       case 'search_count':
         return table.filter((r) => this.match(r, (args[0] as unknown[]) ?? [])).length;

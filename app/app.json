@@ -30,7 +30,7 @@
       "fallbackToCacheTimeout": 0
     },
     "extra": {
-      "release": "0.1.16"
+      "release": "0.1.17"
     },
     "plugins": [
       "expo-router",
