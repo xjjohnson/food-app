@@ -29,6 +29,13 @@ import { log } from './log';
 export const QUEUE_KEY = 'queue/v1';
 export const QUEUE_VERSION = 1;
 
+/** A second call on the record a create made. `onlyWhen` is checked first, so running it twice is harmless. */
+export interface ThenCall {
+  method: string;
+  kwargs?: Record<string, unknown>;
+  onlyWhen?: unknown[];
+}
+
 export interface QueuedChange {
   v: number;
   id: string;
@@ -42,6 +49,8 @@ export interface QueuedChange {
   kwargs?: Record<string, unknown>;
   /** Look for this in Odoo first; when found, the change is already there and isn't sent again. */
   already?: { model: string; domain: unknown[] };
+  /** Run on the new record right after a create (for example confirming a batch). */
+  then?: ThenCall;
   /** Who made it (Odoo user id) and when. */
   by: number;
   createdAt: number;
@@ -86,6 +95,7 @@ export interface NewChange {
   args: unknown[];
   kwargs?: Record<string, unknown>;
   already?: { model: string; domain: unknown[] };
+  then?: ThenCall;
 }
 
 export async function enqueue(storage: Storage, db: string, by: number, change: NewChange, now = Date.now()): Promise<QueuedChange> {
@@ -100,10 +110,26 @@ export async function enqueue(storage: Storage, db: string, by: number, change: 
 /** The changes for this database still to send (waiting or needing a look). */
 export const forDb = (q: QueuedChange[], db: string) => q.filter((x) => x.db === db);
 
-async function isAlreadyThere(c: Client, item: QueuedChange): Promise<boolean> {
-  if (!item.already) return false;
-  const n = await c.call(item.already.model, 'search_count', [item.already.domain]);
-  return typeof n === 'number' && n > 0;
+/** Runs a change's `then` call on the records it made (or found already there). */
+async function runThen(c: Client, item: NewChange, ids: number[]): Promise<void> {
+  const t = item.then;
+  if (!t || !ids.length) return;
+  const todo = t.onlyWhen ? ((await c.call(item.model, 'search', [[['id', 'in', ids], ...t.onlyWhen]])) as number[]) : ids;
+  if (todo.length) await c.call(item.model, t.method, [todo], t.kwargs ?? {});
+}
+
+/** Makes the change in Odoo, then runs its `then` call. Skips what is already there. */
+async function execute(c: Client, item: NewChange, checkAlready: boolean): Promise<unknown> {
+  if (checkAlready && item.already) {
+    const found = (await c.call(item.already.model, 'search', [item.already.domain])) as number[];
+    if (found.length) {
+      if (item.then && item.already.model === item.model) await runThen(c, item, found);
+      return null;
+    }
+  }
+  const result = await c.call(item.model, item.method, item.args, item.kwargs ?? {});
+  if (item.then && typeof result === 'number') await runThen(c, item, [result]);
+  return result;
 }
 
 export interface SendResult {
@@ -126,7 +152,7 @@ export async function sendQueue(c: Client, storage: Storage, db: string, now = D
   for (const item of forDb(q, db)) {
     if (item.state === 'stuck') return out({ stuck: item });
     try {
-      if (!(await isAlreadyThere(c, item))) await c.call(item.model, item.method, item.args, item.kwargs ?? {});
+      await execute(c, item, true);
       q = (await loadQueue(storage)).filter((x) => x.id !== item.id);
       await saveQueue(storage, q);
       sent++;
@@ -175,7 +201,7 @@ export async function saveOrQueue(c: Client | null, storage: Storage, db: string
   const waiting = forDb(await loadQueue(storage), db).length > 0;
   if (c && !waiting) {
     try {
-      return { status: 'saved', result: await c.call(change.model, change.method, change.args, change.kwargs ?? {}) };
+      return { status: 'saved', result: await execute(c, change, false) };
     } catch (e) {
       if (!(e instanceof OdooError && e.kind === 'network')) throw e;
     }

@@ -11,6 +11,20 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.1',
+    changes: ['Production: start a batch from a recipe, see its ingredients, and finish it with a batch number and use-by date. Works without signal too.'],
+    test: [
+      'Open Production. Your recipes from Odoo show when you tap Start a batch.',
+      'Pick a recipe and change the amount. The ingredient amounts change with it.',
+      'Ask for more than the shelves hold: a "Not enough in stock" box names the short ingredient.',
+      'Tap Start batch. In Odoo, Manufacturing shows the new order, confirmed.',
+      'Open the batch in the app. It lists the ingredients.',
+      'Finish it: the batch number is filled in and the use-by date comes from the product shelf life. Change them if you like, then tap Finish batch.',
+      'In Odoo the order is Done, and Inventory, Lots shows the batch number with its use-by date.',
+      'Turn on Pretend offline, start another batch, and turn it off: the batch appears in Odoo by itself.',
+    ],
+  },
+  {
     release: '0.1.0',
     changes: [
       'First version: sign in to Odoo, roles, the company name, logo and colors, working without signal, beta updates, and the Developer screen.',

@@ -2,6 +2,7 @@ import { Body, Card, Screen } from '../components/ui';
 import { areaById } from '../lib/areas';
 import { canSee } from '../lib/roles';
 import { useRoles } from '../lib/useRoles';
+import { ProductionScreen } from './ProductionScreen';
 
 /** Holds an area's place until its feature is built. */
 export function AreaScreen({ id }: { id: string }) {
@@ -13,6 +14,7 @@ export function AreaScreen({ id }: { id: string }) {
         <Body>This area isn’t part of your role.</Body>
       </Screen>
     );
+  if (area.id === 'production') return <ProductionScreen />;
   return (
     <Screen title={area.title} testID={`area-screen-${area.id}`}>
       <Card title="Coming next">
