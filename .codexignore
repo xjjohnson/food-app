@@ -1,0 +1,15 @@
+# Heavy or generated files agents don't need to read. Mirrors .gitignore plus lock files.
+app/package-lock.json
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+node_modules/
+dist/
+build/
+coverage/
+.expo/
+app/android/
+app/ios/
+*.log
+*.apk
+*.aab

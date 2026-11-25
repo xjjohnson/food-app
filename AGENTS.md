@@ -30,5 +30,11 @@ Phone and tablet app that runs the food business (jellies, cookies, baked goods)
 8. Use `npx expo install` for packages, never plain `npm install <pkg>`.
 9. Words on screen are plain and short. No jargon.
 
+## Code review rules
+Flag only P0/P1 problems: data loss, Odoo save or offline-queue conflicts (wrong database, double sends, lost entries), prices or taxes worked out in the app, brand hard-coded, owner-only screens shown to other roles, a missing release bump, broken tests. Skip style and formatting nitpicks.
+
+## Keeping context small
+Don't open `app/package-lock.json`, `node_modules/`, `coverage/`, `dist/` or `build/`. Read the directory map above before grepping. Run tests quietly (see Commands).
+
 ## PRs
 Branch from main. **One bigger PR per feature**, tests in the same PR. The "Tests" check is the gate. `auto-merge.yml` merges a non-draft PR to main once Tests pass; merges reach the **beta** channel only. Production updates are a manual run by Justin. Use a draft PR for work that isn't ready.

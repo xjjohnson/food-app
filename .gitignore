@@ -10,3 +10,7 @@ dist/
 *.p12.b64
 coverage/
 build/
+# Generated native projects (CI makes them with expo prebuild)
+app/android/
+app/ios/
+.expo-shared/
