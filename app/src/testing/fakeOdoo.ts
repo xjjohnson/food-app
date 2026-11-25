@@ -33,9 +33,32 @@ export class FakeOdoo {
     'hr.employee': [],
     'hr.employee.category': [],
     'mail.message': [],
+    'mrp.bom': [],
+    'mrp.bom.line': [],
+    'mrp.production': [],
+    'stock.move': [],
+    'stock.lot': [],
+    'product.product': [],
     'ir.module.module': ['mrp', 'stock', 'sale_management', 'website_sale', 'purchase', 'point_of_sale', 'hr', 'contacts', 'product_expiry'].map((name, i) => ({ id: i + 1, name, state: 'installed' })),
   };
+  /** Which of these fields this pretend Odoo has (to test an Odoo that lacks one). */
+  batchFields = ['lot_producing_ids', 'qty_producing', 'move_raw_ids'];
+  productFields = ['expiration_time', 'free_qty'];
   private nextId = 100;
+
+  /** A batch (manufacturing order) made from a recipe: draft, with one ingredient line per recipe line. */
+  private createBatch(vals: Record<string, unknown>): number {
+    const bom = this.tables['mrp.bom']!.find((b) => b.id === vals.bom_id);
+    const n = this.tables['mrp.production']!.length + 1;
+    const id = this.create('mrp.production', { name: `WH/MO/${String(n).padStart(5, '0')}`, state: 'draft', ...vals, product_id: [vals.product_id, 'Product'] });
+    const mo = this.tables['mrp.production']!.find((r) => r.id === id)!;
+    const scale = (vals.product_qty as number) / ((bom?.product_qty as number) || 1);
+    const moves: number[] = [];
+    for (const l of this.tables['mrp.bom.line']!.filter((x) => x.bom_id === bom?.id))
+      moves.push(this.create('stock.move', { raw_material_production_id: id, product_id: l.product_id, product_uom_qty: (l.product_qty as number) * scale, state: 'draft' }));
+    mo.move_raw_ids = moves;
+    return id;
+  }
 
   addUser(u: Partial<FakeUser> & { login: string }): FakeUser {
     const id = u.id ?? this.nextId++;
@@ -97,12 +120,33 @@ export class FakeOdoo {
     switch (method) {
       case 'search_read':
         return table.filter((r) => this.match(r, (args[0] as unknown[]) ?? [])).slice(0, (kw.limit as number) ?? 1e9).map((r) => this.pick(r, kw.fields as string[]));
+      case 'search':
+        return table.filter((r) => this.match(r, (args[0] as unknown[]) ?? [])).map((r) => r.id);
       case 'search_count':
         return table.filter((r) => this.match(r, (args[0] as unknown[]) ?? [])).length;
       case 'read':
         return (args[0] as number[]).map((id) => table.find((r) => r.id === id)).filter(Boolean).map((r) => this.pick(r!, kw.fields as string[]));
-      case 'create':
-        return this.create(model, args[0] as Record<string, unknown>);
+      case 'create': {
+        const vals = { ...(args[0] as Record<string, unknown>) };
+        if (model === 'mrp.production') return this.createBatch(vals);
+        return this.create(model, vals);
+      }
+      case 'action_confirm':
+        for (const r of table.filter((x) => (args[0] as number[]).includes(x.id))) {
+          if (r.state !== 'draft') throw { message: 'Odoo Server Error', data: { name: 'odoo.exceptions.UserError', message: `${r.name} is already confirmed.` } };
+          r.state = 'confirmed';
+          for (const m of this.tables['stock.move']!.filter((x) => x.raw_material_production_id === r.id)) {
+            const p = this.tables['product.product']!.find((x) => x.id === (Array.isArray(m.product_id) ? m.product_id[0] : m.product_id))!;
+            m.state = ((p.free_qty as number) ?? 0) >= (m.product_uom_qty as number) ? 'assigned' : 'confirmed';
+          }
+        }
+        return true;
+      case 'button_mark_done':
+        for (const r of table.filter((x) => (args[0] as number[]).includes(x.id))) {
+          if (!(r.lot_producing_ids as number[] | undefined)?.length) throw { message: 'Odoo Server Error', data: { name: 'odoo.exceptions.UserError', message: 'Please enter a lot or serial number for the product.' } };
+          r.state = 'done';
+        }
+        return true;
       case 'write': {
         const [ids, vals] = args as [number[], Record<string, unknown>];
         for (const r of table.filter((x) => ids.includes(x.id))) {
@@ -114,6 +158,13 @@ export class FakeOdoo {
                 if (op === 3) cur.delete(id);
               }
               r.category_ids = [...cur];
+            } else if (k === 'lot_producing_ids' && Array.isArray(v)) {
+              const cur = new Set((r.lot_producing_ids as number[]) ?? []);
+              for (const [op, a, vals] of v as [number, number, Record<string, unknown>][]) {
+                if (op === 0) cur.add(this.create('stock.lot', vals));
+                if (op === 4) cur.add(a);
+              }
+              r.lot_producing_ids = [...cur];
             } else r[k] = v;
           }
         }
@@ -123,8 +174,11 @@ export class FakeOdoo {
         const [ids] = args as [number[]];
         return this.create('mail.message', { model, res_id: ids[0], body: kw.body });
       }
-      case 'fields_get':
+      case 'fields_get': {
+        if (model === 'mrp.production') return Object.fromEntries(this.batchFields.map((f) => [f, {}]));
+        if (model === 'product.product') return Object.fromEntries(this.productFields.map((f) => [f, {}]));
         return {};
+      }
     }
     throw { message: 'Odoo Server Error', data: { name: 'AttributeError', message: `The method ${method} does not exist on ${model}` } };
   }
