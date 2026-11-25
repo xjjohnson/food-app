@@ -42,6 +42,8 @@ export class FakeOdoo {
     'stock.move.line': [],
     'stock.quant': [],
     'stock.scrap': [],
+    'pos.config': [],
+    'pos.payment.method': [],
     'stock.warehouse.orderpoint': [],
     'purchase.order': [],
     'product.supplierinfo': [],
