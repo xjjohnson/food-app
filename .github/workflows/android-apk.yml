@@ -242,9 +242,7 @@ jobs:
             --title "Latest APK (build ${{ github.run_number }})" \
             --notes "Built from ${{ github.sha }}. Install on Android: open food-app.apk on the phone and allow installs from this source when asked.
 
-          Signing certificate SHA-256: ${CERT_SHA256}
-
-          From version 0.2.0 on, the APK is signed with the app's own key. A phone that still has the 0.1.0 APK must uninstall it once first; Android won't install this one over it (\"App not installed\"). Inputs saved in the old app are lost with it."
+          Signing certificate SHA-256: ${CERT_SHA256}"
 
   ota:
     name: Publish OTA update
