@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Body, Button, Card, ErrorText, Field, Row, Screen } from '../components/ui';
 import { GenericForm } from './GenericForm';
+import { LinesScreen, unitAfterProduct } from './SubRecordsEditor';
+import { PO_LINES } from '../lib/subRecords';
 import { PURCHASE_SECTIONS, REORDER_SECTIONS } from '../lib/forms';
 import { loadPurchaseOrders, poStateLabel, PurchaseRow, Arrived, checkInChanges, loadReceiptLines, loadReceipts, loadRules, LowItem, newSupplierChange, placeOrderChange, Receipt, ReceiptLine, searchSuppliers, setLevelsChange, Supplier, usualSuppliers } from '../lib/ingredients';
 import { fmtQty, isDate } from '../lib/production';
@@ -12,7 +14,7 @@ import { useQueue } from '../lib/useQueue';
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const toNum = (t: string) => Number(t.replace(',', '.'));
 
-type Page = { p: 'menu' } | { p: 'list' } | { p: 'low' } | { p: 'order'; item: LowItem } | { p: 'levels'; item?: LowItem } | { p: 'receipts' } | { p: 'checkin'; receipt: Receipt } | { p: 'rule'; id: number } | { p: 'pos' } | { p: 'po'; id?: number };
+type Page = { p: 'menu' } | { p: 'list' } | { p: 'low' } | { p: 'order'; item: LowItem } | { p: 'levels'; item?: LowItem } | { p: 'receipts' } | { p: 'checkin'; receipt: Receipt } | { p: 'rule'; id: number } | { p: 'pos' } | { p: 'po'; id?: number; lines?: boolean };
 
 /** Ingredients: what is running low, ordering, and checking deliveries in. */
 export function IngredientsScreen() {
@@ -34,7 +36,22 @@ export function IngredientsScreen() {
     case 'pos':
       return <PurchaseOrders onBack={menu} onOpen={(id) => setPage({ p: 'po', id })} />;
     case 'po':
-      return <GenericForm model="purchase.order" recordId={page.id ?? null} title="Purchase order" noun="Order" sections={PURCHASE_SECTIONS} required={['partner_id']} uniqueField="partner_ref" testID="po-form" onBack={() => setPage({ p: 'pos' })} />;
+      if (page.lines && page.id)
+        return <PoLines id={page.id} onBack={() => setPage({ p: 'po', id: page.id })} />;
+      return (
+        <GenericForm
+          model="purchase.order"
+          recordId={page.id ?? null}
+          title="Purchase order"
+          noun="Order"
+          sections={PURCHASE_SECTIONS}
+          required={['partner_id']}
+          uniqueField="partner_ref"
+          testID="po-form"
+          onBack={() => setPage({ p: 'pos' })}
+          extraTabs={[{ id: 'lines', label: 'Lines', render: () => <Button label="Edit the order lines" onPress={() => setPage({ p: 'po', id: page.id, lines: true })} testID="po-lines" /> }]}
+        />
+      );
     case 'checkin':
       return <CheckIn receipt={page.receipt} onBack={() => setPage({ p: 'receipts' })} />;
   }
@@ -45,6 +62,29 @@ export function IngredientsScreen() {
       <Row title="Purchase orders" detail="See, add and change orders to vendors" onPress={() => setPage({ p: 'pos' })} testID="ing-pos" />
       <Row title="Check in a delivery" detail="Record what arrived, with batch numbers and use-by dates" onPress={() => setPage({ p: 'receipts' })} testID="ing-receipts" />
     </Screen>
+  );
+}
+
+function PoLines({ id, onBack }: { id: number; onBack: () => void }) {
+  const { client } = useOdoo();
+  const [state, setState] = useState('');
+  useEffect(() => {
+    if (!client) return;
+    client.call('purchase.order', 'read', [[id]], { fields: ['state'] }).then((r) => setState(String((r as { state?: string }[])[0]?.state ?? ''))).catch(() => undefined);
+  }, [client, id]);
+  return (
+    <LinesScreen
+      title="Order lines"
+      onBack={onBack}
+      spec={PO_LINES}
+      domain={[['order_id', '=', id]]}
+      base={{ order_id: id }}
+      label="Order"
+      addLabel="Add a line"
+      canEdit={state === '' || state === 'draft' || state === 'sent'}
+      lockedNote="This order is already confirmed. Change it in Odoo."
+      afterPick={unitAfterProduct('product_uom_id')}
+    />
   );
 }
 

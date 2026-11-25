@@ -126,6 +126,15 @@ export class FakeOdoo {
     return out;
   }
 
+  /** Turns plain ids in product and unit fields into the [id, name] pairs Odoo sends back. */
+  private pairs(vals: Record<string, unknown>): Record<string, unknown> {
+    const out = { ...vals };
+    if (typeof out.product_id === 'number') out.product_id = [out.product_id, String(this.tables['product.product']!.find((x) => x.id === out.product_id)?.name ?? '')];
+    for (const f of ['product_uom_id', 'product_uom'])
+      if (typeof out[f] === 'number') out[f] = [out[f], String((this.tables['uom.uom'] ?? []).find((x) => x.id === out[f])?.name ?? '')];
+    return out;
+  }
+
   private createBomLine(model: string, vals: Record<string, unknown>): number {
     const prod = this.tables['product.product']!.find((x) => x.id === vals.product_id);
     const uom = (this.tables['uom.uom'] ?? []).find((x) => x.id === vals.product_uom_id);
@@ -176,6 +185,7 @@ export class FakeOdoo {
           return id;
         }
         if (model === 'mrp.bom.line' || model === 'mrp.bom.byproduct') return this.createBomLine(model, vals);
+        if (model === 'purchase.order.line' || model === 'stock.move' || model === 'product.packaging') return this.create(model, this.pairs(vals));
         if (model === 'mrp.bom' && (vals.bom_line_ids || vals.byproduct_ids)) {
           const lines = (vals.bom_line_ids as [number, number, Record<string, unknown>][]) ?? [];
           const by = (vals.byproduct_ids as [number, number, Record<string, unknown>][]) ?? [];
@@ -259,6 +269,8 @@ export class FakeOdoo {
                 if (op === 0) cur = [...cur, this.create('stock.move.line', { ...vals, move_id: [r.id, 'Move'], lot_id: [vals.lot_id, 'Lot'] })];
               }
               r.move_line_ids = cur;
+            } else if (k === 'move_raw_ids' && Array.isArray(v)) {
+              for (const [op, , vals] of v as [number, number, Record<string, unknown>][]) if (op === 0) this.create('stock.move', { ...this.pairs(vals), raw_material_production_id: r.id, state: 'draft' });
             } else if (k === 'lot_producing_ids' && Array.isArray(v)) {
               const cur = new Set((r.lot_producing_ids as number[]) ?? []);
               for (const [op, a, vals] of v as [number, number, Record<string, unknown>][]) {

@@ -4,6 +4,8 @@ import { View } from 'react-native';
 import { Body, Button, Card, Chip, ErrorText, Field, Row, Screen } from '../components/ui';
 import { PRODUCTION_SECTIONS } from '../lib/forms';
 import { GenericForm } from './GenericForm';
+import { LinesScreen, unitAfterProduct } from './SubRecordsEditor';
+import { BATCH_PARTS } from '../lib/subRecords';
 import {
   addDays,
   Batch,
@@ -210,6 +212,7 @@ function BatchPage({ id, known, onBack }: { id: number; known?: Batch; onBack: (
   const [days, setDays] = useState<number | null | undefined>(undefined);
   const [note, setNote] = useState('');
   const [all, setAll] = useState(false);
+  const [parts, setParts] = useState(false);
 
   const load = useCallback(async () => {
     if (!client || offline) return;
@@ -241,7 +244,26 @@ function BatchPage({ id, known, onBack }: { id: number; known?: Batch; onBack: (
       </Screen>
     );
 
-  if (all) return <GenericForm model="mrp.production" recordId={id} title="Batch" noun="Batch" sections={PRODUCTION_SECTIONS} uniqueField="origin" testID="batch-all-form" onBack={() => { setAll(false); load(); }} />;
+  if (parts)
+    return (
+      <LinesScreen
+        title="Ingredients for this batch"
+        onBack={() => {
+          setParts(false);
+          load();
+        }}
+        spec={BATCH_PARTS}
+        domain={[['raw_material_production_id', '=', id]]}
+        base={{ raw_material_production_id: id }}
+        label={`Batch ${shown.name}`}
+        addLabel="Add an ingredient"
+        canEdit={shown.state !== 'done' && shown.state !== 'cancel'}
+        lockedNote="This batch is finished or cancelled. Its ingredients can’t change."
+        createVia={(vals) => ({ model: 'mrp.production', method: 'write', args: [[id], { move_raw_ids: [[0, 0, vals]] }] })}
+        afterPick={unitAfterProduct('product_uom')}
+      />
+    );
+  if (all) return <GenericForm model="mrp.production" recordId={id} title="Batch" noun="Batch" sections={PRODUCTION_SECTIONS} uniqueField="origin" testID="batch-all-form" onBack={() => { setAll(false); load(); }} extraTabs={[{ id: 'parts', label: 'Ingredients', render: () => <Button label="Change the ingredients of this batch" onPress={() => setParts(true)} testID="batch-parts" /> }]} />;
 
   const short = d ? shortIngredients(d) : [];
   const canFinish = shown.state === 'confirmed' || shown.state === 'progress' || shown.state === 'to_close';
