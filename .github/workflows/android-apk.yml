@@ -1,0 +1,304 @@
+# Builds an installable Android APK of the food app.
+#
+# Runs on every push to main that touches the app, and by hand
+# from the Actions tab ("Run workflow"). Pull requests that touch them run only
+# the Tests job; the slow APK build waits until the change is merged. The APK
+# is attached to the run as an artifact named food-app-apk-<run number>
+# (a zip). Builds from main also replace the APK on the "Latest APK" release
+# (tag latest-apk), which is the easy place to download it from a phone.
+#
+# The APK itself is built without EAS: the native Android project is generated
+# on the runner with `expo prebuild` and built with Gradle. Pushes to main also
+# publish an over-the-air update with EAS Update (job "ota"), which reaches
+# phones that already have an APK with the same runtime version.
+#
+# Updates go to beta first: a push to main publishes to the "beta" channel,
+# which only phones with Developer > Beta updates turned on get.
+# To give an update to everyone, run this workflow by hand on main with
+# "Send the update to" set to everyone (production). The APK on the Latest APK
+# release is built as usual either way.
+#
+# Over-the-air updates need the Expo project id in the repo variable
+# EAS_PROJECT_ID and the EXPO_TOKEN secret (app/README.md, "Over-the-air
+# updates"). Without them the APK still builds; it just never updates itself.
+#
+# The APK is signed with the app's own private key, never Expo's public debug
+# key. The key comes from two repo secrets, ANDROID_KEYSTORE_BASE64 and
+# ANDROID_KEYSTORE_PASSWORD (see app/README.md, "Signing key"). Without them
+# the Build APK job stops with an error.
+name: Android APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'app/**'
+      - '.github/workflows/android-apk.yml'
+  pull_request:
+    paths:
+      - 'app/**'
+      - '.github/workflows/android-apk.yml'
+  workflow_dispatch:
+    inputs:
+      ota_channel:
+        description: 'Send the update to (beta = phones with Beta updates on; production = everyone)'
+        type: choice
+        options: [beta, production]
+        default: beta
+
+concurrency:
+  group: android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The release-number check compares with the base branch.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      # Every change that ships to phones gets its own release number (app/README.md, "Release numbers").
+      - name: Release number raised
+        if: github.event_name == 'pull_request'
+        run: node app/scripts/check-release.mjs "origin/${{ github.base_ref }}"
+
+      - name: App tests (Jest) and typecheck
+        working-directory: app
+        run: |
+          npm ci
+          npm test -- --ci
+          npm run typecheck
+
+  apk:
+    name: Build APK
+    needs: test
+    # Pull requests only run the tests. The APK builds after the merge, on the
+    # push to main (or from "Run workflow").
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # only used to update the Latest APK release from main
+    timeout-minutes: 60
+    env:
+      CI: 1
+      # Each run gets a higher version code, so a new APK installs over the old one.
+      ANDROID_VERSION_CODE: ${{ github.run_number }}
+      # The key's name inside the keystore. Not a secret. Override it with a
+      # repo variable of the same name if your keystore uses another alias.
+      ANDROID_KEY_ALIAS: ${{ vars.ANDROID_KEY_ALIAS || 'foodapp' }}
+      # The Expo project for over-the-air updates (app.config.js). Not a secret.
+      EAS_PROJECT_ID: ${{ vars.EAS_PROJECT_ID }}
+    steps:
+      # Checked first, so a missing key fails in seconds, not after the build.
+      - name: Check the signing key secrets
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          missing=""
+          [ -n "$KEYSTORE_BASE64" ] || missing="$missing ANDROID_KEYSTORE_BASE64"
+          [ -n "$KEYSTORE_PASSWORD" ] || missing="$missing ANDROID_KEYSTORE_PASSWORD"
+          if [ -n "$missing" ]; then
+            echo "::error title=Signing key missing::Repo secret(s)$missing not set, so the APK can't be signed with the app's own key. The build stops instead of using the public debug key. Add them under Settings > Secrets and variables > Actions (app/README.md, 'Signing key'), then re-run this job."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      # React Native 0.88 builds with JDK 17.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install app dependencies
+        working-directory: app
+        run: npm ci
+
+      - name: Generate the Android project
+        working-directory: app
+        run: npx expo prebuild --platform android --no-install --clean
+
+      # The keystore is written outside the repo, readable only by the runner
+      # user, and deleted at the end of the job. keytool opens it once here so
+      # a wrong password or alias fails with a clear message, not deep in Gradle.
+      - name: Unpack the signing key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          umask 077
+          keystore="$RUNNER_TEMP/release-key.p12"
+          if ! printf '%s' "$KEYSTORE_BASE64" | base64 --decode --ignore-garbage > "$keystore" || [ ! -s "$keystore" ]; then
+            echo "::error title=Signing key unreadable::ANDROID_KEYSTORE_BASE64 isn't valid base64 of the keystore file. Re-encode it with: base64 -w0 foodapp-release.p12"
+            exit 1
+          fi
+          if ! keytool -list -keystore "$keystore" -storepass:env ANDROID_KEYSTORE_PASSWORD -alias "$ANDROID_KEY_ALIAS" > /dev/null; then
+            echo "::error title=Signing key rejected::keytool couldn't open the key '$ANDROID_KEY_ALIAS' with ANDROID_KEYSTORE_PASSWORD. Check the password secret, and that the alias matches the one used with keytool -genkeypair."
+            exit 1
+          fi
+          echo "ANDROID_KEYSTORE_PATH=$keystore" >> "$GITHUB_ENV"
+
+      # Real phones only (ARM), which roughly halves the build time compared
+      # with also building the x86 emulator code. Signing is set up by
+      # app/plugins/withReleaseSigning.js, which reads these variables.
+      - name: Build the release APK
+        working-directory: app/android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a
+
+      # Proof the APK carries the app's key: one signer, and not the debug key.
+      # If the repo variable ANDROID_SIGNING_CERT_SHA256 is set, the key must
+      # also match it, which catches a replaced keystore before phones do.
+      - name: Check the APK's signature
+        id: signature
+        env:
+          EXPECTED_SHA256: ${{ vars.ANDROID_SIGNING_CERT_SHA256 }}
+        run: |
+          apk=app/android/app/build/outputs/apk/release/app-release.apk
+          tools="$(ls -d "$ANDROID_HOME"/build-tools/*/ | sort -V | tail -n 1)"
+          "${tools}apksigner" verify --print-certs "$apk" > "$RUNNER_TEMP/certs.txt"
+          cat "$RUNNER_TEMP/certs.txt"
+          norm() { tr -d ': ' | tr 'A-F' 'a-f'; }
+          signers=$(grep 'certificate SHA-256 digest' "$RUNNER_TEMP/certs.txt" | awk '{print $NF}' | sort -u | wc -l || true)
+          signed=$(grep -m1 'certificate SHA-256 digest' "$RUNNER_TEMP/certs.txt" | awk '{print $NF}' | norm || true)
+          debug=$(keytool -list -v -keystore app/android/app/debug.keystore -storepass android -alias androiddebugkey | grep 'SHA256:' | awk '{print $NF}' | norm || true)
+          if [ "$signers" != "1" ] || [ -z "$signed" ]; then
+            echo "::error title=APK signature::Expected exactly one signing key, found $signers."; exit 1
+          fi
+          if [ "$signed" = "$debug" ]; then
+            echo "::error title=APK signature::The APK is signed with the public debug key. Refusing to publish it."; exit 1
+          fi
+          if [ -n "$EXPECTED_SHA256" ] && [ "$signed" != "$(printf '%s' "$EXPECTED_SHA256" | norm)" ]; then
+            echo "::error title=APK signature::The APK's key ($signed) isn't the one in ANDROID_SIGNING_CERT_SHA256. Phones with the app couldn't install this APK over it."; exit 1
+          fi
+          echo "sha256=$signed" >> "$GITHUB_OUTPUT"
+          echo "Signed with the app's own key. Certificate SHA-256: \`$signed\`" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Delete the signing key from the runner
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release-key.p12"
+
+      - name: Name the APK
+        run: cp app/android/app/build/outputs/apk/release/app-release.apk "food-app-${{ github.run_number }}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: food-app-apk-${{ github.run_number }}
+          path: food-app-${{ github.run_number }}.apk
+          retention-days: 30
+          if-no-files-found: error
+
+      # version.json tells installed apps which native version the newest APK
+      # is and where to get it. The app offers the download when this version
+      # is newer than its own (app/src/lib/apkUpdate.ts). The APK is also
+      # attached under a fixed name so that link never changes.
+      - name: Write version.json
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        run: |
+          cp "food-app-${{ github.run_number }}.apk" food-app.apk
+          node -e '
+            const version = require("./app/app.json").expo.version;
+            const apkUrl = `https://github.com/${process.env.REPO}/releases/download/latest-apk/food-app.apk`;
+            require("fs").writeFileSync("version.json", JSON.stringify({ version, apkUrl }, null, 2) + "\n");
+          '
+          cat version.json
+        env:
+          REPO: ${{ github.repository }}
+
+      - name: Replace the APK on the Latest APK release
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CERT_SHA256: ${{ steps.signature.outputs.sha256 }}
+        run: |
+          gh release delete latest-apk --yes --cleanup-tag || true
+          gh release create latest-apk "food-app-${{ github.run_number }}.apk" food-app.apk version.json \
+            --target "${{ github.sha }}" \
+            --prerelease \
+            --title "Latest APK (build ${{ github.run_number }})" \
+            --notes "Built from ${{ github.sha }}. Install on Android: open food-app.apk on the phone and allow installs from this source when asked.
+
+          Signing certificate SHA-256: ${CERT_SHA256}
+
+          From version 0.2.0 on, the APK is signed with the app's own key. A phone that still has the 0.1.0 APK must uninstall it once first; Android won't install this one over it (\"App not installed\"). Inputs saved in the old app are lost with it."
+
+  ota:
+    name: Publish OTA update
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+      EAS_PROJECT_ID: ${{ vars.EAS_PROJECT_ID }}
+      COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+      # Pushes go to beta; a manual run picks beta or production.
+      OTA_CHANNEL: ${{ github.event.inputs.ota_channel || 'beta' }}
+    steps:
+      - name: Skip when the EXPO_TOKEN secret or EAS_PROJECT_ID variable isn't set
+        if: env.EXPO_TOKEN == '' || env.EAS_PROJECT_ID == ''
+        run: echo "::warning::EXPO_TOKEN secret or EAS_PROJECT_ID variable is not set, so no OTA update was published (app/README.md, 'Over-the-air updates')."
+
+      - uses: actions/checkout@v4
+        if: env.EXPO_TOKEN != '' && env.EAS_PROJECT_ID != ''
+
+      - uses: actions/setup-node@v4
+        if: env.EXPO_TOKEN != '' && env.EAS_PROJECT_ID != ''
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - uses: expo/expo-github-action@v8
+        if: env.EXPO_TOKEN != '' && env.EAS_PROJECT_ID != ''
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install app dependencies
+        if: env.EXPO_TOKEN != '' && env.EAS_PROJECT_ID != ''
+        working-directory: app
+        run: npm ci
+
+      # The APK asks the "production" channel for updates (app.json); the Beta
+      # updates switch makes it ask "beta" instead. Each channel is created
+      # once (pointing at the branch of the same name); after that these
+      # steps just report it exists.
+      - name: Make sure the channels exist
+        if: env.EXPO_TOKEN != '' && env.EAS_PROJECT_ID != ''
+        working-directory: app
+        run: |
+          eas channel:create production --non-interactive || echo "Channel production already exists."
+          eas channel:create beta --non-interactive || echo "Channel beta already exists."
+
+      - name: Publish the update
+        if: env.EXPO_TOKEN != '' && env.EAS_PROJECT_ID != ''
+        working-directory: app
+        run: |
+          MESSAGE="$(printf '%s' "${COMMIT_MESSAGE:-Manual run}" | head -n 1)"
+          echo "Publishing to the $OTA_CHANNEL channel."
+          eas update --branch "$OTA_CHANNEL" --platform android --message "$MESSAGE" --non-interactive

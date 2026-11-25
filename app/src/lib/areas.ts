@@ -1,0 +1,26 @@
+/**
+ * The work areas on the home screen, and which role sees each. The screens
+ * behind them arrive one feature at a time (plans/app-plan.md, "How we'll
+ * build it"); until then each opens a page that says what is coming.
+ */
+import type { RoleId } from './roles';
+
+export interface Area {
+  id: string;
+  title: string;
+  detail: string;
+  /** Who sees it. The owner sees every area. */
+  role: RoleId;
+  /** Which planned step builds it. */
+  comingIn: string;
+}
+
+export const AREAS: Area[] = [
+  { id: 'production', title: 'Production', detail: "Today's batches, start a batch, batch numbers and use-by dates", role: 'production', comingIn: 'Step 2, Production' },
+  { id: 'orders', title: 'Website orders', detail: 'Pack orders, oldest batch first, delivered or picked up', role: 'shipping', comingIn: 'Step 3, Website orders' },
+  { id: 'stock', title: 'Stock', detail: 'Counts, expiring soon, find a batch', role: 'inventory', comingIn: 'Step 4, Stock' },
+  { id: 'ingredients', title: 'Ingredients', detail: 'Low stock, purchase orders, checking deliveries in', role: 'inventory', comingIn: 'Step 5, Ingredients' },
+  { id: 'market', title: 'Market', detail: "Ring up sales in Odoo's Point of Sale", role: 'sales', comingIn: 'Step 6, Market' },
+];
+
+export const areaById = (id: string) => AREAS.find((a) => a.id === id);

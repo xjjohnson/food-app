@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.expo/
+*.log
+.DS_Store
+# Signing keys never go in the repo (see app/README.md, "Signing key").
+*.p12
+*.jks
+*.keystore
+*.p12.b64
+coverage/
+build/
