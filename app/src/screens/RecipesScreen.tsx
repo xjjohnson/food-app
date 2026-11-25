@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Body, Button, Card, ErrorText, Field, Row, Screen } from '../components/ui';
-import { addLineChange, loadRecipeDetail, newRecipeChange, RecipeDetail, removeLineChange, setLineQtyChange, setRecipeMakesChange } from '../lib/edit';
-import { fmtQty, loadRecipes, Recipe } from '../lib/production';
+import { Body, Button, Card, ErrorText, Field, Row, Screen, Segments } from '../components/ui';
+import { loadUnits } from '../lib/ingredientList';
+import { fmtQty, loadRecipes, Recipe as RecipeRow } from '../lib/production';
+import { blankRecipe, BomType, loadRecipe, loadVariants, moveLine, newKey, newRecipeChange, productInfo, Recipe, recipeChanges, RecipeLine, recipeProblems, Unit } from '../lib/recipe';
 import { ProductRow, searchProducts } from '../lib/stock';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
+import { Choose } from './IngredientListScreen';
 
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
-const toNum = (t: string) => Number(t.replace(',', '.'));
-const okNum = (t: string) => t.trim() !== '' && Number.isFinite(toNum(t)) && toNum(t) > 0;
 
 /** A small product picker: type, then tap a result. */
 function ProductPicker({ title, onPick, onBack }: { title: string; onPick: (p: ProductRow) => void; onBack: () => void }) {
@@ -35,12 +35,11 @@ function ProductPicker({ title, onPick, onBack }: { title: string; onPick: (p: P
   );
 }
 
-/** Recipes: change how many one makes, change or add or remove ingredients, or make a new recipe. */
+/** Recipes: the list, and the full recipe form (also used to make a new one). */
 export function RecipesScreen({ onBack }: { onBack: () => void }) {
   const { client, offline } = useOdoo();
-  const [list, setList] = useState<Recipe[] | null>(null);
-  const [open, setOpen] = useState<number | null>(null);
-  const [creating, setCreating] = useState(false);
+  const [list, setList] = useState<RecipeRow[] | null>(null);
+  const [open, setOpen] = useState<number | 'new' | null>(null);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
@@ -57,19 +56,10 @@ export function RecipesScreen({ onBack }: { onBack: () => void }) {
 
   if (open !== null)
     return (
-      <RecipeEditor
-        id={open}
+      <RecipeForm
+        id={open === 'new' ? null : open}
         onBack={() => {
           setOpen(null);
-          load();
-        }}
-      />
-    );
-  if (creating)
-    return (
-      <NewRecipe
-        onBack={() => {
-          setCreating(false);
           load();
         }}
       />
@@ -78,7 +68,7 @@ export function RecipesScreen({ onBack }: { onBack: () => void }) {
     <Screen title="Recipes" testID="recipes-screen">
       {offline ? <Body muted>No signal. Recipes come from Odoo, so they show when the phone is back online.</Body> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
-      <Button label="New recipe" onPress={() => setCreating(true)} disabled={offline} testID="new-recipe" />
+      <Button label="New recipe" onPress={() => setOpen('new')} disabled={offline} testID="new-recipe" />
       {list?.map((r) => (
         <Row key={r.id} title={r.name} detail={`Makes ${fmtQty(r.makes)} ${r.unit} · ${r.lines.length} ingredients`.replace('  ', ' ')} onPress={() => setOpen(r.id)} testID={`recipe-edit-${r.id}`} />
       ))}
@@ -87,146 +77,168 @@ export function RecipesScreen({ onBack }: { onBack: () => void }) {
   );
 }
 
-function RecipeEditor({ id, onBack }: { id: number; onBack: () => void }) {
-  const { client } = useOdoo();
+type Section = 'lines' | 'byproducts';
+type Picking = null | { k: 'product' } | { k: 'variant' } | { k: 'unit' } | { k: 'lineUnit'; section: Section; key: string } | { k: 'add'; section: Section };
+
+function RecipeForm({ id, onBack }: { id: number | null; onBack: () => void }) {
+  const { client, offline } = useOdoo();
   const { save } = useQueue();
-  const [r, setR] = useState<RecipeDetail | null>(null);
-  const [makes, setMakes] = useState('');
-  const [qty, setQty] = useState<Record<number, string>>({});
-  const [adding, setAdding] = useState<{ id: number; name: string } | null>(null);
-  const [addQty, setAddQty] = useState('');
-  const [picking, setPicking] = useState(false);
+  const [before, setBefore] = useState<Recipe | null>(null);
+  const [draft, setDraft] = useState<Recipe>(blankRecipe());
+  const [units, setUnits] = useState<Unit[]>([]);
+  const [variants, setVariants] = useState<Unit[]>([]);
+  const [picking, setPicking] = useState<Picking>(id ? null : { k: 'product' });
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    if (!client) return;
+    if (!client || offline) return;
     try {
-      const d = await loadRecipeDetail(client, id);
-      setR(d);
-      if (d) {
-        setMakes(fmtQty(d.makes));
-        setQty(Object.fromEntries(d.lines.map((l) => [l.id, fmtQty(l.qty)])));
+      setUnits(await loadUnits(client));
+      if (id) {
+        const r = await loadRecipe(client, id);
+        if (r) {
+          setBefore(r);
+          setDraft(r);
+          setVariants(await loadVariants(client, r.templateId));
+        }
       }
     } catch (e) {
       setError(`Couldn’t read this recipe. ${why(e)}`);
     }
-  }, [client, id]);
+  }, [client, offline, id]);
   useEffect(() => {
     load();
   }, [load]);
 
-  const run = async (change: Parameters<typeof save>[0], done?: string) => {
-    setError('');
-    try {
-      const out = await save(change);
-      setNote(out.status === 'queued' ? 'Saved on the phone. It goes to Odoo when signal is back.' : done ?? 'Saved in Odoo.');
-      await load();
-    } catch (e) {
-      setError(`Odoo said no: ${why(e)}`);
-    }
-  };
+  const set = (patch: Partial<Recipe>) => setDraft((d) => ({ ...d, ...patch }));
+  const setLine = (section: Section, key: string, patch: Partial<RecipeLine>) => setDraft((d) => ({ ...d, [section]: d[section].map((l) => (l.key === key ? { ...l, ...patch } : l)) }));
+  const changes = before ? recipeChanges(before, draft) : [];
+  const problems = recipeProblems(draft);
 
-  if (picking)
+  if (picking?.k === 'product')
     return (
       <ProductPicker
-        title="Add an ingredient"
-        onBack={() => setPicking(false)}
-        onPick={(p) => {
-          setAdding(p);
-          setAddQty('');
-          setPicking(false);
-        }}
-      />
-    );
-  if (!r)
-    return (
-      <Screen title="Recipe" testID="recipe-editor">
-        {error ? <ErrorText>{error}</ErrorText> : <Body muted>Loading…</Body>}
-        <Button label="Back" kind="plain" onPress={onBack} />
-      </Screen>
-    );
-  return (
-    <Screen title={r.name} testID="recipe-editor">
-      <Field label={`Makes how many ${r.unit}`.trim()} value={makes} onChangeText={setMakes} keyboardType="decimal-pad" testID="recipe-makes" />
-      <Button label="Save amount" kind="plain" disabled={!okNum(makes) || toNum(makes) === r.makes} onPress={() => run(setRecipeMakesChange(r, toNum(makes)))} testID="save-makes" />
-      <Card title="Ingredients">
-        {r.lines.map((l) => (
-          <Card key={l.id}>
-            <Field label={l.name} value={qty[l.id] ?? ''} onChangeText={(v) => setQty({ ...qty, [l.id]: v })} keyboardType="decimal-pad" testID={`line-qty-${l.id}`} />
-            <Button label="Save" kind="plain" disabled={!okNum(qty[l.id] ?? '') || toNum(qty[l.id]!) === l.qty} onPress={() => run(setLineQtyChange(r, l, toNum(qty[l.id]!)))} testID={`save-line-${l.id}`} />
-            <Button label="Remove" kind="danger" onPress={() => run(removeLineChange(r, l))} testID={`remove-line-${l.id}`} />
-          </Card>
-        ))}
-        {!r.lines.length ? <Body muted>No ingredients yet.</Body> : null}
-      </Card>
-      {adding ? (
-        <Card title={`Add ${adding.name}`}>
-          <Field label="How much" value={addQty} onChangeText={setAddQty} keyboardType="decimal-pad" testID="add-line-qty" />
-          <Button
-            label="Add to recipe"
-            disabled={!okNum(addQty)}
-            testID="add-line"
-            onPress={async () => {
-              await run(addLineChange(r, adding.id, adding.name, toNum(addQty)));
-              setAdding(null);
-            }}
-          />
-        </Card>
-      ) : (
-        <Button label="Add an ingredient" kind="plain" onPress={() => setPicking(true)} testID="pick-ingredient" />
-      )}
-      {error ? <ErrorText>{error}</ErrorText> : null}
-      {note ? <Body>{note}</Body> : null}
-      <Body muted>Batches already started keep the amounts they had.</Body>
-      <Button label="Back to recipes" kind="plain" onPress={onBack} />
-    </Screen>
-  );
-}
-
-function NewRecipe({ onBack }: { onBack: () => void }) {
-  const { client } = useOdoo();
-  const { save } = useQueue();
-  const [product, setProduct] = useState<ProductRow | null>(null);
-  const [makes, setMakes] = useState('');
-  const [lines, setLines] = useState<{ productId: number; name: string; qty: string }[]>([]);
-  const [picking, setPicking] = useState<'product' | 'line' | null>('product');
-  const [error, setError] = useState('');
-  const [busy, setBusy] = useState(false);
-
-  if (picking)
-    return (
-      <ProductPicker
-        title={picking === 'product' ? 'What does it make?' : 'Add an ingredient'}
-        onBack={() => (product ? setPicking(null) : onBack())}
-        onPick={(p) => {
-          if (picking === 'product') setProduct(p);
-          else setLines([...lines, { productId: p.id, name: p.name, qty: '' }]);
+        title="What does it make?"
+        onBack={() => (draft.templateId ? setPicking(null) : onBack())}
+        onPick={async (p) => {
+          if (!client) return;
+          const info = await productInfo(client, p.id);
+          set({ templateId: info.templateId, templateName: info.templateName, variantId: p.id, variantName: info.name, unitId: info.unit.id, unit: info.unit.name });
+          setVariants(await loadVariants(client, info.templateId));
           setPicking(null);
         }}
       />
     );
-  const ready = !!product && okNum(makes) && lines.length > 0 && lines.every((l) => okNum(l.qty));
+  if (picking?.k === 'add')
+    return (
+      <ProductPicker
+        title={picking.section === 'lines' ? 'Add an ingredient' : 'Add a by-product'}
+        onBack={() => setPicking(null)}
+        onPick={async (p) => {
+          if (!client) return;
+          const info = await productInfo(client, p.id);
+          const line: RecipeLine = { key: newKey(), id: null, productId: p.id, name: p.name, qty: '', unitId: info.unit.id, unit: info.unit.name, ...(picking.section === 'byproducts' ? { costShare: '' } : {}) };
+          setDraft((d) => ({ ...d, [picking.section]: [...d[picking.section], line] }));
+          setPicking(null);
+        }}
+      />
+    );
+  if (picking?.k === 'variant')
+    return (
+      <Choose
+        title="Product variant"
+        items={[{ id: 0, name: 'Any variant' }, ...variants]}
+        onPick={(v) => {
+          set({ variantId: v.id, variantName: v.id ? v.name : '' });
+          setPicking(null);
+        }}
+        onBack={() => setPicking(null)}
+      />
+    );
+  if (picking?.k === 'unit' || picking?.k === 'lineUnit') {
+    const target = picking;
+    return (
+      <Choose
+        title="Unit"
+        items={units}
+        onPick={(u) => {
+          if (target.k === 'unit') set({ unitId: u.id, unit: u.name });
+          else setLine(target.section, target.key, { unitId: u.id, unit: u.name });
+          setPicking(null);
+        }}
+        onBack={() => setPicking(null)}
+      />
+    );
+  }
+
+  if (id && !before)
+    return (
+      <Screen title="Recipe" testID="recipe-editor">
+        {error ? <ErrorText>{error}</ErrorText> : <Body muted>{offline ? 'No signal, so this recipe can’t be opened yet.' : 'Loading…'}</Body>}
+        <Button label="Back" kind="plain" onPress={onBack} />
+      </Screen>
+    );
+
+  const lineCards = (section: Section) =>
+    draft[section].map((l, i) => (
+      <Card key={l.key} testID={`${section}-${i}`}>
+        <Body>{l.name}</Body>
+        <Field label="Amount" value={l.qty} onChangeText={(v) => setLine(section, l.key, { qty: v })} keyboardType="decimal-pad" testID={`line-qty-${l.id ?? l.key}`} />
+        <Row title="Unit" value={l.unit || 'Choose'} onPress={() => setPicking({ k: 'lineUnit', section, key: l.key })} testID={`line-unit-${l.id ?? l.key}`} />
+        {section === 'byproducts' ? <Field label="Share of the cost, percent" value={l.costShare ?? ''} onChangeText={(v) => setLine(section, l.key, { costShare: v })} keyboardType="decimal-pad" testID={`line-share-${l.id ?? l.key}`} /> : null}
+        {section === 'lines' ? (
+          <>
+            <Button label="Move up" kind="plain" disabled={i === 0} onPress={() => setDraft((d) => ({ ...d, lines: moveLine(d.lines, i, -1) }))} testID={`up-${l.id ?? l.key}`} />
+            <Button label="Move down" kind="plain" disabled={i === draft.lines.length - 1} onPress={() => setDraft((d) => ({ ...d, lines: moveLine(d.lines, i, 1) }))} testID={`down-${l.id ?? l.key}`} />
+          </>
+        ) : null}
+        <Button label="Remove" kind="danger" onPress={() => setDraft((d) => ({ ...d, [section]: d[section].filter((x) => x.key !== l.key) }))} testID={`remove-line-${l.id ?? l.key}`} />
+      </Card>
+    ));
+
+  const canSave = !problems.length && !note && (id ? changes.length > 0 : true);
   return (
-    <Screen title={`New recipe: ${product?.name ?? ''}`} testID="new-recipe-screen">
-      <Field label="Makes how many" value={makes} onChangeText={setMakes} keyboardType="decimal-pad" testID="new-makes" />
-      {lines.map((l, i) => (
-        <Field key={`${l.productId}-${i}`} label={`${l.name}: how much`} value={l.qty} onChangeText={(v) => setLines(lines.map((x, j) => (j === i ? { ...x, qty: v } : x)))} keyboardType="decimal-pad" testID={`new-line-${i}`} />
+    <Screen title={draft.variantName || draft.templateName || 'New recipe'} testID="recipe-editor">
+      <Row title="Product" value={draft.templateName || 'Choose'} onPress={id ? undefined : () => setPicking({ k: 'product' })} testID="recipe-product" />
+      {variants.length > 1 || draft.variantId ? <Row title="Product variant" value={draft.variantName || 'Any variant'} onPress={() => setPicking({ k: 'variant' })} testID="recipe-variant" /> : null}
+      <Field label="Makes" value={draft.makes} onChangeText={(v) => set({ makes: v })} keyboardType="decimal-pad" testID="recipe-makes" />
+      <Row title="Unit it makes" value={draft.unit || 'Choose'} onPress={() => setPicking({ k: 'unit' })} testID="recipe-unit" />
+      <Field label="Reference (optional)" value={draft.code} onChangeText={(v) => set({ code: v })} testID="recipe-code" />
+      <Body>Type of recipe</Body>
+      <Segments<BomType> options={[{ id: 'normal', label: 'Made here' }, { id: 'phantom', label: 'Kit' }]} value={draft.type} onChange={(t) => set({ type: t })} testID="recipe-type" />
+      <Card title="Ingredients">
+        {lineCards('lines')}
+        {!draft.lines.length ? <Body muted>No ingredients yet.</Body> : null}
+        <Button label="Add an ingredient" kind="plain" onPress={() => setPicking({ k: 'add', section: 'lines' })} testID="pick-ingredient" />
+      </Card>
+      <Card title="By-products">
+        {lineCards('byproducts')}
+        {!draft.byproducts.length ? <Body muted>None.</Body> : null}
+        <Button label="Add a by-product" kind="plain" onPress={() => setPicking({ k: 'add', section: 'byproducts' })} testID="pick-byproduct" />
+      </Card>
+      {problems.map((p) => (
+        <Body key={p} muted>
+          {p}
+        </Body>
       ))}
-      <Button label="Add an ingredient" kind="plain" onPress={() => setPicking('line')} testID="new-add-ingredient" />
       {error ? <ErrorText>{error}</ErrorText> : null}
+      {note ? <Body>{note}</Body> : null}
+      <Body muted>Batches already started keep the amounts they had.</Body>
       <Button
-        label="Save recipe"
-        disabled={!ready}
+        label={id ? (changes.length ? `Save ${changes.length} change${changes.length > 1 ? 's' : ''}` : 'Nothing changed') : 'Save recipe'}
+        disabled={!canSave}
         busy={busy}
         testID="save-recipe"
         onPress={async () => {
-          if (!client || !product) return;
           setBusy(true);
           setError('');
           try {
-            await save(await newRecipeChange(client, product.id, product.name, toNum(makes), lines.map((l) => ({ productId: l.productId, qty: toNum(l.qty) }))));
-            onBack();
+            let queued = false;
+            for (const ch of before ? changes : [newRecipeChange(draft)]) if ((await save(ch)).status === 'queued') queued = true;
+            setNote(queued ? 'Saved on the phone. It goes to Odoo when signal is back.' : 'Saved in Odoo.');
+            setTimeout(onBack, 1000);
           } catch (e) {
             setError(`Odoo said no: ${why(e)}`);
           } finally {
@@ -234,7 +246,8 @@ function NewRecipe({ onBack }: { onBack: () => void }) {
           }
         }}
       />
-      <Button label="Cancel" kind="plain" onPress={onBack} />
+      {before && changes.length ? <Button label="Discard my changes" kind="plain" onPress={() => setDraft(before)} testID="discard-recipe" /> : null}
+      <Button label="Back to recipes" kind="plain" onPress={onBack} />
     </Screen>
   );
 }

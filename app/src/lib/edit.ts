@@ -18,63 +18,6 @@ type Client = Pick<OdooClient, 'call'>;
 const nameOf = (v: unknown): string => (Array.isArray(v) && typeof v[1] === 'string' ? v[1] : '');
 const token = (now: number) => `food-app-${now.toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
 
-// ---------------------------------------------------------------- recipes
-
-export interface RecipeLineRow {
-  id: number;
-  productId: number;
-  name: string;
-  qty: number;
-}
-
-export interface RecipeDetail {
-  id: number;
-  name: string;
-  productId: number;
-  makes: number;
-  unit: string;
-  lines: RecipeLineRow[];
-}
-
-export async function loadRecipeDetail(c: Client, bomId: number): Promise<RecipeDetail | null> {
-  const [b] = (await c.call('mrp.bom', 'read', [[bomId]], { fields: ['product_tmpl_id', 'product_id', 'product_qty', 'product_uom_id', 'bom_line_ids'] })) as Record<string, unknown>[];
-  if (!b) return null;
-  const ids = (b.bom_line_ids as number[]) ?? [];
-  const lines = ids.length ? ((await c.call('mrp.bom.line', 'read', [ids], { fields: ['product_id', 'product_qty'] })) as Record<string, unknown>[]) : [];
-  return {
-    id: bomId,
-    name: nameOf(b.product_id) || nameOf(b.product_tmpl_id),
-    productId: m2oId(b.product_id),
-    makes: Number(b.product_qty ?? 1),
-    unit: nameOf(b.product_uom_id),
-    lines: lines.map((l) => ({ id: l.id as number, productId: m2oId(l.product_id), name: nameOf(l.product_id), qty: Number(l.product_qty ?? 0) })),
-  };
-}
-
-export const setRecipeMakesChange = (r: Pick<RecipeDetail, 'id' | 'name'>, qty: number): NewChange => ({ label: `Recipe ${r.name} makes ${qty}`, model: 'mrp.bom', method: 'write', args: [[r.id], { product_qty: qty }] });
-export const setLineQtyChange = (r: Pick<RecipeDetail, 'name'>, l: RecipeLineRow, qty: number): NewChange => ({ label: `${r.name}: ${l.name} ${qty}`, model: 'mrp.bom.line', method: 'write', args: [[l.id], { product_qty: qty }] });
-export const removeLineChange = (r: Pick<RecipeDetail, 'name'>, l: RecipeLineRow): NewChange => ({ label: `${r.name}: remove ${l.name}`, model: 'mrp.bom.line', method: 'unlink', args: [[l.id]] });
-export const addLineChange = (r: Pick<RecipeDetail, 'id' | 'name'>, productId: number, productName: string, qty: number): NewChange => ({
-  label: `${r.name}: add ${productName} ${qty}`,
-  model: 'mrp.bom.line',
-  method: 'create',
-  args: [{ bom_id: r.id, product_id: productId, product_qty: qty }],
-  already: { model: 'mrp.bom.line', domain: [['bom_id', '=', r.id], ['product_id', '=', productId]] },
-});
-
-/** A new recipe for a product: how many it makes and its ingredients. */
-export async function newRecipeChange(c: Client, productId: number, productName: string, makes: number, lines: { productId: number; qty: number }[], now = Date.now()): Promise<NewChange> {
-  const [p] = (await c.call('product.product', 'read', [[productId]], { fields: ['product_tmpl_id'] })) as Record<string, unknown>[];
-  const code = token(now);
-  return {
-    label: `New recipe: ${productName}`,
-    model: 'mrp.bom',
-    method: 'create',
-    args: [{ product_tmpl_id: m2oId(p?.product_tmpl_id), product_id: productId, product_qty: makes, type: 'normal', code, bom_line_ids: lines.map((l) => [0, 0, { product_id: l.productId, product_qty: l.qty }]) }],
-    already: { model: 'mrp.bom', domain: [['code', '=', code]] },
-  };
-}
-
 // --------------------------------------------------------------- products
 
 export interface ProductDetail {

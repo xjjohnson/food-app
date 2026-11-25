@@ -28,7 +28,7 @@ const okMoney = (t: string) => t.trim() !== '' && Number.isFinite(toNum(t)) && t
 const money = (n: number) => n.toFixed(2);
 
 /** Picks one of a short list (a category or a unit of measure). */
-function Choose({ title, items, onPick, onBack }: { title: string; items: Named[]; onPick: (n: Named) => void; onBack: () => void }) {
+export function Choose({ title, items, onPick, onBack }: { title: string; items: Named[]; onPick: (n: Named) => void; onBack: () => void }) {
   return (
     <Screen title={title} testID="choose-screen">
       {items.map((i) => (

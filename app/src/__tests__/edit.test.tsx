@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, fireEvent, screen } from '@testing-library/react-native';
 import { renderRouter } from 'expo-router/testing-library';
 import { setDbKind } from '../lib/dbSwitch';
-import { addLineChange, editContactChange, editLotChange, editProductChange, loadProductDetail, loadRecipeDetail, newContactChange, newProductChange, newRecipeChange, removeLineChange, searchContacts, setLineQtyChange, setRecipeMakesChange } from '../lib/edit';
+import { editContactChange, editLotChange, editProductChange, loadProductDetail, newContactChange, newProductChange, searchContacts } from '../lib/edit';
 import { ODOO_STORAGE_KEY, OdooClient } from '../lib/odoo';
 import { loadQueue, saveOrQueue, sendQueue } from '../lib/queue';
 import { deviceSecrets } from '../lib/secrets';
@@ -17,7 +17,7 @@ function kitchen(odoo: FakeOdoo) {
   const tmpl = odoo.tables['product.template']!;
   odoo.tables['product.template'] = [...tmpl, { id: 20, name: 'Cookies', list_price: 12 }];
   const bom = odoo.create('mrp.bom', { product_tmpl_id: [20, 'Cookies'], product_id: [cookie, 'Cookies'], product_qty: 48, product_uom_id: [1, 'Units'], type: 'normal', bom_line_ids: [] });
-  const l1 = odoo.create('mrp.bom.line', { bom_id: bom, product_id: [flour, 'Flour'], product_qty: 3 });
+  const l1 = odoo.create('mrp.bom.line', { bom_id: bom, product_id: [flour, 'Flour'], product_qty: 3, product_uom_id: [1, 'Units'], sequence: 10 });
   odoo.tables['mrp.bom']![0]!.bom_line_ids = [l1];
   return { flour, sugar, cookie, bom, l1 };
 }
@@ -25,37 +25,6 @@ function kitchen(odoo: FakeOdoo) {
 const client = (odoo: FakeOdoo) => OdooClient.signIn(odoo.fetch, { url: URL, db: 'food-test', login: 'baker@example.com' }, 'key');
 
 describe('adding and changing things', () => {
-  test('a recipe can be changed, extended and trimmed, and a new one made', async () => {
-    const { odoo } = bakery();
-    const k = kitchen(odoo);
-    const c = await client(odoo);
-    let r = (await loadRecipeDetail(c, k.bom))!;
-    await saveOrQueue(c, AsyncStorage, DB, 1, setRecipeMakesChange(r, 96));
-    await saveOrQueue(c, AsyncStorage, DB, 1, setLineQtyChange(r, r.lines[0]!, 5));
-    await saveOrQueue(c, AsyncStorage, DB, 1, addLineChange(r, k.sugar, 'Sugar', 2));
-    r = (await loadRecipeDetail(c, k.bom))!;
-    expect(r.makes).toBe(96);
-    expect(r.lines.map((l) => [l.name, l.qty])).toEqual([['Flour', 5], ['Sugar', 2]]);
-    await saveOrQueue(c, AsyncStorage, DB, 1, removeLineChange(r, r.lines[0]!));
-    expect((await loadRecipeDetail(c, k.bom))!.lines.map((l) => l.name)).toEqual(['Sugar']);
-    await saveOrQueue(c, AsyncStorage, DB, 1, await newRecipeChange(c, k.sugar, 'Sugar', 10, [{ productId: k.flour, qty: 1 }]));
-    expect(odoo.tables['mrp.bom']).toHaveLength(2);
-  });
-
-  test('a new recipe made without signal is sent once', async () => {
-    const { odoo } = bakery();
-    const k = kitchen(odoo);
-    const c = await client(odoo);
-    const change = await newRecipeChange(c, k.sugar, 'Sugar', 10, [{ productId: k.flour, qty: 1 }]);
-    odoo.offline = true;
-    expect((await saveOrQueue(c, AsyncStorage, DB, 1, change)).status).toBe('queued');
-    odoo.offline = false;
-    await sendQueue(c, AsyncStorage, DB);
-    await sendQueue(c, AsyncStorage, DB);
-    expect(odoo.tables['mrp.bom']).toHaveLength(2);
-    expect(await loadQueue(AsyncStorage)).toHaveLength(0);
-  });
-
   test('products: change the price and shelf life; add a new one without turning on tracking', async () => {
     const { odoo } = bakery();
     const k = kitchen(odoo);
@@ -91,7 +60,7 @@ describe('adding and changing things', () => {
 });
 
 describe('edit screens', () => {
-  test('a baker changes an ingredient amount in a recipe from the app', async () => {
+  test('a baker changes an ingredient amount and saves the whole recipe once', async () => {
     await AsyncStorage.clear();
     const { odoo } = bakery();
     const k = kitchen(odoo);
@@ -110,9 +79,12 @@ describe('edit screens', () => {
     await fireEvent.press(await screen.findByTestId(`recipe-edit-${k.bom}`));
     await settle();
     await fireEvent.changeText(await screen.findByTestId(`line-qty-${k.l1}`), '4');
-    await fireEvent.press(screen.getByTestId(`save-line-${k.l1}`));
+    await fireEvent.changeText(screen.getByTestId('recipe-makes'), '60');
+    await fireEvent.changeText(screen.getByTestId('recipe-code'), 'COOK-1');
+    await fireEvent.press(screen.getByTestId('save-recipe'));
     await settle();
     expect(odoo.tables['mrp.bom.line']!.find((l) => l.id === k.l1)!.product_qty).toBe(4);
+    expect(odoo.tables['mrp.bom']![0]).toMatchObject({ product_qty: 60, code: 'COOK-1' });
   });
 
   test('a seller adds a customer from the app', async () => {
