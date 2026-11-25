@@ -44,6 +44,9 @@ export class FakeOdoo {
     'stock.quant': [],
     'stock.scrap': [],
     'product.template': [],
+    'product.category': [],
+    'uom.uom': [],
+    'account.tax': [],
     'pos.config': [],
     'pos.payment.method': [],
     'stock.warehouse.orderpoint': [],
@@ -150,6 +153,12 @@ export class FakeOdoo {
       case 'create': {
         const vals = { ...(args[0] as Record<string, unknown>) };
         if (model === 'mrp.production') return this.createBatch(vals);
+        if (model === 'product.supplierinfo') {
+          const id = this.create(model, { ...vals, partner_id: [vals.partner_id, String(this.tables['res.partner']!.find((x) => x.id === vals.partner_id)?.name ?? '')] });
+          const t = this.tables['product.template']!.find((x) => x.id === vals.product_tmpl_id);
+          if (t) t.seller_ids = [...((t.seller_ids as number[]) ?? []), id];
+          return id;
+        }
         if (model === 'mrp.bom.line') {
           const prod = this.tables['product.product']!.find((x) => x.id === vals.product_id);
           const id = this.create(model, { ...vals, product_id: [vals.product_id, prod?.name ?? ''] });
@@ -162,6 +171,7 @@ export class FakeOdoo {
       case 'unlink': {
         const ids = args[0] as number[];
         this.tables[model] = table.filter((x) => !ids.includes(x.id));
+        if (model === 'product.supplierinfo') for (const t of this.tables['product.template']!) t.seller_ids = ((t.seller_ids as number[]) ?? []).filter((x) => !ids.includes(x));
         if (model === 'mrp.bom.line') for (const b of this.tables['mrp.bom']!) b.bom_line_ids = ((b.bom_line_ids as number[]) ?? []).filter((x) => !ids.includes(x));
         return true;
       }
@@ -219,6 +229,8 @@ export class FakeOdoo {
                 if (op === 3) cur.delete(id);
               }
               r.category_ids = [...cur];
+            } else if (k === 'supplier_taxes_id' && Array.isArray(v)) {
+              for (const [op, , ids] of v as [number, number, number[]][]) if (op === 6) r.supplier_taxes_id = ids;
             } else if (k === 'move_line_ids' && Array.isArray(v)) {
               let cur = (r.move_line_ids as number[]) ?? [];
               for (const [op, a, vals] of v as [number, number, Record<string, unknown>][]) {

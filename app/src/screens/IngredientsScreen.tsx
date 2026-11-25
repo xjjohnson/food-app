@@ -3,19 +3,22 @@ import { Body, Button, Card, ErrorText, Field, Row, Screen } from '../components
 import { Arrived, checkInChanges, loadReceiptLines, loadReceipts, loadRules, LowItem, newSupplierChange, placeOrderChange, Receipt, ReceiptLine, searchSuppliers, setLevelsChange, Supplier, usualSuppliers } from '../lib/ingredients';
 import { fmtQty, isDate } from '../lib/production';
 import { searchProducts } from '../lib/stock';
+import { IngredientListScreen } from './IngredientListScreen';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const toNum = (t: string) => Number(t.replace(',', '.'));
 
-type Page = { p: 'menu' } | { p: 'low' } | { p: 'order'; item: LowItem } | { p: 'levels'; item?: LowItem } | { p: 'receipts' } | { p: 'checkin'; receipt: Receipt };
+type Page = { p: 'menu' } | { p: 'list' } | { p: 'low' } | { p: 'order'; item: LowItem } | { p: 'levels'; item?: LowItem } | { p: 'receipts' } | { p: 'checkin'; receipt: Receipt };
 
 /** Ingredients: what is running low, ordering, and checking deliveries in. */
 export function IngredientsScreen() {
   const [page, setPage] = useState<Page>({ p: 'menu' });
   const menu = () => setPage({ p: 'menu' });
   switch (page.p) {
+    case 'list':
+      return <IngredientListScreen onBack={menu} />;
     case 'low':
       return <Low onBack={menu} onOrder={(item) => setPage({ p: 'order', item })} onLevels={(item) => setPage({ p: 'levels', item })} />;
     case 'order':
@@ -29,6 +32,7 @@ export function IngredientsScreen() {
   }
   return (
     <Screen title="Ingredients" testID="ingredients-screen">
+      <Row title="Ingredient list" detail="See, add and change ingredients, their cost and vendors" onPress={() => setPage({ p: 'list' })} testID="ing-list" />
       <Row title="Running low" detail="What to order, and the levels that mean low" onPress={() => setPage({ p: 'low' })} testID="ing-low" />
       <Row title="Check in a delivery" detail="Record what arrived, with batch numbers and use-by dates" onPress={() => setPage({ p: 'receipts' })} testID="ing-receipts" />
     </Screen>
