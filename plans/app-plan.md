@@ -1,6 +1,6 @@
 # Food app plan (for approval)
 
-Status: **draft, waiting for Justin's approval.** Nothing gets built until this is approved.
+Status: **approved by Justin on 2026-11-25.** Build starts with step 1, the foundation.
 Written 2026-11-25 from Justin's answers in the project thread.
 
 ## What we're building
@@ -102,7 +102,7 @@ The garage door features themselves (springs, door jobs, field service) don't ca
 
 ## Answers from Justin (2026-11-25)
 
-1. Plan and build order: waiting for a clear yes.
+1. Plan and build order: approved, starting with the foundation as its own pull request.
 2. Market sales: open Odoo's Point of Sale from the app.
 3. Payment methods: cash, Cash App, Venmo.
 4. Suggestions 7 to 10: keep all four.
