@@ -31,6 +31,37 @@ export async function lookupProducts(c: Client, text: string): Promise<ProductCa
   }));
 }
 
+export interface ProductGroup {
+  /** The product (template) id. */
+  id: number;
+  name: string;
+  price: number | null;
+  /** Total on hand across all its variants, as Odoo adds it up. */
+  onHand: number;
+  variants: number;
+  photo: string;
+}
+
+/** One row per product, however many variants it has. */
+export async function lookupGroups(c: Client, text: string): Promise<ProductGroup[]> {
+  const rows = (await c.call('product.template', 'search_read', [text.trim() ? [['name', 'ilike', text.trim()]] : []], { fields: ['name', 'list_price', 'qty_available', 'product_variant_count', 'image_128'], order: 'name asc', limit: 25 })) as Record<string, unknown>[];
+  return rows.map((r) => ({
+    id: r.id as number,
+    name: String(r.name),
+    price: typeof r.list_price === 'number' ? r.list_price : null,
+    onHand: Number(r.qty_available ?? 0),
+    variants: Number(r.product_variant_count ?? 1),
+    photo: typeof r.image_128 === 'string' ? r.image_128 : '',
+  }));
+}
+
+/** Stock by batch for all of a product's variants, soonest use-by first. */
+export async function stockByBatchOf(c: Client, templateId: number): Promise<LotStock[]> {
+  const vs = (await c.call('product.product', 'search', [[['product_tmpl_id', '=', templateId]]])) as number[];
+  if (!vs.length) return [];
+  return (await loadLotStock(c, vs)).sort((a, b) => (a.useBy || '9999').localeCompare(b.useBy || '9999'));
+}
+
 /** Stock by batch, soonest use-by first. */
 export async function stockByBatch(c: Client, productId: number): Promise<LotStock[]> {
   return (await loadLotStock(c, productId)).sort((a, b) => (a.useBy || '9999').localeCompare(b.useBy || '9999'));

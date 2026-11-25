@@ -86,8 +86,8 @@ export async function loadPackLines(c: Client, pickingId: number): Promise<PackL
 }
 
 /** The batches on the shelves for a product, with their use-by dates. Products with no batch numbers give an empty list. */
-export async function loadLotStock(c: Client, productId: number): Promise<LotStock[]> {
-  const quants = (await c.call('stock.quant', 'search_read', [[['product_id', '=', productId], ['location_id.usage', '=', 'internal'], ['quantity', '>', 0], ['lot_id', '!=', false]]], { fields: ['lot_id', 'quantity'] })) as Record<string, unknown>[];
+export async function loadLotStock(c: Client, productId: number | number[]): Promise<LotStock[]> {
+  const quants = (await c.call('stock.quant', 'search_read', [[Array.isArray(productId) ? ['product_id', 'in', productId] : ['product_id', '=', productId], ['location_id.usage', '=', 'internal'], ['quantity', '>', 0], ['lot_id', '!=', false]]], { fields: ['lot_id', 'quantity'] })) as Record<string, unknown>[];
   const byLot = new Map<number, number>();
   for (const q of quants) byLot.set(m2oId(q.lot_id), (byLot.get(m2oId(q.lot_id)) ?? 0) + Number(q.quantity ?? 0));
   if (!byLot.size) return [];

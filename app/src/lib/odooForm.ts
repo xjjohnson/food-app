@@ -21,7 +21,7 @@ export interface Rel {
 
 export type Val = boolean | string | Rel | null | Rel[];
 
-export type Kind = 'bool' | 'text' | 'long' | 'num' | 'whole' | 'select' | 'one' | 'many' | 'html' | 'date';
+export type Kind = 'bool' | 'text' | 'long' | 'num' | 'whole' | 'select' | 'one' | 'many' | 'html' | 'date' | 'color';
 
 export interface FieldDef {
   name: string;
@@ -76,6 +76,12 @@ const strip = (html: string) =>
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .trim();
+/** Odoo's own colors for the numbers 0 to 11, as the tag and kanban colors show them. */
+export const ODOO_COLORS = ['#d8d8d8', '#e85c5c', '#f29c48', '#f1d34b', '#6ec1e4', '#7d4a8f', '#ef8aa6', '#3f7fc4', '#1f4e8c', '#d34ca3', '#4fb06b', '#9b59d0'];
+export const COLOR_NAMES = ['None', 'Red', 'Orange', 'Yellow', 'Light blue', 'Dark purple', 'Pink', 'Blue', 'Dark blue', 'Fuchsia', 'Green', 'Purple'];
+
+/** True when the text is HTML that Odoo kept in a plain text field. */
+export const looksLikeHtml = (t: string) => /<\/?(div|p|br|span|ul|ol|li|b|i|u|strong|em|h[1-6]|table|a)\b/i.test(t);
 const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const toHtml = (t: string) =>
   t
@@ -111,8 +117,9 @@ export async function loadDraft(c: Client, model: string, id: number, defs: Fiel
     else if (d.kind === 'one') out[d.name] = m2oId(v) ? { id: m2oId(v), name: nameOf(v) } : null;
     else if (d.kind === 'many') out[d.name] = await relNames(c, d.relation!, Array.isArray(v) ? (v as number[]) : []);
     else if (d.kind === 'html') out[d.name] = typeof v === 'string' ? strip(v) : '';
+    else if (d.kind === 'long' && typeof v === 'string' && looksLikeHtml(v)) out[d.name] = strip(v);
     else if (d.kind === 'date') out[d.name] = typeof v === 'string' ? v.slice(0, 10) : '';
-    else if (d.kind === 'num' || d.kind === 'whole') out[d.name] = v === false || v === undefined || v === null ? '' : String(v);
+    else if (d.kind === 'num' || d.kind === 'whole' || d.kind === 'color') out[d.name] = v === false || v === undefined || v === null ? '' : String(v);
     else out[d.name] = typeof v === 'string' ? v : '';
   }
   return out;
@@ -138,6 +145,7 @@ function sendValue(d: FieldDef, v: Val): unknown {
       return [[6, 0, (v as Rel[]).map((x) => x.id)]];
     case 'num':
     case 'whole':
+    case 'color':
       return String(v).trim() === '' ? 0 : numOf(String(v));
     case 'html':
       return String(v).trim() ? toHtml(String(v)) : false;

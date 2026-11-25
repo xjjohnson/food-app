@@ -14,9 +14,9 @@ const client = (odoo: FakeOdoo) => OdooClient.signIn(odoo.fetch, { url: URL, db:
 function jam(odoo: FakeOdoo) {
   odoo.declared['product.template'] = allFields(PRODUCT_SECTIONS).map((f) => f.name).filter((n) => !['to_weight', 'pos_categ_ids', 'color', 'public_description', 'pos_optional_product_ids', 'is_published'].includes(n));
   const tax = odoo.create('account.tax', { name: 'Sales 8.25%', type_tax_use: 'sale' });
-  odoo.tables['product.template'] = [{ id: 30, name: 'Apricot Freezer Jam', list_price: 8, sale_ok: true, is_storable: false, tracking: 'none', use_expiration_date: false, expiration_time: 0, taxes_id: [] }];
+  odoo.tables['product.template'] = [{ id: 30, name: 'Apricot Freezer Jam', list_price: 8, sale_ok: true, is_storable: false, tracking: 'none', use_expiration_date: false, expiration_time: 0, taxes_id: [], qty_available: 3, product_variant_count: 1 }];
   const prod = odoo.create('product.product', { name: 'Apricot Freezer Jam', display_name: 'Apricot Freezer Jam', product_tmpl_id: [30, 'Apricot Freezer Jam'], list_price: 8, qty_available: 3 });
-  return { tax, prod };
+  return { tax, prod, tmpl: 30 };
 }
 
 describe('Odoo forms', () => {
@@ -70,9 +70,9 @@ describe('product screen', () => {
     };
     await renderRouter('src/app', { initialUrl: '/lookup' });
     await settle();
-    await fireEvent.press(await screen.findByTestId(`open-product-${k.prod}`));
+    await fireEvent.press(await screen.findByTestId(`open-product-${k.tmpl}`));
     await settle();
-    await fireEvent.press(screen.getByTestId(`edit-product-${k.prod}`));
+    await fireEvent.press(screen.getByTestId(`edit-product-${k.tmpl}`));
     await settle();
     await fireEvent.press(await screen.findByTestId('form-tabs-stock'));
     await fireEvent(screen.getByTestId('f-is_storable'), 'valueChange', true);

@@ -4,11 +4,12 @@
  * buttons stay big, so they work with floury hands and in a busy market.
  */
 import { router } from 'expo-router';
-import { ReactNode } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, TextInputProps, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Palette } from '../lib/palette';
 import { runInnerBack } from '../lib/innerBack';
+import { log } from '../lib/log';
 import { useBrand, useStyles } from '../lib/useBrand';
 
 export const TOUCH = 52;
@@ -58,6 +59,10 @@ export function useUi() {
 export function Screen({ title, back = true, children, right, testID }: { title: string; back?: boolean; children: ReactNode; right?: ReactNode; testID?: string }) {
   const s = useUi();
   const { brand } = useBrand();
+  // A trail of screens in the log: the id of the screen, not what is on it.
+  useEffect(() => {
+    log.info('screen', testID ?? title);
+  }, [testID, title]);
   return (
     <SafeAreaView style={s.page} edges={['top', 'left', 'right']} testID={testID}>
       <View style={s.head}>
@@ -103,6 +108,11 @@ export function Body({ children, muted }: { children: ReactNode; muted?: boolean
 
 export function ErrorText({ children }: { children: ReactNode }) {
   const s = useUi();
+  // What the person saw goes in the log too, so the log shows why a screen failed.
+  const text = typeof children === 'string' ? children : Array.isArray(children) ? children.filter((c) => typeof c === 'string').join('') : '';
+  useEffect(() => {
+    if (text) log.warn('screen', `shown: ${text}`);
+  }, [text]);
   return (
     <Text style={s.error} accessibilityRole="alert">
       {children}

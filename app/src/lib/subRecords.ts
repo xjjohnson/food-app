@@ -24,6 +24,8 @@ export interface SubSpec {
   titleColumn: string;
   /** Domain that tells a line was already added (so it isn't added twice). */
   already: (d: Draft, base: Record<string, unknown>) => unknown[];
+  /** Said in plain words when this Odoo has no such model (it is off, or named differently). */
+  missingNote?: string;
 }
 
 export interface SubRow {
@@ -136,4 +138,8 @@ export const PACKAGINGS: SubSpec = {
   required: ['name', 'qty'],
   titleColumn: 'name',
   already: (d, base) => [['product_id', '=', base.product_id], ['name', '=', String(d.name ?? '').trim()]],
+  missingNote: 'This Odoo has no Packagings list. Packagings may be off in Inventory settings, or kept somewhere else in Odoo 19. Set them up in Odoo for now.',
 };
+
+/** True when Odoo's answer says the model isn't there at all. */
+export const modelMissing = (message: string) => /doesn.t exist|does not exist|Unknown model|KeyError/i.test(message);

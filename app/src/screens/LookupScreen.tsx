@@ -2,7 +2,7 @@ import { useInnerBack } from '../lib/innerBack';
 import { useEffect, useState } from 'react';
 import { Image } from 'react-native';
 import { Body, Button, Card, ErrorText, Field, Row, Screen } from '../components/ui';
-import { currencySymbol, lookupProducts, ProductCard, stockByBatch } from '../lib/lookup';
+import { currencySymbol, lookupGroups, ProductGroup, stockByBatchOf } from '../lib/lookup';
 import type { LotStock } from '../lib/orders';
 import { fmtQty } from '../lib/production';
 import { useOdoo } from '../lib/useOdoo';
@@ -12,7 +12,7 @@ import { ProductForm } from './ProductForm';
 export function LookupScreen() {
   const { client, offline } = useOdoo();
   const [text, setText] = useState('');
-  const [items, setItems] = useState<ProductCard[]>([]);
+  const [items, setItems] = useState<ProductGroup[]>([]);
   const [open, setOpen] = useState<number | null>(null);
   const [batches, setBatches] = useState<LotStock[] | null>(null);
   const [symbol, setSymbol] = useState('');
@@ -28,24 +28,24 @@ export function LookupScreen() {
   useEffect(() => {
     if (!client || offline) return;
     const t = setTimeout(() => {
-      lookupProducts(client, text)
+      lookupGroups(client, text)
         .then(setItems)
         .catch((e) => setError(`Couldn’t read products from Odoo. ${e instanceof Error ? e.message : String(e)}`));
     }, 250);
     return () => clearTimeout(t);
   }, [client, offline, text, tick]);
 
-  const show = async (p: ProductCard) => {
+  const show = async (p: ProductGroup) => {
     if (open === p.id) return setOpen(null);
     setOpen(p.id);
     setBatches(null);
-    if (client) setBatches(await stockByBatch(client, p.id).catch(() => []));
+    if (client) setBatches(await stockByBatchOf(client, p.id).catch(() => []));
   };
 
   if (form)
     return (
       <ProductForm
-        productId={form.id}
+        templateId={form.id}
         onBack={() => {
           setForm(null);
           setTick((n) => n + 1);
@@ -60,7 +60,7 @@ export function LookupScreen() {
       <Button label="Add a product" kind="plain" onPress={() => setForm({})} testID="add-product" />
       {items.map((p) => (
         <Card key={p.id} testID={`product-${p.id}`}>
-          <Row title={p.name} detail={`${fmtQty(p.onHand)} in stock`} value={p.price === null ? '' : `${symbol}${p.price.toFixed(2)}`} onPress={() => show(p)} testID={`open-product-${p.id}`} />
+          <Row title={p.name} detail={`${fmtQty(p.onHand)} in stock${p.variants > 1 ? ` · ${p.variants} variants` : ''}`} value={p.price === null ? '' : `${symbol}${p.price.toFixed(2)}`} onPress={() => show(p)} testID={`open-product-${p.id}`} />
           {open === p.id ? (
             <>
               <Button label="Open and change this product" kind="plain" onPress={() => setForm({ id: p.id })} testID={`edit-product-${p.id}`} />

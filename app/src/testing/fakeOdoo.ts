@@ -292,7 +292,7 @@ export class FakeOdoo {
       }
       case 'fields_get': {
         if (model === 'mrp.production') return Object.fromEntries(this.batchFields.map((f) => [f, {}]));
-        if (model === 'product.product') return Object.fromEntries(this.productFields.map((f) => [f, {}]));
+        if (model === 'product.product') return Object.fromEntries([...this.productFields, ...(this.declared[model] ?? [])].map((f) => [f, {}]));
         if (model === 'product.template') return Object.fromEntries([...this.templateFields, ...(this.declared[model] ?? []), ...table.flatMap((r) => Object.keys(r))].map((f) => [f, {}]));
         return Object.fromEntries([...(this.declared[model] ?? []), ...table.flatMap((r) => Object.keys(r))].map((f) => [f, {}]));
       }

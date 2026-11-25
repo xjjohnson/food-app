@@ -60,6 +60,9 @@ export function guessDb(url: string): string {
 
 let rpcId = 0;
 
+/** A call this slow is logged even if it is a quick kind of read. */
+const SLOW_CALL_MS = 2000;
+
 /** What a call was, for the log: "mrp.production.create" or "sign in". Never what was sent. */
 function callName(service: string, method: string, args: unknown[]): string {
   if (service === 'object' && typeof args[3] === 'string' && typeof args[4] === 'string') return `${args[3]}.${args[4]}`;
@@ -72,10 +75,13 @@ async function rpc(fetchFn: Fetch, url: string, service: string, method: string,
   const started = Date.now();
   try {
     const result = await rpcOnce(fetchFn, url, service, method, args);
-    log.info('odoo', `${name} ok ${Date.now() - started} ms`);
+    const ms = Date.now() - started;
+    // Quick reads are left out: hundreds of them hide what matters. Writes, slow calls and failures stay.
+    const quickRead = /\.(search_read|read|search_count|search|fields_get|has_group|name_search|name_get)$/.test(name);
+    if (!quickRead || ms >= SLOW_CALL_MS) log.info('odoo', `${name} ok ${ms} ms${ms >= SLOW_CALL_MS ? ' (slow)' : ''}`);
     return result;
   } catch (e) {
-    log.warn('odoo', `${name} failed after ${Date.now() - started} ms: ${e instanceof Error ? e.message : String(e)}`);
+    log.error('odoo', `${name} failed after ${Date.now() - started} ms: ${e instanceof Error ? e.message : String(e)}`);
     throw e;
   }
 }
