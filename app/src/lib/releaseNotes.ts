@@ -11,6 +11,20 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.7',
+    changes: ['Add and change things in the app: recipes (amounts, ingredients, new recipes), products (name, price, shelf life), customers and suppliers, and a batch’s number or use-by date.'],
+    test: [
+      'Production, then Recipes: open a recipe, change an ingredient amount, tap Save. In Odoo the recipe shows the new amount.',
+      'Add an ingredient to a recipe, then remove it again.',
+      'Tap New recipe: pick the product, how many it makes, add ingredients, Save recipe. It shows in Odoo, Manufacturing, Bills of Materials.',
+      'Find a product, then Add a product: give a name and price. It appears in Odoo (turn on Track Inventory in Odoo if you count stock for it).',
+      'Open a product and tap Change name, price or shelf life. Check the new price in Odoo.',
+      'Home, Customers and suppliers: add a contact and change one. Check them in Odoo, Contacts.',
+      'Stock, Find a batch: open a batch and change its use-by date. Check it in Odoo, Inventory, Lots.',
+      'Turn on Pretend offline, change an amount, turn it off: it goes to Odoo by itself.',
+    ],
+  },
+  {
     release: '0.1.6',
     changes: ['Home: a Today card with what is waiting for you, and Find a product (price, photo and stock by batch).'],
     test: [

@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Image } from 'react-native';
-import { Body, Card, ErrorText, Field, Row, Screen } from '../components/ui';
+import { Body, Button, Card, ErrorText, Field, Row, Screen } from '../components/ui';
 import { currencySymbol, lookupProducts, ProductCard, stockByBatch } from '../lib/lookup';
 import type { LotStock } from '../lib/orders';
 import { fmtQty } from '../lib/production';
 import { useOdoo } from '../lib/useOdoo';
+import { ProductForm } from './ProductForm';
 
 /** Product lookup: price, photo and stock by batch, from Odoo. */
 export function LookupScreen() {
@@ -15,6 +16,8 @@ export function LookupScreen() {
   const [batches, setBatches] = useState<LotStock[] | null>(null);
   const [symbol, setSymbol] = useState('');
   const [error, setError] = useState('');
+  const [form, setForm] = useState<{ id?: number } | null>(null);
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
     if (client && !offline) currencySymbol(client, client.session.companyId).then(setSymbol);
@@ -28,7 +31,7 @@ export function LookupScreen() {
         .catch((e) => setError(`Couldn’t read products from Odoo. ${e instanceof Error ? e.message : String(e)}`));
     }, 250);
     return () => clearTimeout(t);
-  }, [client, offline, text]);
+  }, [client, offline, text, tick]);
 
   const show = async (p: ProductCard) => {
     if (open === p.id) return setOpen(null);
@@ -37,15 +40,28 @@ export function LookupScreen() {
     if (client) setBatches(await stockByBatch(client, p.id).catch(() => []));
   };
 
+  if (form)
+    return (
+      <ProductForm
+        productId={form.id}
+        onBack={() => {
+          setForm(null);
+          setTick((n) => n + 1);
+        }}
+      />
+    );
+
   return (
     <Screen title="Find a product" testID="lookup-screen">
       {offline ? <Body muted>No signal. Product details come from Odoo, so they show when the phone is back online.</Body> : <Field label="Product" value={text} onChangeText={setText} testID="lookup-text" />}
       {error ? <ErrorText>{error}</ErrorText> : null}
+      <Button label="Add a product" kind="plain" onPress={() => setForm({})} testID="add-product" />
       {items.map((p) => (
         <Card key={p.id} testID={`product-${p.id}`}>
           <Row title={p.name} detail={`${fmtQty(p.onHand)} in stock`} value={p.price === null ? '' : `${symbol}${p.price.toFixed(2)}`} onPress={() => show(p)} />
           {open === p.id ? (
             <>
+              <Button label="Change name, price or shelf life" kind="plain" onPress={() => setForm({ id: p.id })} testID={`edit-product-${p.id}`} />
               {p.photo ? <Image source={{ uri: `data:image/png;base64,${p.photo}` }} style={{ width: 128, height: 128, borderRadius: 8 }} accessibilityLabel={`Photo of ${p.name}`} /> : null}
               {batches && !batches.length ? <Body muted>No batch numbers on the shelves for this product.</Body> : null}
               {batches?.map((b) => (

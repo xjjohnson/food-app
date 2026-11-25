@@ -52,6 +52,8 @@ export function HomeScreen() {
 
       {hasAnyRole(roles) ? <Row title="Find a product" detail="Price, photo and stock by batch" onPress={() => router.push('/lookup')} testID="open-lookup" /> : null}
 
+      {hasAnyRole(roles) ? <Row title="Customers and suppliers" detail="Find, add or change a contact" onPress={() => router.push('/contacts')} testID="open-contacts" /> : null}
+
       {areas.length ? (
         <Card title="Your work">
           {areas.map((a) => (
