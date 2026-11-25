@@ -11,6 +11,19 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.8',
+    changes: ['Ingredients: a new Ingredient list to see, add and change ingredients, with their category, cost, purchase taxes and vendor prices.'],
+    test: [
+      'Open Ingredients, then Ingredient list. It starts on Raw Material and shows Black Rasberries, Butter, Lemon Juice, Liquid Pectin, Mason Jar and Sugar with what is on hand.',
+      'Tap Category to look at other categories, or type in Search.',
+      'Open Black Rasberries. Check the cost, the 8.25% Texas tax, and that "Stock is counted" says Yes.',
+      'Change the cost and tap Save. In Odoo, the product shows the new cost.',
+      'Under Vendors, open heb. Change the price and tap Save, then check it in Odoo, Purchase tab.',
+      'Tap Add a vendor, pick one, type a price, Save. Then open it and tap Remove this vendor.',
+      'Back on the list, tap Add an ingredient. Give a name, category, unit and cost, then Save. It shows in Odoo (turn on Track Inventory there if you count stock for it).',
+    ],
+  },
+  {
     release: '0.1.7',
     changes: ['Add and change things in the app: recipes (amounts, ingredients, new recipes), products (name, price, shelf life), customers and suppliers, and a batch’s number or use-by date.'],
     test: [
