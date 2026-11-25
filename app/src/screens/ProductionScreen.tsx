@@ -21,6 +21,8 @@ import {
   loadRecipes,
   Recipe,
   shelfLifeDays,
+  enough,
+  loadStockUnits,
   shortages,
   shortIngredients,
   needed,
@@ -128,6 +130,7 @@ function StartBatch({ recipes, onBack, onSaved }: { recipes: Recipe[]; onBack: (
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [qtyText, setQtyText] = useState('');
   const [free, setFree] = useState<Record<number, number> | null>(null);
+  const [units, setUnits] = useState<Record<number, string>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
@@ -142,7 +145,9 @@ function StartBatch({ recipes, onBack, onSaved }: { recipes: Recipe[]; onBack: (
     setFree(null);
     if (client && !offline) {
       try {
-        setFree(await loadFreeStock(client, r.lines.map((l) => l.productId)));
+        const ids = r.lines.map((l) => l.productId);
+        setFree(await loadFreeStock(client, ids));
+        setUnits(await loadStockUnits(client, ids).catch(() => ({})));
       } catch {
         // Not knowing stock is not a reason to stop the batch.
       }
@@ -160,21 +165,28 @@ function StartBatch({ recipes, onBack, onSaved }: { recipes: Recipe[]; onBack: (
       </Screen>
     );
 
-  const short = okQty && free ? shortages(recipe, qty, free) : [];
+  const short = okQty && free ? shortages(recipe, qty, free, units) : [];
+  const ok = okQty && free ? enough(recipe, qty, free) : [];
+  const word = (n: number, u?: string) => `${fmtQty(n)}${u ? ` ${u}` : ''}`;
   return (
     <Screen title={recipe.name} testID="start-screen">
       <Field label={`How many ${recipe.unit || 'to make'}`} value={qtyText} onChangeText={setQtyText} keyboardType="decimal-pad" testID="batch-qty" />
+      <Body muted>{`The recipe makes ${fmtQty(recipe.makes)} ${recipe.unit}`.trim()}</Body>
       <Card title="Ingredients for this batch">
-        {okQty ? needed(recipe, qty).map((l) => <Row key={l.productId} title={l.name} value={fmtQty(l.qty)} />) : <Body muted>Type how many to see the ingredients.</Body>}
+        {okQty
+          ? needed(recipe, qty).map((l) => <Row key={l.productId} title={l.name} detail={qty === recipe.makes ? undefined : `Recipe: ${word(l.recipeQty ?? 0, l.unit)}`} value={word(l.qty, l.unit)} testID={`need-${l.productId}`} />)
+          : <Body muted>Type how many to see the ingredients.</Body>}
       </Card>
       {short.length ? (
         <Card title="Not enough in stock" testID="short-warning">
           {short.map((s) => (
-            <Body key={s.name}>{`${s.name}: need ${fmtQty(s.needed)}, have ${fmtQty(s.have)}`}</Body>
+            <Body key={s.name}>{`${s.name}: need ${word(s.needed, s.unit)}, have ${word(s.have, s.haveUnit ?? s.unit)}`}</Body>
           ))}
+          {ok.length ? <Body muted>{`Enough: ${ok.join(', ')}`}</Body> : null}
           <Body muted>You can still start the batch. Odoo keeps it waiting for the missing ingredients.</Body>
         </Card>
       ) : null}
+      {!short.length && ok.length ? <Body muted>{`Enough of everything: ${ok.join(', ')}`}</Body> : null}
       {!free && okQty ? <Body muted>Stock levels aren’t loaded, so the app can’t check for shortages.</Body> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
       {note ? <Body>{note}</Body> : null}

@@ -3,7 +3,7 @@ import { act, fireEvent, screen } from '@testing-library/react-native';
 import { renderRouter } from 'expo-router/testing-library';
 import { setDbKind } from '../lib/dbSwitch';
 import { ODOO_STORAGE_KEY, OdooClient } from '../lib/odoo';
-import { addDays, finishBatchChanges, isDate, loadBatchDetail, loadRecipes, shortages, startBatchChange, suggestBatchNumber } from '../lib/production';
+import { addDays, enough, finishBatchChanges, isDate, loadBatchDetail, loadRecipes, needed, shortages, startBatchChange, suggestBatchNumber } from '../lib/production';
 import { loadQueue, saveOrQueue, sendQueue } from '../lib/queue';
 import { deviceSecrets } from '../lib/secrets';
 import { bakery, FakeOdoo, URL } from '../testing/fakeOdoo';
@@ -138,5 +138,22 @@ describe('production screen', () => {
     await settle();
     expect(mo.state).toBe('done');
     expect(odoo.tables['stock.lot']![0]).toMatchObject({ name: 'CC-1', product_id: s.cookie });
+  });
+});
+
+describe('start batch shows the recipe with units', () => {
+  test('units, recipe order, recipe and batch amounts, and need versus have', async () => {
+    const { odoo } = bakery();
+    const s = stocked(odoo);
+    odoo.tables['uom.uom'] = [{ id: 7, name: 'lb' }];
+    for (const l of odoo.tables['mrp.bom.line']!) l.product_uom_id = [7, 'lb'];
+    const c = await client(odoo, 'baker@example.com');
+    const [r] = await loadRecipes(c);
+    expect(r!.lines.map((l) => l.unit)).toEqual(['lb', 'lb']);
+    const lines = needed(r!, 96);
+    expect(lines.map((l) => [l.name, l.recipeQty, l.qty])).toEqual([['Flour', 3, 6], ['Sugar', 1, 2]]);
+    const out = shortages(r!, 96, { [s.flour]: 5, [s.sugar]: 100 }, { [s.flour]: 'kg', [s.sugar]: 'lb' });
+    expect(out).toEqual([{ name: 'Flour', needed: 6, have: 5, unit: 'lb', haveUnit: 'kg' }]);
+    expect(enough(r!, 96, { [s.flour]: 5, [s.sugar]: 100 })).toEqual(['Sugar']);
   });
 });

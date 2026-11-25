@@ -41,6 +41,10 @@ export interface RecipeLine {
   productId: number;
   name: string;
   qty: number;
+  /** The unit on the recipe line, such as "lb". */
+  unit?: string;
+  /** Set on a scaled line: the amount the recipe itself has. */
+  recipeQty?: number;
 }
 
 export interface Recipe {
@@ -57,6 +61,9 @@ export interface Shortage {
   name: string;
   needed: number;
   have: number;
+  unit?: string;
+  /** The unit stock is counted in, when it differs from the recipe's. */
+  haveUnit?: string;
 }
 
 const nameOf = (v: unknown): string => (Array.isArray(v) && typeof v[1] === 'string' ? v[1] : '');
@@ -101,7 +108,7 @@ export async function loadRecipes(c: Client): Promise<Recipe[]> {
   const boms = (await c.call('mrp.bom', 'search_read', [[['type', '=', 'normal']]], { fields: ['product_tmpl_id', 'product_id', 'product_qty', 'product_uom_id', 'bom_line_ids'] })) as Record<string, unknown>[];
   if (!boms.length) return [];
   const lineIds = boms.flatMap((b) => (b.bom_line_ids as number[]) ?? []);
-  const lines = lineIds.length ? ((await c.call('mrp.bom.line', 'read', [lineIds], { fields: ['bom_id', 'product_id', 'product_qty'] })) as Record<string, unknown>[]) : [];
+  const lines = lineIds.length ? ((await c.call('mrp.bom.line', 'read', [lineIds], { fields: ['bom_id', 'product_id', 'product_qty', 'product_uom_id', 'sequence'] })) as Record<string, unknown>[]) : [];
   const tmplIds = boms.filter((b) => !m2oId(b.product_id)).map((b) => m2oId(b.product_tmpl_id));
   const variants = tmplIds.length ? ((await c.call('product.product', 'search_read', [[['product_tmpl_id', 'in', tmplIds]]], { fields: ['product_tmpl_id'] })) as Record<string, unknown>[]) : [];
   const out: Recipe[] = [];
@@ -114,7 +121,10 @@ export async function loadRecipes(c: Client): Promise<Recipe[]> {
       name: nameOf(b.product_id) || nameOf(b.product_tmpl_id),
       makes: Number(b.product_qty ?? 1) || 1,
       unit: nameOf(b.product_uom_id),
-      lines: lines.filter((l) => m2oId(l.bom_id) === b.id).map((l) => ({ productId: m2oId(l.product_id), name: nameOf(l.product_id), qty: Number(l.product_qty ?? 0) })),
+      lines: lines
+        .filter((l) => m2oId(l.bom_id) === b.id)
+        .sort((a, z) => Number(a.sequence ?? 0) - Number(z.sequence ?? 0) || (a.id as number) - (z.id as number))
+        .map((l) => ({ productId: m2oId(l.product_id), name: nameOf(l.product_id), qty: Number(l.product_qty ?? 0), unit: nameOf(l.product_uom_id) || undefined })),
     });
   }
   return out.sort((a, b) => a.name.localeCompare(b.name));
@@ -127,17 +137,31 @@ export async function loadFreeStock(c: Client, productIds: number[]): Promise<Re
   return Object.fromEntries(rows.map((r) => [r.id, Number(r.free_qty ?? 0)]));
 }
 
+/** The unit each product's stock is counted in (its own unit in Odoo). */
+export async function loadStockUnits(c: Client, productIds: number[]): Promise<Record<number, string>> {
+  if (!productIds.length) return {};
+  const rows = (await c.call('product.product', 'read', [productIds], { fields: ['uom_id'] })) as { id: number; uom_id?: unknown }[];
+  return Object.fromEntries(rows.map((r) => [r.id, nameOf(r.uom_id)]));
+}
+
 /** What a batch of this size needs, scaled from the recipe. */
 export function needed(recipe: Recipe, qty: number): RecipeLine[] {
   const scale = qty / recipe.makes;
-  return recipe.lines.map((l) => ({ ...l, qty: Math.round(l.qty * scale * 1000) / 1000 }));
+  return recipe.lines.map((l) => ({ ...l, recipeQty: l.qty, qty: Math.round(l.qty * scale * 1000) / 1000 }));
 }
 
 /** Ingredients the shelves don't have enough of. Empty when all is there. */
-export function shortages(recipe: Recipe, qty: number, free: Record<number, number>): Shortage[] {
+export function shortages(recipe: Recipe, qty: number, free: Record<number, number>, stockUnits: Record<number, string> = {}): Shortage[] {
   return needed(recipe, qty)
     .filter((l) => (free[l.productId] ?? 0) < l.qty)
-    .map((l) => ({ name: l.name, needed: l.qty, have: Math.max(0, free[l.productId] ?? 0) }));
+    .map((l) => ({ name: l.name, needed: l.qty, have: Math.max(0, free[l.productId] ?? 0), unit: l.unit, ...(stockUnits[l.productId] && l.unit && stockUnits[l.productId] !== l.unit ? { haveUnit: stockUnits[l.productId] } : {}) }));
+}
+
+/** Names of the ingredients there is enough of. */
+export function enough(recipe: Recipe, qty: number, free: Record<number, number>): string[] {
+  return needed(recipe, qty)
+    .filter((l) => (free[l.productId] ?? 0) >= l.qty)
+    .map((l) => l.name);
 }
 
 /**

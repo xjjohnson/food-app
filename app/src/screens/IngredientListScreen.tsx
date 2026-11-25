@@ -116,7 +116,7 @@ export function IngredientListScreen({ onBack }: { onBack: () => void }) {
   );
 }
 
-function IngredientForm({ id, defaultCategory, onBack }: { id: number | null; defaultCategory: Named | null; onBack: () => void }) {
+export function IngredientForm({ id, defaultCategory, onBack, onCreated }: { id: number | null; defaultCategory: Named | null; onBack: () => void; onCreated?: (name: string) => void }) {
   const { client, offline } = useOdoo();
   const { save } = useQueue();
   const [ing, setIng] = useState<Ingredient | null>(null);
@@ -155,6 +155,9 @@ function IngredientForm({ id, defaultCategory, onBack }: { id: number | null; de
           setReference(d.reference);
           setBarcode(d.barcode);
         }
+      } else {
+        const raw = cs.find((c) => /raw material/i.test(c.name));
+        if (raw) setCategory((prev) => prev ?? raw);
       }
     } catch (e) {
       setError(`Couldn’t read from Odoo. ${why(e)}`);
@@ -256,7 +259,10 @@ function IngredientForm({ id, defaultCategory, onBack }: { id: number | null; de
           setBusy(true);
           const ok = await run(id ? editIngredientChange(id, values) : newIngredientChange(values, unit?.id ?? null));
           setBusy(false);
-          if (ok && !id) setTimeout(onBack, 900);
+          if (ok && !id) {
+            onCreated?.(name.trim());
+            setTimeout(onBack, 900);
+          }
         }}
       />
       {id && ing ? (

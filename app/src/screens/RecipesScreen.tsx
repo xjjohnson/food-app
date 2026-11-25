@@ -1,7 +1,8 @@
 import { useInnerBack } from '../lib/innerBack';
 import { View } from 'react-native';
 import { useCallback, useEffect, useState } from 'react';
-import { Body, Button, Card, ErrorText, Field, Row, Screen, Segments } from '../components/ui';
+import { Body, Button, Card, ErrorText, Field, Row, Screen, Segments, SwitchRow } from '../components/ui';
+import { IngredientForm } from './IngredientListScreen';
 import { loadUnits } from '../lib/ingredientList';
 import { fmtQty, loadRecipes, Recipe as RecipeRow } from '../lib/production';
 import { blankRecipe, BomType, loadRecipe, loadVariants, moveLine, newKey, newRecipeChange, productInfo, Recipe, recipeChanges, RecipeLine, recipeProblems, Unit } from '../lib/recipe';
@@ -12,24 +13,53 @@ import { Choose } from './IngredientListScreen';
 
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-/** A small product picker: type, then tap a result. */
-function ProductPicker({ title, onPick, onBack, markRecipes }: { title: string; onPick: (p: ProductRow) => void; onBack: () => void; markRecipes?: boolean }) {
+/**
+ * A small product picker: type, then tap a result. For ingredients (`raw`) it
+ * lists raw materials only, with a switch for every product and a button to
+ * add an ingredient that isn't there yet.
+ */
+function ProductPicker({ title, onPick, onBack, markRecipes, raw }: { title: string; onPick: (p: ProductRow) => void; onBack: () => void; markRecipes?: boolean; raw?: boolean }) {
   const { client, offline } = useOdoo();
   const [text, setText] = useState('');
   const [found, setFound] = useState<ProductRow[]>([]);
+  const [everything, setEverything] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [created, setCreated] = useState('');
+  useInnerBack(adding ? () => setAdding(false) : null);
   useEffect(() => {
     if (!client || offline) return;
     const t = setTimeout(() => {
-      searchProducts(client, text, markRecipes)
+      searchProducts(client, text, markRecipes, !!raw && !everything)
         .then(setFound)
         .catch(() => undefined);
     }, 250);
     return () => clearTimeout(t);
-  }, [client, offline, text, markRecipes]);
+  }, [client, offline, text, markRecipes, raw, everything]);
   const some = found.some((p) => p.hasRecipe);
+
+  if (adding)
+    return (
+      <IngredientForm
+        id={null}
+        defaultCategory={null}
+        onCreated={setCreated}
+        onBack={async () => {
+          setAdding(false);
+          if (!client || !created) return;
+          // The new ingredient is picked for the recipe when Odoo has it.
+          const hits = await searchProducts(client, created, false, true).catch(() => []);
+          const exact = hits.filter((h) => h.name === created);
+          if (exact.length === 1) onPick(exact[0]!);
+          else setText(created);
+        }}
+      />
+    );
+
   return (
     <Screen title={title} testID="picker-screen">
       {offline ? <Body muted>No signal. Picking a product needs Odoo.</Body> : <Field label="Find a product" value={text} onChangeText={setText} testID="picker-search" />}
+      {raw ? <Button label="Add a new ingredient" kind="plain" onPress={() => setAdding(true)} disabled={offline} testID="picker-add-new" /> : null}
+      {raw ? <SwitchRow title="Show all products" detail={everything ? 'Finished products too' : 'Raw materials only'} value={everything} onChange={setEverything} testID="picker-all" /> : null}
       {found.map((p, i) => (
         <View key={p.id}>
           {markRecipes && some && i === 0 && p.hasRecipe ? <Body muted>Already has a recipe</Body> : null}
@@ -37,12 +67,12 @@ function ProductPicker({ title, onPick, onBack, markRecipes }: { title: string; 
           <Row title={p.name} detail={markRecipes && p.hasRecipe ? 'Has a recipe' : undefined} onPress={() => onPick(p)} testID={`pick-${p.id}`} />
         </View>
       ))}
+      {raw && !found.length && !offline ? <Body muted>No raw materials found. Add a new ingredient, or show all products.</Body> : null}
       <Button label="Back" kind="plain" onPress={onBack} />
     </Screen>
   );
 }
 
-/** Recipes: the list, and the full recipe form (also used to make a new one). */
 export function RecipesScreen({ onBack }: { onBack: () => void }) {
   const { client, offline } = useOdoo();
   const [list, setList] = useState<RecipeRow[] | null>(null);
@@ -145,6 +175,7 @@ function RecipeForm({ id, onBack }: { id: number | null; onBack: () => void }) {
     return (
       <ProductPicker
         title={picking.section === 'lines' ? 'Add an ingredient' : 'Add a by-product'}
+        raw={picking.section === 'lines'}
         onBack={() => setPicking(null)}
         onPick={async (p) => {
           if (!client) return;
