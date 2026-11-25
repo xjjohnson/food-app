@@ -341,11 +341,15 @@ function TestListCard() {
 function LogCard() {
   const [, tick] = useState(0);
   useEffect(() => log.subscribe(() => tick((n) => n + 1)), []);
-  const lines = log.all().slice(-60).reverse();
+  const [problems, setProblems] = useState(false);
+  const all = log.all();
+  const shownAll = problems ? all.filter((e) => e.level !== 'info') : all;
+  const lines = shownAll.slice(-100).reverse();
   return (
     <Card title="Log" testID="dev-log">
-      <Body muted>What the app tried and what Odoo answered, for the last 7 days. Keys and passwords are never written here.</Body>
-      <Button label="Share the log" kind="plain" onPress={() => Share.share({ message: logText(log.all()) }).catch(() => undefined)} testID="share-log" />
+      <Body muted>The screens opened, saves, and what Odoo answered, for the last 7 days. Quick reads that worked are left out. Keys and passwords are never written here.</Body>
+      <SwitchRow title="Problems only" value={problems} onChange={setProblems} testID="log-problems" />
+      <Button label={problems ? 'Share the problems' : 'Share the log'} kind="plain" onPress={() => Share.share({ message: logText(shownAll) }).catch(() => undefined)} testID="share-log" />
       {lines.map((e, i) => (
         <Body key={`${e.t}-${i}`} muted>{`${new Date(e.t).toLocaleTimeString()} ${e.level === 'info' ? '' : e.level.toUpperCase() + ' '}[${e.area}] ${e.msg}`}</Body>
       ))}

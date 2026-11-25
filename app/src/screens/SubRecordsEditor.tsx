@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { Body, Button, Card, ErrorText, Screen } from '../components/ui';
 import type { Draft, FieldDef, Val } from '../lib/odooForm';
 import type { NewChange } from '../lib/queue';
-import { blankRow, loadRows, rowChanges, rowProblems, rowTitle, type SubRow, type SubSpec } from '../lib/subRecords';
+import { blankRow, modelMissing, loadRows, rowChanges, rowProblems, rowTitle, type SubRow, type SubSpec } from '../lib/subRecords';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 import { FormFields, RelationPicker } from './FormFields';
@@ -33,6 +33,7 @@ export function SubRecordsEditor({ spec, domain, base, label, addLabel, canEdit 
   const [rows, setRows] = useState<SubRow[]>([]);
   const [picking, setPicking] = useState<{ key: string; def: FieldDef } | null>(null);
   const [error, setError] = useState('');
+  const [missing, setMissing] = useState(false);
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   useInnerBack(picking ? () => setPicking(null) : null);
@@ -44,7 +45,7 @@ export function SubRecordsEditor({ spec, domain, base, label, addLabel, canEdit 
         setBefore(r);
         setRows(r);
       })
-      .catch((e) => setError(`Couldn’t read the lines from Odoo. ${why(e)}`));
+      .catch((e) => (spec.missingNote && modelMissing(why(e)) ? setMissing(true) : setError(`Couldn’t read the lines from Odoo. ${why(e)}`)));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client, offline]);
 
@@ -71,6 +72,7 @@ export function SubRecordsEditor({ spec, domain, base, label, addLabel, canEdit 
   }
 
   if (offline) return <Body muted>No signal. The lines come from Odoo, so they show when the phone is back online.</Body>;
+  if (missing) return <Body muted>{spec.missingNote}</Body>;
   return (
     <>
       {error ? <ErrorText>{error}</ErrorText> : null}

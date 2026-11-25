@@ -11,6 +11,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.15',
+    changes: ['Find a product shows one row per product, with the total stock and how many variants. A product’s Batches tab lists its variants; tap one to see and change it (reference, barcode, price, weight, volume, archive), its batches and packagings. Packagings say so in plain words when this Odoo has no Packagings list. Descriptions that Odoo keeps as HTML now show as plain text. Color is a row of swatches. The log is shorter and clearer: it leaves out quick reads that worked, shows each screen opened and each message shown to you, marks failures as errors, and has a Problems only switch.'],
+    test: [
+      'Find a product, search “Apricot Freezer Jam”. There is one row with the total in stock and “8 variants”. Tap it: the batches show for all variants.',
+      'Open and change this product, Batches tab. Each variant shows its own stock. Tap one, change its barcode, Save. Check the barcode in Odoo.',
+      'In a variant, open Packagings. If this Odoo has no Packagings list you see a plain message, not an error. Tell me if Odoo shows packagings anywhere on the product form.',
+      'Open a product, Point of Sale tab. The description has no tags. Edit it, Save, and check it in Odoo. Tap a color swatch and check the color in Odoo.',
+      'Check the Notes on receipts, Notes on delivery orders and Quotation description on the Stock and Sales tabs for leftover tags.',
+      'Developer, Log. Use the app for a minute. Check that screens opened and any red messages are listed, and that Problems only shows just the warnings and errors. Share the problems.',
+    ],
+  },
+  {
     release: '0.1.14',
     changes: ['Buy, make, sell workflow. Check in a delivery now shows the price each and total paid per line, and saves them on the order. Orders that are confirmed but not finished can have their lines changed. Cost on a product is read-only when its category uses Average Cost. Finish batch asks how much of each ingredient was really used and shows the cost Odoo worked out. Market shows open registers with a Close register button. The Developer connection check lists each category’s costing.'],
     test: [

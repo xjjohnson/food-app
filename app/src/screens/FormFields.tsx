@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
+import { Pressable, Text, View } from 'react-native';
 import { Body, Button, Card, Field, Row, Screen, Segments, SwitchRow } from '../components/ui';
 import type { Draft, FieldDef, Rel, Section, Val } from '../lib/odooForm';
-import { searchRelation } from '../lib/odooForm';
+import { COLOR_NAMES, ODOO_COLORS, searchRelation } from '../lib/odooForm';
 import { useOdoo } from '../lib/useOdoo';
 
 /** Picks from an Odoo list by name: one record, or several for a "many" field. */
@@ -60,6 +61,29 @@ export function FormFields({ section, draft, setValue, pick }: { section: Sectio
         const id = `f-${d.name}`;
         const hint = d.hint ? <Body muted>{d.hint}</Body> : null;
         if (d.kind === 'bool') return <SwitchRow key={d.name} title={d.label} detail={d.hint} value={v === true} onChange={(x) => setValue(d.name, x)} disabled={d.readOnly} testID={id} />;
+        if (d.kind === 'color') {
+          const cur = String(v === '' || v === undefined || v === null ? 0 : v);
+          return (
+            <Card key={d.name} title={`${d.label}: ${COLOR_NAMES[Number(cur)] ?? 'None'}`}>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                {ODOO_COLORS.map((hex, n) => (
+                  <Pressable
+                    key={n}
+                    disabled={d.readOnly}
+                    onPress={() => setValue(d.name, String(n))}
+                    accessibilityRole="button"
+                    accessibilityLabel={COLOR_NAMES[n]}
+                    accessibilityState={{ selected: cur === String(n) }}
+                    testID={`color-${n}`}
+                    style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: hex, borderWidth: cur === String(n) ? 4 : 1, borderColor: cur === String(n) ? '#ffffff' : '#00000033', alignItems: 'center', justifyContent: 'center' }}
+                  >
+                    {n === 0 ? <Text>–</Text> : null}
+                  </Pressable>
+                ))}
+              </View>
+            </Card>
+          );
+        }
         if (d.kind === 'select')
           return (
             <Card key={d.name} title={d.label}>

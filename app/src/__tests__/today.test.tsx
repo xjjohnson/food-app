@@ -10,7 +10,8 @@ import { loadToday } from '../lib/today';
 import { bakery, FakeOdoo, URL } from '../testing/fakeOdoo';
 
 function bakeryDay(odoo: FakeOdoo) {
-  const cookie = odoo.create('product.product', { name: 'Chocolate chip cookies', list_price: 12.5, qty_available: 24, image_128: 'iVBORw0KGgo=' });
+  const tmpl = odoo.create('product.template', { name: 'Chocolate chip cookies', list_price: 12.5, qty_available: 24, image_128: 'iVBORw0KGgo=', product_variant_count: 1 });
+  const cookie = odoo.create('product.product', { name: 'Chocolate chip cookies', product_tmpl_id: [tmpl, 'Chocolate chip cookies'], list_price: 12.5, qty_available: 24, image_128: 'iVBORw0KGgo=' });
   const l1 = odoo.create('stock.lot', { name: 'CC-2', product_id: [cookie, 'cookies'], expiration_date: '2027-02-01 12:00:00' });
   const l2 = odoo.create('stock.lot', { name: 'CC-1', product_id: [cookie, 'cookies'], expiration_date: '2026-12-01 12:00:00' });
   odoo.create('stock.quant', { product_id: [cookie, 'cookies'], lot_id: [l1, 'CC-2'], quantity: 10, 'location_id.usage': 'internal' });
@@ -18,7 +19,7 @@ function bakeryDay(odoo: FakeOdoo) {
   odoo.create('mrp.production', { name: 'WH/MO/00001', state: 'confirmed' });
   odoo.create('mrp.production', { name: 'WH/MO/00002', state: 'done' });
   odoo.create('stock.picking', { name: 'WH/OUT/1', picking_type_code: 'outgoing', state: 'assigned' });
-  return { cookie };
+  return { cookie, tmpl };
 }
 
 describe('today and product lookup', () => {
@@ -63,7 +64,7 @@ describe('today and product lookup', () => {
     await settle();
     await fireEvent.press(await screen.findByLabelText('Chocolate chip cookies'));
     await settle();
-    expect(screen.getByTestId('product-' + s.cookie)).toHaveTextContent(/\$12\.50/);
+    expect(screen.getByTestId('product-' + s.tmpl)).toHaveTextContent(/\$12\.50/);
     expect(await screen.findByTestId(`batch-line-${odoo.tables['stock.lot']![1]!.id}`)).toHaveTextContent(/CC-1/);
   });
 });

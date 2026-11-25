@@ -4,7 +4,8 @@ import { Body, Button, Card, Row } from '../components/ui';
 import { PACKAGINGS } from '../lib/subRecords';
 import { LinesScreen } from './SubRecordsEditor';
 import { m2oId } from '../lib/odoo';
-import { loadLots, loadVariants, PRODUCT_SECTIONS, type LotRow, type VariantRow } from '../lib/productForm';
+import { fmtQty } from '../lib/production';
+import { loadLots, loadVariants, PRODUCT_SECTIONS, VARIANT_SECTIONS, type LotRow, type VariantRow } from '../lib/productForm';
 import { useOdoo } from '../lib/useOdoo';
 import { GenericForm } from './GenericForm';
 
@@ -19,8 +20,9 @@ export function ProductForm({ productId, templateId, onBack }: { productId?: num
   const [tmplId, setTmplId] = useState<number | null>(templateId ?? (productId ? null : 0));
   const [variants, setVariants] = useState<VariantRow[]>([]);
   const [lots, setLots] = useState<LotRow[]>([]);
-  const [packs, setPacks] = useState(false);
-  useInnerBack(packs ? () => setPacks(false) : null);
+  const [packs, setPacks] = useState<number | false>(false);
+  const [variant, setVariant] = useState<number | null>(null);
+  useInnerBack(packs ? () => setPacks(false) : variant ? () => setVariant(null) : null);
 
   useEffect(() => {
     if ((!productId && !templateId) || !client || offline) return;
@@ -43,15 +45,46 @@ export function ProductForm({ productId, templateId, onBack }: { productId?: num
         title="Packagings"
         onBack={() => setPacks(false)}
         spec={PACKAGINGS}
-        domain={[['product_id', 'in', variants.map((v) => v.id)]]}
-        base={{ product_id: variants[0]!.id }}
+        domain={[['product_id', '=', packs]]}
+        base={{ product_id: packs }}
         label="Packaging"
         addLabel="Add a packaging"
       />
     );
+  if (variant) {
+    const vr = variants.find((v) => v.id === variant);
+    return (
+      <GenericForm
+        key="variant"
+        model="product.product"
+        recordId={variant}
+        title={vr?.name ?? 'Variant'}
+        noun="Variant"
+        sections={VARIANT_SECTIONS}
+        uniqueField="default_code"
+        onBack={() => {
+          setVariant(null);
+          if (client) loadVariants(client, tmplId ?? 0).then(setVariants).catch(() => undefined);
+        }}
+        testID="variant-form"
+        extraTabs={[
+          { id: 'vpacks', label: 'Packagings', render: () => <Button label="Edit packagings of this variant" onPress={() => setPacks(variant)} testID="variant-packs" /> },
+          { id: 'vbatches', label: 'Batches', render: () => (
+            <Card title="Batches">
+              {lots.filter((l) => l.productId === variant).map((l) => (
+                <Row key={l.id} title={l.name} detail={`Expires ${l.expiration || 'not set'}. Off the shelf ${l.removal || 'not set'}.`} />
+              ))}
+              {!lots.some((l) => l.productId === variant) ? <Body muted>No batches yet.</Body> : null}
+            </Card>
+          ) },
+        ]}
+      />
+    );
+  }
   if ((productId || templateId) && tmplId === null) return <Body muted>Opening the product…</Body>;
   return (
     <GenericForm
+      key="product"
       model="product.template"
       recordId={productId || templateId ? tmplId || null : null}
       title="Product"
@@ -65,16 +98,16 @@ export function ProductForm({ productId, templateId, onBack }: { productId?: num
         {
           id: 'packs',
           label: 'Packagings',
-          render: () => <Button label="Edit packagings (Pack of 6 and so on)" onPress={() => setPacks(true)} testID="product-packs" />,
+          render: () => <Button label="Edit packagings (Pack of 6 and so on)" onPress={() => setPacks(variants[0]?.id ?? false)} testID="product-packs" />,
         },
         {
           id: 'batches',
           label: 'Batches',
           render: () => (
             <>
-              <Card title="Variants">
+              <Card title="Variants (tap one to see or change it)">
                 {variants.map((v) => (
-                  <Row key={v.id} title={v.name} testID={`variant-${v.id}`} />
+                  <Row key={v.id} title={v.name} value={`${fmtQty(v.onHand)} in stock`} onPress={() => setVariant(v.id)} testID={`variant-${v.id}`} />
                 ))}
                 {!variants.length ? <Body muted>None.</Body> : null}
               </Card>

@@ -75,8 +75,8 @@ export const PRODUCT_SECTIONS: Section[] = [
     fields: [
       { name: 'to_weight', label: 'Weigh with scale', kind: 'bool' },
       { name: 'pos_categ_ids', label: 'Point of Sale categories', kind: 'many', relation: 'pos.category' },
-      { name: 'color', label: 'Color (0 to 11)', kind: 'whole' },
-      { name: 'public_description', label: 'Point of Sale description', kind: 'long' },
+      { name: 'color', label: 'Color', kind: 'color' },
+      { name: 'public_description', label: 'Point of Sale description', kind: 'html' },
       { name: 'pos_optional_product_ids', label: 'Point of Sale optional products', kind: 'many', relation: 'product.product' },
     ],
   },
@@ -85,26 +85,28 @@ export const PRODUCT_SECTIONS: Section[] = [
 export interface VariantRow {
   id: number;
   name: string;
+  onHand: number;
 }
 
 export interface LotRow {
   id: number;
   name: string;
   product: string;
+  productId: number;
   expiration: string;
   removal: string;
 }
 
 export async function loadVariants(c: Client, templateId: number): Promise<VariantRow[]> {
-  const rows = (await c.call('product.product', 'search_read', [[['product_tmpl_id', '=', templateId]]], { fields: ['display_name', 'name'], limit: 100 })) as Record<string, unknown>[];
-  return rows.map((r) => ({ id: r.id as number, name: String(r.display_name || r.name) }));
+  const rows = (await c.call('product.product', 'search_read', [[['product_tmpl_id', '=', templateId]]], { fields: ['display_name', 'name', 'qty_available'], limit: 100 })) as Record<string, unknown>[];
+  return rows.map((r) => ({ id: r.id as number, name: String(r.display_name || r.name), onHand: Number(r.qty_available ?? 0) }));
 }
 
 export async function loadLots(c: Client, variantIds: number[]): Promise<LotRow[]> {
   if (!variantIds.length) return [];
   const rows = (await c.call('stock.lot', 'search_read', [[['product_id', 'in', variantIds]]], { fields: ['name', 'product_id', 'expiration_date', 'removal_date'], order: 'expiration_date asc', limit: 100 })) as Record<string, unknown>[];
   const d = (v: unknown) => (typeof v === 'string' ? v.slice(0, 10) : '');
-  return rows.map((r) => ({ id: r.id as number, name: String(r.name), product: typeof r.product_id === 'object' && Array.isArray(r.product_id) ? String(r.product_id[1]) : '', expiration: d(r.expiration_date), removal: d(r.removal_date) }));
+  return rows.map((r) => ({ id: r.id as number, name: String(r.name), product: typeof r.product_id === 'object' && Array.isArray(r.product_id) ? String(r.product_id[1]) : '', productId: m2oId(r.product_id), expiration: d(r.expiration_date), removal: d(r.removal_date) }));
 }
 
 /** The template id of a variant. */
@@ -114,3 +116,19 @@ export async function templateOf(c: Client, productId: number): Promise<number> 
 }
 
 export const productDefs = (sections: Section[]): FieldDef[] => sections.flatMap((s) => s.fields);
+
+/** The fields of one variant (Odoo's product.product form). The cost is set on the product, not here. */
+export const VARIANT_SECTIONS: Section[] = [
+  {
+    id: 'main',
+    title: 'Variant',
+    fields: [
+      { name: 'default_code', label: 'Internal reference', kind: 'text' },
+      { name: 'barcode', label: 'Barcode', kind: 'text' },
+      { name: 'lst_price', label: 'Sales price', kind: 'num', hint: 'Includes any extra for this variant. Set in Odoo, shown as is.' },
+      { name: 'weight', label: 'Weight', kind: 'num' },
+      { name: 'volume', label: 'Volume', kind: 'num' },
+      { name: 'active', label: 'In use (switch off to archive)', kind: 'bool' },
+    ],
+  },
+];
