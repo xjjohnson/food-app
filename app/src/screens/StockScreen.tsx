@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Body, Button, Card, ErrorText, Field, Row, Screen, Segments } from '../components/ui';
 import { editLotChange } from '../lib/edit';
+import { LOT_SECTIONS } from '../lib/forms';
 import { fmtQty, isDate } from '../lib/production';
 import { BatchTrace, CountLine, countChange, ExpiringLot, findLots, loadCountLines, loadExpiring, ProductRow, searchProducts, throwOutChange, traceLot } from '../lib/stock';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
+import { GenericForm } from './GenericForm';
 
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
@@ -188,9 +190,10 @@ function FindBatch({ onBack }: { onBack: () => void }) {
   const { save } = useQueue();
   const [edit, setEdit] = useState<{ name: string; useBy: string } | null>(null);
   const [note, setNote] = useState('');
+  const [form, setForm] = useState<{ id?: number } | null>(null);
 
   useEffect(() => {
-    if (!client || offline || trace) return;
+    if (!client || offline || trace || form) return;
     const t = setTimeout(() => {
       findLots(client, text)
         .then(setFound)
@@ -198,6 +201,23 @@ function FindBatch({ onBack }: { onBack: () => void }) {
     }, 250);
     return () => clearTimeout(t);
   }, [client, offline, text, trace]);
+
+  if (form)
+    return (
+      <GenericForm
+        model="stock.lot"
+        recordId={form.id ?? null}
+        title="Batch"
+        noun="Batch"
+        sections={LOT_SECTIONS}
+        required={['name', 'product_id']}
+        testID="lot-form"
+        onBack={() => {
+          setForm(null);
+          setTrace(null);
+        }}
+      />
+    );
 
   if (trace)
     return (
@@ -249,7 +269,10 @@ function FindBatch({ onBack }: { onBack: () => void }) {
             />
           </Card>
         ) : (
-          <Button label="Change batch number or use-by date" kind="plain" onPress={() => setEdit({ name: trace.lot.name, useBy: trace.lot.useBy })} testID="edit-lot" />
+          <>
+            <Button label="Change batch number or use-by date" kind="plain" onPress={() => setEdit({ name: trace.lot.name, useBy: trace.lot.useBy })} testID="edit-lot" />
+            <Button label="All batch details" kind="plain" onPress={() => setForm({ id: trace.lot.id })} testID="lot-all" />
+          </>
         )}
         {error ? <ErrorText>{error}</ErrorText> : null}
         <Button label="Back to search" kind="plain" onPress={() => { setTrace(null); setEdit(null); }} />
@@ -260,6 +283,7 @@ function FindBatch({ onBack }: { onBack: () => void }) {
     <Screen title="Find a batch" testID="find-screen">
       {offline ? <NeedsSignal onBack={onBack} /> : <Field label="Batch number" value={text} onChangeText={setText} testID="find-text" />}
       {error ? <ErrorText>{error}</ErrorText> : null}
+      <Button label="Add a batch" kind="plain" onPress={() => setForm({})} testID="new-lot" />
       {found.map((f) => (
         <Row
           key={f.id}

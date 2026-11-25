@@ -57,6 +57,8 @@ export class FakeOdoo {
   };
   /** Which of these fields this pretend Odoo has (to test an Odoo that lacks one). */
   batchFields = ['lot_producing_ids', 'qty_producing', 'move_raw_ids'];
+  /** Fields a test says Odoo has, for models whose fields_get is built from rows. */
+  declared: Record<string, string[]> = {};
   productFields = ['expiration_time', 'free_qty'];
   templateFields = ['expiration_time', 'list_price'];
   private nextId = 100;
@@ -156,6 +158,10 @@ export class FakeOdoo {
         return table.filter((r) => this.match(r, (args[0] as unknown[]) ?? [])).slice(0, (kw.limit as number) ?? 1e9).map((r) => this.pick(r, kw.fields as string[]));
       case 'search':
         return table.filter((r) => this.match(r, (args[0] as unknown[]) ?? [])).map((r) => r.id);
+      case 'name_search': {
+        const t = String(kw.name ?? '').toLowerCase();
+        return table.filter((r) => String(r.display_name ?? r.name ?? '').toLowerCase().includes(t)).slice(0, (kw.limit as number) ?? 30).map((r) => [r.id, String(r.display_name ?? r.name ?? '')]);
+      }
       case 'search_count':
         return table.filter((r) => this.match(r, (args[0] as unknown[]) ?? [])).length;
       case 'read':
@@ -260,7 +266,8 @@ export class FakeOdoo {
                 if (op === 4) cur.add(a);
               }
               r.lot_producing_ids = [...cur];
-            } else r[k] = v;
+            } else if (Array.isArray(v) && Array.isArray(v[0]) && (v[0] as unknown[])[0] === 6) r[k] = (v[0] as unknown[])[2];
+            else r[k] = v;
           }
         }
         return true;
@@ -272,8 +279,8 @@ export class FakeOdoo {
       case 'fields_get': {
         if (model === 'mrp.production') return Object.fromEntries(this.batchFields.map((f) => [f, {}]));
         if (model === 'product.product') return Object.fromEntries(this.productFields.map((f) => [f, {}]));
-        if (model === 'product.template') return Object.fromEntries(this.templateFields.map((f) => [f, {}]));
-        return {};
+        if (model === 'product.template') return Object.fromEntries([...this.templateFields, ...(this.declared[model] ?? []), ...table.flatMap((r) => Object.keys(r))].map((f) => [f, {}]));
+        return Object.fromEntries([...(this.declared[model] ?? []), ...table.flatMap((r) => Object.keys(r))].map((f) => [f, {}]));
       }
     }
     throw { message: 'Odoo Server Error', data: { name: 'AttributeError', message: `The method ${method} does not exist on ${model}` } };

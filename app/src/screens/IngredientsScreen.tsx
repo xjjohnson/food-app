@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { Body, Button, Card, ErrorText, Field, Row, Screen } from '../components/ui';
-import { Arrived, checkInChanges, loadReceiptLines, loadReceipts, loadRules, LowItem, newSupplierChange, placeOrderChange, Receipt, ReceiptLine, searchSuppliers, setLevelsChange, Supplier, usualSuppliers } from '../lib/ingredients';
+import { GenericForm } from './GenericForm';
+import { PURCHASE_SECTIONS, REORDER_SECTIONS } from '../lib/forms';
+import { loadPurchaseOrders, poStateLabel, PurchaseRow, Arrived, checkInChanges, loadReceiptLines, loadReceipts, loadRules, LowItem, newSupplierChange, placeOrderChange, Receipt, ReceiptLine, searchSuppliers, setLevelsChange, Supplier, usualSuppliers } from '../lib/ingredients';
 import { fmtQty, isDate } from '../lib/production';
 import { searchProducts } from '../lib/stock';
 import { IngredientListScreen } from './IngredientListScreen';
@@ -10,7 +12,7 @@ import { useQueue } from '../lib/useQueue';
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const toNum = (t: string) => Number(t.replace(',', '.'));
 
-type Page = { p: 'menu' } | { p: 'list' } | { p: 'low' } | { p: 'order'; item: LowItem } | { p: 'levels'; item?: LowItem } | { p: 'receipts' } | { p: 'checkin'; receipt: Receipt };
+type Page = { p: 'menu' } | { p: 'list' } | { p: 'low' } | { p: 'order'; item: LowItem } | { p: 'levels'; item?: LowItem } | { p: 'receipts' } | { p: 'checkin'; receipt: Receipt } | { p: 'rule'; id: number } | { p: 'pos' } | { p: 'po'; id?: number };
 
 /** Ingredients: what is running low, ordering, and checking deliveries in. */
 export function IngredientsScreen() {
@@ -20,13 +22,19 @@ export function IngredientsScreen() {
     case 'list':
       return <IngredientListScreen onBack={menu} />;
     case 'low':
-      return <Low onBack={menu} onOrder={(item) => setPage({ p: 'order', item })} onLevels={(item) => setPage({ p: 'levels', item })} />;
+      return <Low onBack={menu} onOrder={(item) => setPage({ p: 'order', item })} onLevels={(item) => setPage({ p: 'levels', item })} onRule={(id) => setPage({ p: 'rule', id })} />;
     case 'order':
       return <OrderIt item={page.item} onBack={() => setPage({ p: 'low' })} />;
     case 'levels':
       return <Levels item={page.item} onBack={() => setPage({ p: 'low' })} />;
     case 'receipts':
       return <Receipts onBack={menu} onOpen={(receipt) => setPage({ p: 'checkin', receipt })} />;
+    case 'rule':
+      return <GenericForm model="stock.warehouse.orderpoint" recordId={page.id} title="Reorder rule" noun="Rule" sections={REORDER_SECTIONS} uniqueField="product_min_qty" testID="rule-form" onBack={() => setPage({ p: 'low' })} />;
+    case 'pos':
+      return <PurchaseOrders onBack={menu} onOpen={(id) => setPage({ p: 'po', id })} />;
+    case 'po':
+      return <GenericForm model="purchase.order" recordId={page.id ?? null} title="Purchase order" noun="Order" sections={PURCHASE_SECTIONS} required={['partner_id']} uniqueField="partner_ref" testID="po-form" onBack={() => setPage({ p: 'pos' })} />;
     case 'checkin':
       return <CheckIn receipt={page.receipt} onBack={() => setPage({ p: 'receipts' })} />;
   }
@@ -34,7 +42,32 @@ export function IngredientsScreen() {
     <Screen title="Ingredients" testID="ingredients-screen">
       <Row title="Ingredient list" detail="See, add and change ingredients, their cost and vendors" onPress={() => setPage({ p: 'list' })} testID="ing-list" />
       <Row title="Running low" detail="What to order, and the levels that mean low" onPress={() => setPage({ p: 'low' })} testID="ing-low" />
+      <Row title="Purchase orders" detail="See, add and change orders to vendors" onPress={() => setPage({ p: 'pos' })} testID="ing-pos" />
       <Row title="Check in a delivery" detail="Record what arrived, with batch numbers and use-by dates" onPress={() => setPage({ p: 'receipts' })} testID="ing-receipts" />
+    </Screen>
+  );
+}
+
+function PurchaseOrders({ onBack, onOpen }: { onBack: () => void; onOpen: (id?: number) => void }) {
+  const { client, offline } = useOdoo();
+  const [list, setList] = useState<PurchaseRow[] | null>(null);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    if (!client || offline) return;
+    loadPurchaseOrders(client)
+      .then(setList)
+      .catch((e) => setError(`Couldn’t read orders from Odoo. ${why(e)}`));
+  }, [client, offline]);
+  return (
+    <Screen title="Purchase orders" testID="pos-screen">
+      <Button label="New order" onPress={() => onOpen()} testID="new-po" />
+      {offline ? <Offline onBack={onBack} /> : null}
+      {error ? <ErrorText>{error}</ErrorText> : null}
+      {list?.map((o) => (
+        <Row key={o.id} title={o.name} detail={`${o.vendor}${o.date ? ` · ${o.date}` : ''}`} value={poStateLabel(o.state)} onPress={() => onOpen(o.id)} testID={`po-${o.id}`} />
+      ))}
+      {list && !list.length ? <Body muted>No orders yet.</Body> : null}
+      <Button label="Back" kind="plain" onPress={onBack} />
     </Screen>
   );
 }
@@ -48,7 +81,7 @@ function Offline({ onBack }: { onBack: () => void }) {
   );
 }
 
-function Low({ onBack, onOrder, onLevels }: { onBack: () => void; onOrder: (i: LowItem) => void; onLevels: (i?: LowItem) => void }) {
+function Low({ onBack, onOrder, onLevels, onRule }: { onBack: () => void; onOrder: (i: LowItem) => void; onLevels: (i?: LowItem) => void; onRule: (id: number) => void }) {
   const { client, offline } = useOdoo();
   const [items, setItems] = useState<LowItem[] | null>(null);
   const [error, setError] = useState('');
@@ -68,6 +101,7 @@ function Low({ onBack, onOrder, onLevels }: { onBack: () => void; onOrder: (i: L
           <Row title={i.name} detail={`Low at ${fmtQty(i.min)}, full at ${fmtQty(i.max)} ${i.unit}`.trim()} value={`${fmtQty(i.onHand)} left`} />
           <Button label="Order more" onPress={() => onOrder(i)} testID={`order-${i.ruleId}`} />
           <Button label="Change levels" kind="plain" onPress={() => onLevels(i)} />
+          <Button label="All rule settings" kind="plain" onPress={() => onRule(i.ruleId)} testID={`rule-all-${i.ruleId}`} />
         </Card>
       ))}
       <Button label="Set levels for a product" kind="plain" onPress={() => onLevels()} testID="add-level" />
