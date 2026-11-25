@@ -21,6 +21,15 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     ],
   },
   {
+    release: '0.1.5',
+    changes: ['Market: a button for each register that opens Odoo’s Point of Sale, and a list of the ways to pay that Odoo has.'],
+    test: [
+      'Open Market. Your registers from Odoo show as buttons, and Ways to pay lists Cash, Cash App and Venmo (set up in Odoo).',
+      'Tap a register. Odoo’s Point of Sale opens in your browser. Sign in if it asks.',
+      'Ring up a test sale paid with cash. In Odoo, the order shows in Point of Sale, and the batch stock goes down.',
+    ],
+  },
+  {
     release: '0.1.4',
     changes: ['Ingredients: see what is running low, set the low and full levels, order from a supplier (or add a new one), and check a delivery in with batch numbers and use-by dates.'],
     test: [
