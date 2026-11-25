@@ -4,28 +4,89 @@ import { Body, Button, Card, ErrorText, Field, Row, Screen, Segments } from '../
 import { editLotChange } from '../lib/edit';
 import { LOT_SECTIONS } from '../lib/forms';
 import { fmtQty, isDate } from '../lib/production';
-import { BatchTrace, CountLine, countChange, ExpiringLot, findLots, loadCountLines, loadExpiring, ProductRow, searchProducts, throwOutChange, traceLot } from '../lib/stock';
+import type { LotStock } from '../lib/orders';
+import { stockByBatch } from '../lib/lookup';
+import { InStockRow, loadInStock, StockKind, BatchTrace, CountLine, countChange, ExpiringLot, findLots, loadCountLines, loadExpiring, ProductRow, searchProducts, throwOutChange, traceLot } from '../lib/stock';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 import { GenericForm } from './GenericForm';
 
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-type Page = 'menu' | 'count' | 'expiring' | 'find';
+type Page = 'menu' | 'have' | 'count' | 'expiring' | 'find';
 
 /** Stock: counts, expiring soon, and finding a batch. */
 export function StockScreen() {
   const [page, setPage] = useState<Page>('menu');
   const back = () => setPage('menu');
   useInnerBack(page === 'menu' ? null : back);
+  if (page === 'have') return <InStock onBack={back} />;
   if (page === 'count') return <CountStock onBack={back} />;
   if (page === 'expiring') return <Expiring onBack={back} />;
   if (page === 'find') return <FindBatch onBack={back} />;
   return (
     <Screen title="Stock" testID="stock-screen">
+      <Row title="What’s in stock" detail="Everything on the shelves, with how much and which batches" onPress={() => setPage('have')} testID="stock-have" />
       <Row title="Count stock" detail="Walk the shelves and type what is there" onPress={() => setPage('count')} testID="stock-count" />
       <Row title="Expiring soon" detail="Batches close to their use-by date" onPress={() => setPage('expiring')} testID="stock-expiring" />
       <Row title="Find a batch" detail="Where a batch came from and where it went" onPress={() => setPage('find')} testID="stock-find" />
+    </Screen>
+  );
+}
+
+const KINDS: { id: StockKind; label: string }[] = [
+  { id: 'all', label: 'All' },
+  { id: 'made', label: 'Made' },
+  { id: 'raw', label: 'Ingredients' },
+];
+
+/** What is available: each counted product with how much there is, and its batches when tapped. */
+function InStock({ onBack }: { onBack: () => void }) {
+  const { client, offline } = useOdoo();
+  const [text, setText] = useState('');
+  const [kind, setKind] = useState<StockKind>('all');
+  const [rows, setRows] = useState<InStockRow[] | null>(null);
+  const [open, setOpen] = useState<number | null>(null);
+  const [batches, setBatches] = useState<LotStock[] | null>(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!client || offline) return;
+    const t = setTimeout(() => {
+      loadInStock(client, text, kind)
+        .then(setRows)
+        .catch((e) => setError(`Couldn’t read stock from Odoo. ${why(e)}`));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [client, offline, text, kind]);
+
+  const show = async (r: InStockRow) => {
+    if (open === r.id) return setOpen(null);
+    setOpen(r.id);
+    setBatches(null);
+    if (client) setBatches(await stockByBatch(client, r.id).catch(() => []));
+  };
+
+  return (
+    <Screen title="What’s in stock" testID="have-screen">
+      {offline ? <NeedsSignal onBack={onBack} /> : <Field label="Find a product" value={text} onChangeText={setText} testID="have-search" />}
+      <Segments options={KINDS} value={kind} onChange={setKind} testID="have-kind" />
+      {error ? <ErrorText>{error}</ErrorText> : null}
+      {rows?.map((r) => (
+        <Card key={r.id} testID={`have-${r.id}`}>
+          <Row title={r.name} detail={r.onHand <= 0 ? 'None on hand' : `${fmtQty(r.free)} ${r.unit} free after orders`.trim()} value={`${fmtQty(r.onHand)} ${r.unit}`.trim()} onPress={() => show(r)} testID={`have-row-${r.id}`} />
+          {open === r.id ? (
+            <>
+              {batches && !batches.length ? <Body muted>No batch numbers on the shelves for this product.</Body> : null}
+              {batches?.map((b) => (
+                <Row key={b.lotId} title={`Batch ${b.lot}`} detail={b.useBy ? `Use by ${b.useBy}` : 'No use-by date'} value={`${fmtQty(b.qty)} ${r.unit}`.trim()} testID={`have-batch-${b.lotId}`} />
+              ))}
+            </>
+          ) : null}
+        </Card>
+      ))}
+      {rows && !rows.length ? <Body muted>Nothing found.</Body> : null}
+      {!offline ? <Button label="Back" kind="plain" onPress={onBack} /> : null}
     </Screen>
   );
 }

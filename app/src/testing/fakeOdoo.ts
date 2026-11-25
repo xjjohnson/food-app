@@ -107,6 +107,8 @@ export class FakeOdoo {
       const val = Array.isArray(raw) && typeof raw[0] === 'number' && !many ? raw[0] : raw;
       if (op === '=') return v === false ? !val : val === v;
       if (op === '!=') return v === false ? !!val && !(Array.isArray(val) && !val.length) : val !== v;
+      if (op === 'child_of') return Array.isArray(v) ? (v as number[]).includes(val as number) : val === v;
+      if (op === 'not in') return !(v as unknown[]).includes(val);
       if (op === 'in') return many && Array.isArray(val) ? (val as unknown[]).some((x) => (v as unknown[]).includes(x)) : (v as unknown[]).includes(val);
       if (op === '<=' || op === '<' || op === '>' || op === '>=') {
         if (val === false || val === undefined || val === null) return false;

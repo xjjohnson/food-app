@@ -28,12 +28,18 @@ export interface ProductRow {
 /**
  * Products matching what was typed, from Odoo, by their full name (Odoo's
  * display name includes the variant). With `markRecipes`, each says whether it
- * already has a recipe, and those come first.
+ * already has a recipe, and those come first. With `rawOnly`, only raw materials,
+ * counted or not (a new ingredient may not be tracked yet).
  */
-export async function searchProducts(c: Client, text: string, markRecipes = false): Promise<ProductRow[]> {
+export async function searchProducts(c: Client, text: string, markRecipes = false, rawOnly = false): Promise<ProductRow[]> {
   const domain: unknown[] = text.trim() ? [['name', 'ilike', text.trim()]] : [];
   const fields = (await c.call('product.product', 'fields_get', [], { attributes: ['string'] })) as Record<string, unknown>;
-  if ('is_storable' in fields) domain.push(['is_storable', '=', true]);
+  if (rawOnly) {
+    // Ingredients: the Raw Material category (and what is under it); with no such category, what Odoo can buy.
+    const cats = (await c.call('product.category', 'search', [[['name', 'ilike', 'raw material']]], {})) as number[];
+    if (cats.length) domain.push(['categ_id', 'child_of', cats]);
+    else if ('purchase_ok' in fields) domain.push(['purchase_ok', '=', true]);
+  } else if ('is_storable' in fields) domain.push(['is_storable', '=', true]);
   const rows = (await c.call('product.product', 'search_read', [domain], { fields: ['display_name', 'name', 'product_tmpl_id'], order: 'name asc, id asc', limit: 40 })) as Record<string, unknown>[];
   const out: ProductRow[] = rows.map((r) => ({ id: r.id as number, name: String(r.display_name || r.name) }));
   if (!markRecipes || !rows.length) return out;
@@ -173,4 +179,31 @@ export async function traceLot(c: Client, lotId: number): Promise<BatchTrace | n
     usedIn: used.map((m) => ({ name: String(m.name), product: nameOf(m.product_id) })),
     wentOutOn,
   };
+}
+
+export type StockKind = 'all' | 'made' | 'raw';
+
+export interface InStockRow {
+  id: number;
+  name: string;
+  onHand: number;
+  /** What is free after orders, as Odoo counts it. */
+  free: number;
+  unit: string;
+}
+
+/** What is on the shelves: every counted product with how much there is, in Odoo's own unit. */
+export async function loadInStock(c: Client, text: string, kind: StockKind): Promise<InStockRow[]> {
+  const domain: unknown[] = text.trim() ? [['name', 'ilike', text.trim()]] : [];
+  const fields = (await c.call('product.product', 'fields_get', [], { attributes: ['string'] })) as Record<string, unknown>;
+  if ('is_storable' in fields) domain.push(['is_storable', '=', true]);
+  if (kind !== 'all') {
+    const roots = (await c.call('product.category', 'search', [[['name', 'ilike', 'raw material']]], {})) as number[];
+    if (roots.length) {
+      const all = (await c.call('product.category', 'search', [[['id', 'child_of', roots]]], {})) as number[];
+      domain.push(['categ_id', kind === 'raw' ? 'in' : 'not in', all]);
+    }
+  }
+  const rows = (await c.call('product.product', 'search_read', [domain], { fields: ['display_name', 'name', 'qty_available', 'free_qty', 'uom_id'], order: 'name asc, id asc', limit: 80 })) as Record<string, unknown>[];
+  return rows.map((r) => ({ id: r.id as number, name: String(r.display_name || r.name), onHand: Number(r.qty_available ?? 0), free: Number(r.free_qty ?? 0), unit: Array.isArray(r.uom_id) ? String(r.uom_id[1]) : '' }));
 }

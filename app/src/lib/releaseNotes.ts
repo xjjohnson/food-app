@@ -11,6 +11,17 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.13',
+    changes: ['Recipe ingredient picker shows raw materials only (with a switch for all products) and has Add a new ingredient. Start batch shows what the recipe makes, each ingredient with its unit, recipe and batch amounts, and need versus have with units. Stock has a new What’s in stock list.'],
+    test: [
+      'Production, Recipes, open a recipe, tap Add an ingredient. Only raw materials show. Switch on Show all products and the finished products appear.',
+      'In the same picker, tap Add a new ingredient, fill in the name, category and unit, Save. It is picked for the recipe.',
+      'Production, Start a batch, pick Apricot Preserves (4 oz, Quilted). Check "The recipe makes…", the units on each ingredient, and Not enough in stock with units. Change the number of jars and check "Recipe:" shows next to each amount.',
+      'Stock, What’s in stock. Check amounts and units, try All, Made and Ingredients, search, and tap a product to see its batches with use-by dates.',
+      'On a purchase order’s lines, picking a product only lists products you can buy.',
+    ],
+  },
+  {
     release: '0.1.12',
     changes: ['Back now goes back one screen, in the app and with the phone’s back gesture, instead of jumping to Home. The product pickers show each variant’s full name, and when you pick what a new recipe makes, products that already have a recipe come first.'],
     test: [

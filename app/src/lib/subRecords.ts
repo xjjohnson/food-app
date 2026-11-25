@@ -100,7 +100,7 @@ export const PO_LINES: SubSpec = {
   model: 'purchase.order.line',
   noun: 'line',
   columns: [
-    { ...productCol },
+    { ...productCol, domain: [['purchase_ok', '=', true]] },
     { name: 'product_qty', label: 'Quantity', kind: 'num' },
     { name: 'product_uom_id', label: 'Unit', kind: 'one', relation: 'uom.uom' },
     { name: 'price_unit', label: 'Price for one', kind: 'num', hint: 'As the vendor quotes it. The app doesn’t work out prices or tax.' },
