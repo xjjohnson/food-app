@@ -3,6 +3,7 @@ import { areaById } from '../lib/areas';
 import { canSee } from '../lib/roles';
 import { useRoles } from '../lib/useRoles';
 import { OrdersScreen } from './OrdersScreen';
+import { IngredientsScreen } from './IngredientsScreen';
 import { StockScreen } from './StockScreen';
 import { ProductionScreen } from './ProductionScreen';
 
@@ -19,6 +20,7 @@ export function AreaScreen({ id }: { id: string }) {
   if (area.id === 'production') return <ProductionScreen />;
   if (area.id === 'orders') return <OrdersScreen />;
   if (area.id === 'stock') return <StockScreen />;
+  if (area.id === 'ingredients') return <IngredientsScreen />;
   return (
     <Screen title={area.title} testID={`area-screen-${area.id}`}>
       <Card title="Coming next">

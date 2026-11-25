@@ -42,6 +42,9 @@ export class FakeOdoo {
     'stock.move.line': [],
     'stock.quant': [],
     'stock.scrap': [],
+    'stock.warehouse.orderpoint': [],
+    'purchase.order': [],
+    'product.supplierinfo': [],
     'product.product': [],
     'ir.module.module': ['mrp', 'stock', 'sale_management', 'website_sale', 'purchase', 'point_of_sale', 'hr', 'contacts', 'product_expiry'].map((name, i) => ({ id: i + 1, name, state: 'installed' })),
   };
@@ -142,7 +145,7 @@ export class FakeOdoo {
       case 'create': {
         const vals = { ...(args[0] as Record<string, unknown>) };
         if (model === 'mrp.production') return this.createBatch(vals);
-        return this.create(model, model === 'stock.scrap' ? { state: 'draft', ...vals } : vals);
+        return this.create(model, model === 'stock.scrap' || model === 'purchase.order' ? { state: 'draft', ...vals } : vals);
       }
       case 'action_confirm':
         for (const r of table.filter((x) => (args[0] as number[]).includes(x.id))) {
@@ -153,6 +156,9 @@ export class FakeOdoo {
             m.state = ((p.free_qty as number) ?? 0) >= (m.product_uom_qty as number) ? 'assigned' : 'confirmed';
           }
         }
+        return true;
+      case 'button_confirm':
+        for (const r of table.filter((x) => (args[0] as number[]).includes(x.id))) r.state = 'purchase';
         return true;
       case 'action_apply_inventory':
         for (const r of table.filter((x) => (args[0] as number[]).includes(x.id))) {

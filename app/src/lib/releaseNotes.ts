@@ -11,6 +11,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.4',
+    changes: ['Ingredients: see what is running low, set the low and full levels, order from a supplier (or add a new one), and check a delivery in with batch numbers and use-by dates.'],
+    test: [
+      'Open Ingredients, then Set levels for a product (under Running low). Give a test ingredient a low and a full level, higher than what you have.',
+      'Running low now lists it. Tap Order more, pick a supplier (or Add a new supplier), and tap Place order.',
+      'In Odoo, Purchase shows the order, confirmed, with the price filled in by Odoo. Nothing is sent to the supplier.',
+      'In Odoo, receive that order so a delivery is waiting. In the app, open Check in a delivery.',
+      'Type how many arrived, plus the supplier’s batch number and use-by date for products that track batches. Tap Check in.',
+      'In Odoo the delivery is Done and the batch shows in Inventory, Lots with its use-by date.',
+    ],
+  },
+  {
     release: '0.1.3',
     changes: ['Stock: count stock by batch, an Expiring soon list where you can throw out a batch, and Find a batch to see where it came from and where it went.'],
     test: [
