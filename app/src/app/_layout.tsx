@@ -2,11 +2,12 @@ import { ErrorBoundaryProps, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as Updates from 'expo-updates';
 import { useEffect } from 'react';
-import { View } from 'react-native';
+import { BackHandler, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Bands } from '../components/Bands';
 import { Body, Button, Card, Screen } from '../components/ui';
 import { BUILD_INFO } from '../lib/appVersion';
+import { runInnerBack } from '../lib/innerBack';
 import { describeError, log } from '../lib/log';
 import { restoreBeta } from '../lib/updateChannel';
 import { BrandProvider, useBrand } from '../lib/useBrand';
@@ -30,6 +31,11 @@ if (eu) {
 
 function Shell() {
   const { colors } = useBrand();
+  // The phone's back gesture closes an inner page first, like the Back button does.
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => runInnerBack());
+    return () => sub.remove();
+  }, []);
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <StatusBar style="light" />

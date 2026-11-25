@@ -1,3 +1,5 @@
+import { useInnerBack } from '../lib/innerBack';
+import { View } from 'react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { Body, Button, Card, ErrorText, Field, Row, Screen, Segments } from '../components/ui';
 import { loadUnits } from '../lib/ingredientList';
@@ -11,24 +13,29 @@ import { Choose } from './IngredientListScreen';
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
 /** A small product picker: type, then tap a result. */
-function ProductPicker({ title, onPick, onBack }: { title: string; onPick: (p: ProductRow) => void; onBack: () => void }) {
+function ProductPicker({ title, onPick, onBack, markRecipes }: { title: string; onPick: (p: ProductRow) => void; onBack: () => void; markRecipes?: boolean }) {
   const { client, offline } = useOdoo();
   const [text, setText] = useState('');
   const [found, setFound] = useState<ProductRow[]>([]);
   useEffect(() => {
     if (!client || offline) return;
     const t = setTimeout(() => {
-      searchProducts(client, text)
+      searchProducts(client, text, markRecipes)
         .then(setFound)
         .catch(() => undefined);
     }, 250);
     return () => clearTimeout(t);
-  }, [client, offline, text]);
+  }, [client, offline, text, markRecipes]);
+  const some = found.some((p) => p.hasRecipe);
   return (
     <Screen title={title} testID="picker-screen">
       {offline ? <Body muted>No signal. Picking a product needs Odoo.</Body> : <Field label="Find a product" value={text} onChangeText={setText} testID="picker-search" />}
-      {found.map((p) => (
-        <Row key={p.id} title={p.name} onPress={() => onPick(p)} testID={`pick-${p.id}`} />
+      {found.map((p, i) => (
+        <View key={p.id}>
+          {markRecipes && some && i === 0 && p.hasRecipe ? <Body muted>Already has a recipe</Body> : null}
+          {markRecipes && p.hasRecipe === false && (i === 0 || found[i - 1]!.hasRecipe) ? <Body muted>{some ? 'No recipe yet' : 'No recipe yet. Pick what to make.'}</Body> : null}
+          <Row title={p.name} detail={markRecipes && p.hasRecipe ? 'Has a recipe' : undefined} onPress={() => onPick(p)} testID={`pick-${p.id}`} />
+        </View>
       ))}
       <Button label="Back" kind="plain" onPress={onBack} />
     </Screen>
@@ -53,6 +60,7 @@ export function RecipesScreen({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     load();
   }, [load]);
+  useInnerBack(open !== null ? () => { setOpen(null); load(); } : null);
 
   if (open !== null)
     return (
@@ -91,6 +99,7 @@ function RecipeForm({ id, onBack }: { id: number | null; onBack: () => void }) {
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  useInnerBack(picking && draft.templateId ? () => setPicking(null) : null);
 
   const load = useCallback(async () => {
     if (!client || offline) return;
@@ -121,6 +130,7 @@ function RecipeForm({ id, onBack }: { id: number | null; onBack: () => void }) {
     return (
       <ProductPicker
         title="What does it make?"
+        markRecipes
         onBack={() => (draft.templateId ? setPicking(null) : onBack())}
         onPick={async (p) => {
           if (!client) return;

@@ -1,3 +1,4 @@
+import { useInnerBack } from '../lib/innerBack';
 import { useEffect, useState } from 'react';
 import { Body, Button, ErrorText, Field, Row, Screen } from '../components/ui';
 import { Contact, searchContacts } from '../lib/edit';
@@ -15,6 +16,7 @@ export function ContactsScreen() {
   const [tick, setTick] = useState(0);
   const [form, setForm] = useState<{ id?: number } | null>(null);
   const [error, setError] = useState('');
+  useInnerBack(form ? () => { setForm(null); setTick((n) => n + 1); } : null);
 
   useEffect(() => {
     if (!client || offline) return;

@@ -1,3 +1,4 @@
+import { useInnerBack } from '../lib/innerBack';
 import { useEffect, useState } from 'react';
 import { Body, Button, Card, ErrorText, Screen } from '../components/ui';
 import type { Draft, FieldDef, Val } from '../lib/odooForm';
@@ -34,6 +35,7 @@ export function SubRecordsEditor({ spec, domain, base, label, addLabel, canEdit 
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  useInnerBack(picking ? () => setPicking(null) : null);
 
   useEffect(() => {
     if (!client || offline) return;

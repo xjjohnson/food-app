@@ -11,6 +11,16 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.12',
+    changes: ['Back now goes back one screen, in the app and with the phone’s back gesture, instead of jumping to Home. The product pickers show each variant’s full name, and when you pick what a new recipe makes, products that already have a recipe come first.'],
+    test: [
+      'Ingredients, Purchase orders, open an order, tap Lines, Edit the order lines. Tap Back at the top: each tap goes up one step (lines, order, list, menu), then Home.',
+      'Do the same with the phone’s back gesture.',
+      'Try it in Stock (Find a batch), Production (a batch, All batch details), Recipes (a recipe) and Customers and suppliers (a contact).',
+      'Production, Recipes, New recipe. The list shows full names like Apricot Freezer Jam (4 oz, Quilted), with products that already have a recipe first.',
+    ],
+  },
+  {
     release: '0.1.11',
     changes: ['Edit the lines of a purchase order (quantity, unit, price, add, remove), the ingredients of one production batch, and a product’s packagings (like Pack of 6).'],
     test: [

@@ -8,6 +8,7 @@ import { ReactNode } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, TextInputProps, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Palette } from '../lib/palette';
+import { runInnerBack } from '../lib/innerBack';
 import { useBrand, useStyles } from '../lib/useBrand';
 
 export const TOUCH = 52;
@@ -61,7 +62,9 @@ export function Screen({ title, back = true, children, right, testID }: { title:
     <SafeAreaView style={s.page} edges={['top', 'left', 'right']} testID={testID}>
       <View style={s.head}>
         {back ? (
-          <Pressable onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} style={s.headBack} accessibilityRole="button" accessibilityLabel="Back" testID="back">
+          <Pressable onPress={() => {
+              if (!runInnerBack()) router.canGoBack() ? router.back() : router.replace('/');
+            }} style={s.headBack} accessibilityRole="button" accessibilityLabel="Back" testID="back">
             <Text style={s.headBackText}>‹ Back</Text>
           </Pressable>
         ) : brand.logo ? (

@@ -1,3 +1,4 @@
+import { useInnerBack } from '../lib/innerBack';
 import { useCallback, useEffect, useState } from 'react';
 import { Body, Button, Card, ErrorText, Field, Row, Screen, SwitchRow } from '../components/ui';
 import {
@@ -52,6 +53,7 @@ export function IngredientListScreen({ onBack }: { onBack: () => void }) {
   const [open, setOpen] = useState<number | 'new' | null>(null);
   const [tick, setTick] = useState(0);
   const [error, setError] = useState('');
+  useInnerBack(open !== null ? () => { setOpen(null); setTick((n) => n + 1); } : choosing ? () => setChoosing(false) : null);
 
   useEffect(() => {
     if (!client || offline) return;
@@ -133,6 +135,7 @@ function IngredientForm({ id, defaultCategory, onBack }: { id: number | null; de
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  useInnerBack(picking ? () => setPicking(null) : vendor ? () => setVendor(null) : null);
 
   const load = useCallback(async () => {
     if (!client || offline) return;
