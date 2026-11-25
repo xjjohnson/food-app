@@ -12,6 +12,9 @@ import {
   Batch,
   BatchDetail,
   finishBatchChanges,
+  loadBatchCost,
+  BatchCost,
+  UsedAmount,
   findLot,
   fmtQty,
   isDate,
@@ -228,6 +231,9 @@ function BatchPage({ id, known, onBack }: { id: number; known?: Batch; onBack: (
   const [note, setNote] = useState('');
   const [all, setAll] = useState(false);
   const [parts, setParts] = useState(false);
+  const [used, setUsed] = useState<Record<number, string>>({});
+  const [cost, setCost] = useState<BatchCost | null>(null);
+  const [finished, setFinished] = useState(false);
 
   const load = useCallback(async () => {
     if (!client || offline) return;
@@ -235,6 +241,8 @@ function BatchPage({ id, known, onBack }: { id: number; known?: Batch; onBack: (
       const detail = await loadBatchDetail(client, id);
       setD(detail);
       if (detail) {
+        setUsed((u) => ({ ...Object.fromEntries(detail.ingredients.map((i) => [i.id, fmtQty(i.needed)])), ...u }));
+        if (detail.state === 'done') setCost(await loadBatchCost(client, id));
         setLot((x) => x || suggestBatchNumber(detail.name));
         const n = await shelfLifeDays(client, detail.productId);
         setDays(n);
@@ -284,7 +292,9 @@ function BatchPage({ id, known, onBack }: { id: number; known?: Batch; onBack: (
   const short = d ? shortIngredients(d) : [];
   const canFinish = shown.state === 'confirmed' || shown.state === 'progress' || shown.state === 'to_close';
   const okDate = isDate(useBy);
-  const ready = canFinish && !!d && d.canRecordLot && lot.trim().length > 0 && okDate && !note;
+  const amounts: UsedAmount[] = (d?.ingredients ?? []).map((i) => ({ moveId: i.id, name: i.name, planned: i.needed, actual: Number((used[i.id] ?? fmtQty(i.needed)).replace(',', '.')) }));
+  const badAmount = amounts.some((a) => !Number.isFinite(a.actual) || a.actual < 0);
+  const ready = canFinish && !!d && d.canRecordLot && lot.trim().length > 0 && okDate && !note && !badAmount;
 
   return (
     <Screen title={`${fmtQty(shown.qty)} ${shown.product}`} testID="batch-screen">
@@ -304,6 +314,13 @@ function BatchPage({ id, known, onBack }: { id: number; known?: Batch; onBack: (
           {d.ingredients.length ? d.ingredients.map((i) => <Row key={i.id} title={i.name} value={fmtQty(i.needed)} />) : <Body muted>No ingredients on this batch.</Body>}
         </Card>
       ) : null}
+      {finished ? <Body>Batch finished.</Body> : null}
+      {shown.state === 'done' && cost ? (
+        <Card title="What this batch cost (worked out by Odoo)" testID="batch-cost">
+          <Row title="Whole batch" value={cost.total.toFixed(2)} />
+          <Row title={`Each (${fmtQty(cost.made)} made)`} value={cost.perUnit.toFixed(2)} testID="batch-cost-each" />
+        </Card>
+      ) : null}
       {shown.state === 'done' && d ? (
         <Card title="Batch number and use-by date">
           {d.lots.length ? d.lots.map((l) => <Row key={l.id} title={l.name} value={l.useBy || 'no date'} testID="finished-lot" />) : <Body muted>No batch number was recorded.</Body>}
@@ -315,6 +332,11 @@ function BatchPage({ id, known, onBack }: { id: number; known?: Batch; onBack: (
           {!d.canRecordLot ? <ErrorText>This Odoo can’t record batch numbers on a batch. Turn on Lots and Serial Numbers in Odoo Inventory settings, then try again.</ErrorText> : null}
           <Field label="Batch number" value={lot} onChangeText={setLot} autoCapitalize="characters" testID="lot-name" />
           <Field label="Use by (year-month-day)" value={useBy} onChangeText={setUseBy} placeholder="2026-12-25" keyboardType="numbers-and-punctuation" testID="use-by" />
+          {d.ingredients.length ? <Body muted>How much of each ingredient was really used. It starts as the recipe amount. Change it if you used more or less.</Body> : null}
+          {d.ingredients.map((i) => (
+            <Field key={i.id} label={`${i.name} used (recipe ${fmtQty(i.needed)})`} value={used[i.id] ?? ''} onChangeText={(v) => setUsed({ ...used, [i.id]: v })} keyboardType="decimal-pad" testID={`used-${i.id}`} />
+          ))}
+          {badAmount ? <ErrorText>Check the amounts used. They must be numbers.</ErrorText> : null}
           {days === null ? <Body muted>This product has no shelf life in Odoo, so type the date. You can set it in Odoo on the product, Inventory tab.</Body> : null}
           {days ? <Body muted>{`Suggested from the product’s shelf life of ${days} days. Change it if you need to.`}</Body> : null}
           {useBy && !okDate ? <ErrorText>Use the form 2026-12-25.</ErrorText> : null}
@@ -332,14 +354,17 @@ function BatchPage({ id, known, onBack }: { id: number; known?: Batch; onBack: (
                 const name = lot.trim();
                 const existing = await findLot(client, shown.productId, name);
                 let queued = false;
-                for (const change of finishBatchChanges(shown, name, useBy, shown.qty, existing)) {
+                for (const change of finishBatchChanges(shown, name, useBy, shown.qty, existing, amounts)) {
                   const r = await save(change);
                   if (r.status === 'queued') queued = true;
                 }
                 if (queued) {
                   setNote('Saved on the phone. It goes to Odoo when signal is back.');
                   setTimeout(onBack, 1500);
-                } else onBack();
+                } else {
+                  setFinished(true);
+                  await load();
+                }
               } catch (e) {
                 setError(`Odoo said no: ${why(e)}`);
               } finally {

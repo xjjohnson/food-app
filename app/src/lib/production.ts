@@ -258,16 +258,57 @@ export async function findLot(c: Client, productId: number, name: string): Promi
   return ids[0] ?? null;
 }
 
+export interface UsedAmount {
+  moveId: number;
+  name: string;
+  planned: number;
+  actual: number;
+}
+
+export interface BatchCost {
+  total: number;
+  perUnit: number;
+  made: number;
+}
+
+/**
+ * What Odoo worked out the finished batch cost, read from the finished product's
+ * stock move. The app never works the cost out itself. Null when Odoo has no
+ * figure (or this Odoo has no such field).
+ */
+export async function loadBatchCost(c: Client, id: number): Promise<BatchCost | null> {
+  try {
+    const mf = (await c.call('stock.move', 'fields_get', [], { attributes: ['string'] })) as Record<string, unknown>;
+    if (!('value' in mf)) return null;
+    const [mo] = (await c.call('mrp.production', 'read', [[id]], { fields: ['move_finished_ids'] })) as { move_finished_ids?: number[] }[];
+    const ids = mo?.move_finished_ids ?? [];
+    if (!ids.length) return null;
+    const moves = (await c.call('stock.move', 'read', [ids], { fields: ['value', 'quantity', 'state'] })) as { value?: number; quantity?: number; state?: string }[];
+    const done = moves.filter((m) => m.state === 'done');
+    const total = done.reduce((a, m) => a + Number(m.value ?? 0), 0);
+    const made = done.reduce((a, m) => a + Number(m.quantity ?? 0), 0);
+    if (!(total > 0) || !(made > 0)) return null;
+    return { total, perUnit: total / made, made };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * The changes that finish a batch, in order: record how many were made and the
  * batch number with its use-by date, then mark the batch done. Both skip
  * themselves if the batch is already finished in Odoo. `existingLotId` is
  * given when that batch number is already in Odoo for this product.
  */
-export function finishBatchChanges(batch: Pick<Batch, 'id' | 'name' | 'productId' | 'qty'>, lotName: string, useBy: string, madeQty = batch.qty, existingLotId: number | null = null): NewChange[] {
+export function finishBatchChanges(batch: Pick<Batch, 'id' | 'name' | 'productId' | 'qty'>, lotName: string, useBy: string, madeQty = batch.qty, existingLotId: number | null = null, used: UsedAmount[] = []): NewChange[] {
   const already = { model: 'mrp.production', domain: [['id', '=', batch.id], ['state', '=', 'done']] };
   const lot = existingLotId ? [[4, existingLotId, 0]] : [[0, 0, { name: lotName.trim(), product_id: batch.productId, expiration_date: `${useBy} 12:00:00` }]];
+  // Only amounts that differ from the plan are written; Odoo uses the planned amount for the rest.
+  const amounts: NewChange[] = used
+    .filter((u) => u.actual !== u.planned)
+    .map((u) => ({ label: `Used ${fmtQty(u.actual)} ${u.name} on ${batch.name}`, model: 'stock.move', method: 'write', args: [[u.moveId], { quantity: u.actual, picked: true }], already }));
   return [
+    ...amounts,
     { label: `Batch number ${lotName.trim()} on ${batch.name}`, model: 'mrp.production', method: 'write', args: [[batch.id], { qty_producing: madeQty, lot_producing_ids: lot }], already },
     { label: `Finish batch ${batch.name}`, model: 'mrp.production', method: 'button_mark_done', args: [[batch.id]], kwargs: { context: { skip_consumption: true, skip_backorder: true } }, already },
   ];

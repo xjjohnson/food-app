@@ -6,6 +6,7 @@
  *
  * Kept free of React; the client is passed in.
  */
+import { costingLines, loadCosting } from './costing';
 import type { OdooClient } from './odoo';
 
 type Client = Pick<OdooClient, 'call' | 'session' | 'hasGroup' | 'hasModel'>;
@@ -66,6 +67,13 @@ export async function checkOdoo(c: Client): Promise<CheckReport> {
     expiry = !!f && 'expiration_date' in f;
   }
   lines.push({ label: "Use-by dates", ok: expiry, note: expiry ? 'On' : 'Off. Turn on Inventory > Settings > Expiration Dates in Odoo.' });
+
+  // Costing: read only. Raw materials should be on Average Cost so what you pay sets the cost.
+  try {
+    lines.push(...costingLines(await loadCosting(c)));
+  } catch {
+    // Categories not readable: leave the costing lines out.
+  }
 
   return { server: c.session.url, database: c.session.db, user: `${c.session.name} (${c.session.login})`, lines };
 }

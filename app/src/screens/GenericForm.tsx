@@ -1,3 +1,4 @@
+import { categoryCostMethod } from '../lib/costing';
 import { useInnerBack } from '../lib/innerBack';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Body, Button, ErrorText, Screen, Segments } from '../components/ui';
@@ -52,7 +53,16 @@ export function GenericForm({ model, recordId, title, sections: all, required = 
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [avgCost, setAvgCost] = useState(false);
   useInnerBack(picking ? () => setPicking(null) : null);
+  const categoryId = ((draft.categ_id as { id?: number } | null | undefined)?.id) ?? 0;
+  useEffect(() => {
+    if (!client || offline || model !== 'product.template' || !categoryId) {
+      setAvgCost(false);
+      return;
+    }
+    categoryCostMethod(client, categoryId).then((m) => setAvgCost(m === 'average'));
+  }, [client, offline, model, categoryId]);
 
   const blank = (secs: Section[]): Draft => {
     const d: Draft = {};
@@ -95,7 +105,12 @@ export function GenericForm({ model, recordId, title, sections: all, required = 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [offline, recordId, before]);
 
-  const defs = useMemo(() => allFields(sections), [sections]);
+  // With Average Cost, Odoo sets the cost itself from what was paid, so Cost can't be typed.
+  const shownSections = useMemo(
+    () => (avgCost ? sections.map((s) => ({ ...s, fields: s.fields.map((f) => (f.name === 'standard_price' ? { ...f, readOnly: true, hint: 'Odoo works this out from what you pay for deliveries and batches (Average Cost). It can’t be typed here.' } : f)) })) : sections),
+    [sections, avgCost],
+  );
+  const defs = useMemo(() => allFields(shownSections), [shownSections]);
   const vals = before ? changedValues(defs, before, draft, !recordId) : {};
   const count = Object.keys(vals).length;
   const problems = formProblems(defs, draft, required);
@@ -105,9 +120,9 @@ export function GenericForm({ model, recordId, title, sections: all, required = 
 
   if (picking) return <RelationPicker def={picking} selected={draft[picking.name]!} onChange={(v) => setValue(picking.name, v)} onBack={() => setPicking(null)} />;
 
-  const section = sections.find((s) => s.id === tab);
+  const section = shownSections.find((s) => s.id === tab);
   const extra = recordId ? extraTabs.find((t) => t.id === tab) : undefined;
-  const tabs = [...sections.map((s) => ({ id: s.id, label: s.title })), ...(recordId ? extraTabs.map((t) => ({ id: t.id, label: t.label })) : [])];
+  const tabs = [...shownSections.map((s) => ({ id: s.id, label: s.title })), ...(recordId ? extraTabs.map((t) => ({ id: t.id, label: t.label })) : [])];
 
   const doSave = async () => {
     setBusy(true);

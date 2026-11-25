@@ -99,8 +99,8 @@ function PoLines({ id, onBack }: { id: number; onBack: () => void }) {
       base={{ order_id: id }}
       label="Order"
       addLabel="Add a line"
-      canEdit={state === '' || state === 'draft' || state === 'sent'}
-      lockedNote="This order is already confirmed. Change it in Odoo."
+      canEdit={state === '' || state === 'draft' || state === 'sent' || state === 'purchase'}
+      lockedNote="This order is finished or cancelled. Change it in Odoo."
       afterPick={unitAfterProduct('product_uom_id')}
     />
   );
@@ -374,6 +374,8 @@ function CheckIn({ receipt, onBack }: { receipt: Receipt; onBack: () => void }) 
   const [qty, setQty] = useState<Record<number, string>>({});
   const [lot, setLot] = useState<Record<number, string>>({});
   const [useBy, setUseBy] = useState<Record<number, string>>({});
+  const [price, setPrice] = useState<Record<number, string>>({});
+  const [total, setTotal] = useState<Record<number, string>>({});
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
@@ -384,12 +386,14 @@ function CheckIn({ receipt, onBack }: { receipt: Receipt; onBack: () => void }) 
       .then((l) => {
         setLines(l);
         setQty(Object.fromEntries(l.map((x) => [x.moveId, fmtQty(x.ordered)])));
+        setPrice(Object.fromEntries(l.filter((x) => x.price !== null).map((x) => [x.moveId, fmtQty(x.price ?? 0)])));
+        setTotal(Object.fromEntries(l.filter((x) => x.price !== null).map((x) => [x.moveId, fmtQty(Math.round((x.price ?? 0) * x.ordered * 100) / 100)])));
       })
       .catch((e) => setError(`Couldn’t read this delivery from Odoo. ${why(e)}`));
   }, [client, offline, receipt.id]);
 
-  const arrived: Arrived[] = (lines ?? []).map((line) => ({ line, qty: toNum(qty[line.moveId] ?? '0'), lot: (lot[line.moveId] ?? '').trim(), useBy: (useBy[line.moveId] ?? '').trim() }));
-  const bad = arrived.some((a) => !Number.isFinite(a.qty) || a.qty < 0 || (a.useBy && !isDate(a.useBy)) || (a.line.tracked && a.qty > 0 && !a.lot));
+  const arrived: Arrived[] = (lines ?? []).map((line) => ({ line, qty: toNum(qty[line.moveId] ?? '0'), lot: (lot[line.moveId] ?? '').trim(), useBy: (useBy[line.moveId] ?? '').trim(), ...(line.orderLineId !== null && (price[line.moveId] ?? '') !== '' ? { price: toNum(price[line.moveId] ?? '') } : {}) }));
+  const bad = arrived.some((a) => !Number.isFinite(a.qty) || a.qty < 0 || (a.price !== undefined && (!Number.isFinite(a.price) || a.price < 0)) || (a.useBy && !isDate(a.useBy)) || (a.line.tracked && a.qty > 0 && !a.lot));
   return (
     <Screen title={receipt.supplier || receipt.name} testID="checkin-screen">
       {offline ? <Offline onBack={onBack} /> : null}
@@ -397,6 +401,34 @@ function CheckIn({ receipt, onBack }: { receipt: Receipt; onBack: () => void }) 
       {lines?.map((l) => (
         <Card key={l.moveId} title={l.name}>
           <Field label={`How many arrived (ordered ${fmtQty(l.ordered)})`} value={qty[l.moveId] ?? ''} onChangeText={(v) => setQty({ ...qty, [l.moveId]: v })} keyboardType="decimal-pad" testID={`arrived-${l.moveId}`} />
+          {l.orderLineId !== null ? (
+            <>
+              <Field
+                label="Price each (what you paid)"
+                value={price[l.moveId] ?? ''}
+                onChangeText={(v) => {
+                  setPrice({ ...price, [l.moveId]: v });
+                  const n = toNum(qty[l.moveId] ?? '0');
+                  const p = toNum(v);
+                  setTotal({ ...total, [l.moveId]: Number.isFinite(n) && Number.isFinite(p) ? fmtQty(Math.round(n * p * 100) / 100) : '' });
+                }}
+                keyboardType="decimal-pad"
+                testID={`arrived-price-${l.moveId}`}
+              />
+              <Field
+                label="Total paid for this line"
+                value={total[l.moveId] ?? ''}
+                onChangeText={(v) => {
+                  setTotal({ ...total, [l.moveId]: v });
+                  const n = toNum(qty[l.moveId] ?? '0');
+                  const t = toNum(v);
+                  if (n > 0 && Number.isFinite(t)) setPrice({ ...price, [l.moveId]: fmtQty(Math.round((t / n) * 10000) / 10000) });
+                }}
+                keyboardType="decimal-pad"
+                testID={`arrived-total-${l.moveId}`}
+              />
+            </>
+          ) : null}
           {l.tracked ? (
             <>
               <Field label="Supplier’s batch number" value={lot[l.moveId] ?? ''} onChangeText={(v) => setLot({ ...lot, [l.moveId]: v })} autoCapitalize="characters" testID={`arrived-lot-${l.moveId}`} />
