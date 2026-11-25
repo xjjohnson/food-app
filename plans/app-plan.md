@@ -42,7 +42,7 @@ One person can hold more than one role. Roles come from Odoo, and screens a pers
 
 ## Top daily jobs, ranked
 
-Justin's six jobs come first, in the order I'd build them. Jobs 7 to 10 are my suggestions. Cross out any you don't want.
+Justin's six jobs come first, in build order. Jobs 7 to 10 were suggestions, and Justin kept all four.
 
 1. **Start a batch.** Pick a recipe (for example chocolate chip cookies, 4 dozen), and the app creates the Odoo manufacturing order and shows the ingredient list. It warns if an ingredient is short.
 2. **Record the batch number and use-by date.** When the batch is finished, the app saves the batch number and use-by date in Odoo. It suggests a use-by date from the product's shelf life set in Odoo, and you can change it.
@@ -59,16 +59,16 @@ Justin's six jobs come first, in the order I'd build them. Jobs 7 to 10 are my s
 
 Odoo's own Point of Sale screen already runs on a phone or tablet in the browser. It handles payments, receipts, batch numbers and working without signal. Building our own checkout inside the app is a large piece of work and would duplicate that.
 
-**My recommendation:** for now, the app has a "Market" button that opens Odoo's Point of Sale. Sales still land in Odoo and take stock off the right batch. We build our own checkout later only if Odoo's screen gets in the way.
+**Decided (Justin, 2026-11-25):** the app has a "Market" button that opens Odoo's Point of Sale. Sales still land in Odoo and take stock off the right batch. We build our own checkout later only if Odoo's screen gets in the way.
 
-Also needed up front: **which payment methods do you take at the market?** (Cash, card reader, Venmo, Cash App and so on.) These are set up in Odoo's Point of Sale, and the app just shows them.
+**Payment methods:** cash, Cash App and Venmo. No card payments. These are set up in Odoo's Point of Sale, and the app just shows them.
 
 ## What we reuse from the garage door app
 
 - The Odoo connection and the offline queue (save to Odoo, local copy only for offline, sync when back online).
 - Login and roles, with owner screens hidden from staff.
 - The management area, where all lists come from Odoo.
-- Theme and brand setup (name, colors, logo, read from the Odoo company).
+- Theme and brand setup. **Decided:** the app's name, logo and colors come from the Odoo company record.
 - Beta and main update channels with over-the-air updates. Version numbers stay 0.x.y until a new install file is needed.
 - Test dashboard and Developer screen (switch to the test database, testing tools).
 - The camera scanner.
@@ -100,11 +100,11 @@ The garage door features themselves (springs, door jobs, field service) don't ca
 6. **Market:** the Point of Sale button, or our own checkout if you choose it (job 4).
 7. **Today screen and product lookup** (jobs 8 and 10).
 
-## Questions for Justin
+## Answers from Justin (2026-11-25)
 
-1. Do you approve this plan, and the build order above?
-2. Market sales: open Odoo's Point of Sale from the app (recommended), or build our own checkout?
-3. Which payment methods do you take at the market?
-4. Keep, change or drop suggestions 7 to 10?
-5. Is there a test copy of the food database we can use, separate from the live one? If not, the first step is setting one up.
-6. App name and colors: use the name, logo and colors on the Odoo company, or something else?
+1. Plan and build order: waiting for a clear yes.
+2. Market sales: open Odoo's Point of Sale from the app.
+3. Payment methods: cash, Cash App, Venmo.
+4. Suggestions 7 to 10: keep all four.
+5. A test copy of the food database exists. Its web address and API key are entered on the app's Developer screen, never written into the code or chat.
+6. Name, logo and colors: taken from the Odoo company.
