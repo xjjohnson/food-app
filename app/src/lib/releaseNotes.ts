@@ -11,6 +11,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.16',
+    changes: ['New Bought ingredients button at the top of Ingredients: pick who you bought from, add what you bought with the price paid, Save. Odoo makes the order, receives it into stock, and makes a vendor bill marked paid. Works with no signal. Purchase orders and Check in a delivery are under “Ordering ahead”. Variants have their own tab on a product. Packagings are picked from Odoo’s units on the product (Packagings tab).'],
+    test: [
+      'Ingredients, Bought ingredients. Pick a store, Add what you bought, pick an ingredient. Type a price each and check Total paid follows; type a total and check the price follows.',
+      'Check and save. Pick how it was paid (or Not paid yet) and Save purchase. In Odoo check: the purchase order, the delivery received, the stock up, the ingredient’s cost changed (Average Cost), and the vendor bill posted and paid from the journal you picked.',
+      'Try an ingredient with batch numbers: it asks for a batch number and use-by date. Check them on the batch in Odoo.',
+      'Turn on airplane mode, do a purchase and Save. It says it is saved on the phone. Turn signal back on and check it all arrives in Odoo, once.',
+      'A product: the Variants tab lists each variant with its stock. Tap one to change it. Batches only lists batches.',
+      'A product, Packagings tab: pick units such as Pack of 6, Save, and check the Packagings on the product’s Sales tab in Odoo.',
+    ],
+  },
+  {
     release: '0.1.15',
     changes: ['Find a product shows one row per product, with the total stock and how many variants. A product’s Batches tab lists its variants; tap one to see and change it (reference, barcode, price, weight, volume, archive), its batches and packagings. Packagings say so in plain words when this Odoo has no Packagings list. Descriptions that Odoo keeps as HTML now show as plain text. Color is a row of swatches. The log is shorter and clearer: it leaves out quick reads that worked, shows each screen opened and each message shown to you, marks failures as errors, and has a Problems only switch.'],
     test: [

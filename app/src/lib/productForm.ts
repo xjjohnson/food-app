@@ -132,3 +132,17 @@ export const VARIANT_SECTIONS: Section[] = [
     ],
   },
 ];
+
+/**
+ * Where Odoo keeps a product's packagings (Pack of 6 and so on). In Odoo 19 it
+ * is a list picked from the units of measure, on the product's Sales tab. The
+ * field is found by its label, so no field name is taken on trust. Null when
+ * this Odoo has no such list.
+ */
+export async function findPackagingField(c: Client): Promise<{ name: string; relation: string } | null> {
+  const f = (await c.call('product.template', 'fields_get', [], { attributes: ['string', 'type', 'relation'] })) as Record<string, { string?: string; type?: string; relation?: string }>;
+  for (const [name, info] of Object.entries(f)) {
+    if (info?.string === 'Packagings' && info.type === 'many2many' && info.relation) return { name, relation: info.relation };
+  }
+  return null;
+}
