@@ -25,6 +25,7 @@
  */
 import { OdooError, type OdooClient } from './odoo';
 import { log } from './log';
+import { runStep, type Step } from './purchaseSteps';
 
 export const QUEUE_KEY = 'queue/v1';
 export const QUEUE_VERSION = 1;
@@ -51,6 +52,8 @@ export interface QueuedChange {
   already?: { model: string; domain: unknown[] };
   /** Run on the record right after a create or a write (for example confirming a batch). */
   then?: ThenCall;
+  /** A purchase step (receive the delivery, make the paid bill) run instead of a plain call. */
+  step?: Step;
   /** Who made it (Odoo user id) and when. */
   by: number;
   createdAt: number;
@@ -96,6 +99,7 @@ export interface NewChange {
   kwargs?: Record<string, unknown>;
   already?: { model: string; domain: unknown[] };
   then?: ThenCall;
+  step?: Step;
 }
 
 export async function enqueue(storage: Storage, db: string, by: number, change: NewChange, now = Date.now()): Promise<QueuedChange> {
@@ -120,6 +124,10 @@ async function runThen(c: Client, item: NewChange, ids: number[]): Promise<void>
 
 /** Makes the change in Odoo, then runs its `then` call. Skips what is already there. */
 async function execute(c: Client, item: NewChange, checkAlready: boolean): Promise<unknown> {
+  if (item.step) {
+    await runStep(c, item.step);
+    return null;
+  }
   if (checkAlready && item.already) {
     const found = (await c.call(item.already.model, 'search', [item.already.domain])) as number[];
     if (found.length) {

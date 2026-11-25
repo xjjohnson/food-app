@@ -60,8 +60,9 @@ describe('ingredients lib', () => {
     await saveOrQueue(c, AsyncStorage, DB, 1, placeOrderChange({ id: s.mill, name: 'Mill & Co.' }, [{ productId: s.flour, name: 'Flour', qty: 18 }]));
     const po = odoo.tables['purchase.order']![0]!;
     expect(po).toMatchObject({ partner_id: s.mill, state: 'purchase' });
-    expect(JSON.stringify(po.order_line)).toContain('"product_qty":18');
-    expect(JSON.stringify(po)).not.toMatch(/price/);
+    const lines = odoo.tables['purchase.order.line']!.filter((l) => l.order_id === po.id);
+    expect(lines.map((l) => l.product_qty)).toEqual([18]);
+    expect(JSON.stringify(lines)).not.toMatch(/price/);
   });
 
   test('an order made without signal is sent once', async () => {

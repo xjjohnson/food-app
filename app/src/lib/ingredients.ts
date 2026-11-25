@@ -13,6 +13,7 @@
  */
 import { m2oId, type OdooClient } from './odoo';
 import type { NewChange } from './queue';
+import { searchProducts } from './stock';
 
 type Client = Pick<OdooClient, 'call'>;
 
@@ -97,6 +98,10 @@ export interface OrderLine {
   productId: number;
   name: string;
   qty: number;
+  /** Price each as typed (Bought ingredients). Left out, Odoo fills it from the supplier's price list. */
+  price?: number;
+  /** The unit picked for this line, when it is not the product's own. */
+  uomId?: number;
 }
 
 /**
@@ -110,10 +115,86 @@ export function placeOrderChange(supplier: Supplier, lines: OrderLine[], now = D
     label: `Order from ${supplier.name}: ${lines.map((l) => `${l.qty} ${l.name}`).join(', ')}`,
     model: 'purchase.order',
     method: 'create',
-    args: [{ partner_id: supplier.id, origin: token, order_line: lines.map((l) => [0, 0, { product_id: l.productId, product_qty: l.qty }]) }],
+    args: [{ partner_id: supplier.id, origin: token, order_line: lines.map((l) => [0, 0, { product_id: l.productId, product_qty: l.qty, ...(l.price !== undefined ? { price_unit: l.price } : {}), ...(l.uomId ? { product_uom_id: l.uomId } : {}) }]) }],
     already: { model: 'purchase.order', domain: [['origin', '=', token]] },
     then: { method: 'button_confirm', onlyWhen: [['state', 'in', ['draft', 'sent']]] },
   };
+}
+
+/** A purchase made at a shop: what was bought, with what was paid and what came. */
+export interface BoughtLine extends OrderLine {
+  lot: string;
+  useBy: string;
+}
+
+/** An ingredient to pick on "Bought ingredients", with what the form needs to know about it. */
+export interface Choice {
+  id: number;
+  name: string;
+  /** The unit's name, and its id in Odoo. */
+  unit: string;
+  uomId: number;
+  /** True when the product has batch numbers, so a number is asked for. */
+  tracked: boolean;
+}
+
+/** Ingredients (raw materials, or all products) by name, with their unit and whether they have batch numbers. */
+export async function loadChoices(c: Client, text: string, all: boolean): Promise<Choice[]> {
+  const found = await searchProducts(c, text, false, !all);
+  if (!found.length) return [];
+  const rows = (await c.call('product.product', 'read', [found.map((f) => f.id)], { fields: ['tracking', 'uom_id'] })) as { id: number; tracking?: string; uom_id?: unknown }[];
+  return found.map((f) => {
+    const r = rows.find((x) => x.id === f.id);
+    return { id: f.id, name: f.name, unit: nameOf(r?.uom_id), uomId: m2oId(r?.uom_id), tracked: r?.tracking === 'lot' };
+  });
+}
+
+export interface Journal {
+  id: number;
+  name: string;
+}
+
+/** The ways to pay Odoo has (its cash and bank journals), for "Bought ingredients". Empty when there is no Accounting app. */
+export async function loadJournals(c: Client): Promise<Journal[]> {
+  try {
+    const rows = (await c.call('account.journal', 'search_read', [[['type', 'in', ['cash', 'bank']]]], { fields: ['name'], order: 'name asc', limit: 20 })) as { id: number; name: string }[];
+    return rows.map((r) => ({ id: r.id, name: String(r.name) }));
+  } catch {
+    return [];
+  }
+}
+
+/** The last price paid for a product on a confirmed order, or null. A starting guess the person can change. */
+export async function lastPricePaid(c: Client, productId: number): Promise<number | null> {
+  try {
+    const [r] = (await c.call('purchase.order.line', 'search_read', [[['product_id', '=', productId], ['state', 'in', ['purchase', 'done']]]], { fields: ['price_unit'], order: 'id desc', limit: 1 })) as { price_unit?: number }[];
+    return typeof r?.price_unit === 'number' ? r.price_unit : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * "Bought ingredients": one chain for a shopping trip, kept in order in the
+ * offline queue: make and confirm the purchase order (with the price paid on
+ * each line), receive the delivery Odoo makes for it, then make the vendor bill
+ * and mark it paid. `journalId` null leaves the bill open ("not paid yet"), and
+ * `billing` false (no Accounting app) stops after receiving.
+ */
+export function boughtChanges(supplier: Supplier, lines: BoughtLine[], opts: { billing: boolean; journalId: number | null; date: string }, now = Date.now()): NewChange[] {
+  const order = placeOrderChange(supplier, lines, now);
+  const token = (order.args[0] as { origin: string }).origin;
+  const label = `${supplier.name}: ${lines.map((l) => `${l.qty} ${l.name}`).join(', ')}`;
+  const out: NewChange[] = [{ ...order, label: `Bought from ${label}` }];
+  out.push({
+    label: `Receive purchase from ${supplier.name}`,
+    model: 'purchase.order',
+    method: 'receive',
+    args: [],
+    step: { kind: 'receive', token, lines: lines.map((l) => ({ productId: l.productId, qty: l.qty, lot: l.lot, useBy: l.useBy })) },
+  });
+  if (opts.billing) out.push({ label: `${opts.journalId === null ? 'Bill' : 'Paid bill'} for ${supplier.name}`, model: 'purchase.order', method: 'bill', args: [], step: { kind: 'bill', token, date: opts.date, journalId: opts.journalId } });
+  return out;
 }
 
 export interface Receipt {
@@ -178,7 +259,7 @@ export interface Arrived {
   price?: number;
 }
 
-function lineValues(a: Arrived): Record<string, unknown> {
+export function lineValues(a: Arrived): Record<string, unknown> {
   const v: Record<string, unknown> = { product_id: a.line.productId, quantity: a.qty, location_id: a.line.from, location_dest_id: a.line.to, picked: true };
   if (a.line.tracked && a.lot) {
     v.lot_name = a.lot;

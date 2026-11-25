@@ -55,7 +55,7 @@ describe('variants live on the product', () => {
     await settle();
     await fireEvent.press(screen.getByTestId('edit-product-30'));
     await settle();
-    await fireEvent.press(await screen.findByTestId('form-tabs-batches'));
+    await fireEvent.press(await screen.findByTestId('form-tabs-variants'));
     await fireEvent.press(await screen.findByTestId(`variant-${k.b}`));
     await settle();
     await fireEvent.changeText(await screen.findByTestId('f-barcode'), '12345');
@@ -65,12 +65,9 @@ describe('variants live on the product', () => {
   });
 });
 
-describe('packagings that Odoo does not have', () => {
-  test('say so in plain words instead of an error', async () => {
+describe('packagings are units picked on the product (Odoo 19)', () => {
+  async function open(odoo: FakeOdoo) {
     await AsyncStorage.clear();
-    const { odoo } = bakery();
-    jam(odoo);
-    odoo.refuse['product.packaging.fields_get'] = "Object product.packaging doesn't exist";
     globalThis.fetch = ((u: string, i: never) => odoo.fetch(u, i)) as never;
     const login = { url: URL, db: 'food-test', login: 'baker@example.com' };
     await AsyncStorage.setItem(ODOO_STORAGE_KEY, JSON.stringify(login));
@@ -85,11 +82,34 @@ describe('packagings that Odoo does not have', () => {
     await settle();
     await fireEvent.press(screen.getByTestId('edit-product-30'));
     await settle();
+    return settle;
+  }
+
+  test('the Packagings tab picks units from Odoo, found by its label, and saves them', async () => {
+    const { odoo } = bakery();
+    jam(odoo);
+    odoo.declared['product.template']!.push('packaging_uom_ids');
+    odoo.fieldInfo['product.template'] = { packaging_uom_ids: { string: 'Packagings', type: 'many2many', relation: 'uom.uom' } };
+    const pack = odoo.create('uom.uom', { name: 'Pack of 6' });
+    odoo.tables['product.template']![0]!.packaging_uom_ids = [];
+    const settle = await open(odoo);
     await fireEvent.press(await screen.findByTestId('form-tabs-packs'));
-    await fireEvent.press(await screen.findByTestId('product-packs'));
+    await fireEvent.press(screen.getByTestId('f-packaging_uom_ids-add'));
     await settle();
-    expect(screen.getByText(/no Packagings list/)).toBeTruthy();
-    expect(screen.queryByText(/Couldn’t read the lines/)).toBeNull();
+    await fireEvent.press(await screen.findByTestId(`relation-${pack}`));
+    await fireEvent.press(screen.getByTestId('relation-done'));
+    await settle();
+    await fireEvent.press(screen.getByTestId('save-form'));
+    await settle();
+    expect(odoo.tables['product.template']![0]!.packaging_uom_ids).toEqual([pack]);
+  });
+
+  test('no Packagings list in this Odoo means no Packagings tab, and no error', async () => {
+    const { odoo } = bakery();
+    jam(odoo);
+    await open(odoo);
+    expect(screen.queryByTestId('form-tabs-packs')).toBeNull();
+    expect(screen.queryByText(/Couldn’t read/)).toBeNull();
   });
 });
 

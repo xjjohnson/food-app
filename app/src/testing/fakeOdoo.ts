@@ -59,6 +59,8 @@ export class FakeOdoo {
   batchFields = ['lot_producing_ids', 'qty_producing', 'move_raw_ids'];
   /** Fields a test says Odoo has, for models whose fields_get is built from rows. */
   declared: Record<string, string[]> = {};
+  /** Field details (label, type, relation) for fields_get with attributes, by model and field. */
+  fieldInfo: Record<string, Record<string, { string?: string; type?: string; relation?: string }>> = {};
   productFields = ['expiration_time', 'free_qty'];
   templateFields = ['expiration_time', 'list_price'];
   private nextId = 100;
@@ -198,7 +200,17 @@ export class FakeOdoo {
           for (const l of by) this.createBomLine('mrp.bom.byproduct', { ...l[2], bom_id: id });
           return id;
         }
-        return this.create(model, model === 'stock.scrap' || model === 'purchase.order' ? { state: 'draft', ...vals } : vals);
+        if (model === 'account.payment.register') return this.create(model, { ...vals, active_ids: ((kw.context as { active_ids?: number[] } | undefined)?.active_ids) ?? [] });
+        if (model === 'purchase.order') {
+          const lines = (vals.order_line as [number, number, Record<string, unknown>][] | undefined) ?? [];
+          delete vals.order_line;
+          const id = this.create(model, { state: 'draft', picking_ids: [], invoice_ids: [], order_line: [], ...vals });
+          const po = this.tables[model]!.find((x) => x.id === id)!;
+          po.name = po.name ?? `P${String(id).padStart(5, '0')}`;
+          po.order_line = lines.map((l) => this.create('purchase.order.line', { ...this.pairs(l[2]), order_id: id, state: 'draft' }));
+          return id;
+        }
+        return this.create(model, model === 'stock.scrap' ? { state: 'draft', ...vals } : vals);
       }
       case 'unlink': {
         const ids = args[0] as number[];
@@ -219,8 +231,46 @@ export class FakeOdoo {
         }
         return true;
       case 'button_confirm':
-        for (const r of table.filter((x) => (args[0] as number[]).includes(x.id))) r.state = 'purchase';
+        for (const r of table.filter((x) => (args[0] as number[]).includes(x.id))) {
+          r.state = 'purchase';
+          if (model === 'purchase.order') {
+            const lines = this.tables['purchase.order.line']!.filter((l) => l.order_id === r.id);
+            for (const l of lines) l.state = 'purchase';
+            if (lines.length) {
+              const pick = this.create('stock.picking', { name: `WH/IN/${String(r.id).padStart(5, '0')}`, origin: r.name, partner_id: r.partner_id, picking_type_code: 'incoming', state: 'assigned' });
+              for (const l of lines) this.create('stock.move', { picking_id: pick, product_id: l.product_id, product_uom_qty: l.product_qty, purchase_line_id: [l.id, 'line'], location_id: [4, 'Vendors'], location_dest_id: [8, 'Stock'], move_line_ids: [] });
+              r.picking_ids = [...((r.picking_ids as number[]) ?? []), pick];
+            }
+          }
+        }
         return true;
+      case 'action_create_invoice': {
+        const out: number[] = [];
+        for (const r of table.filter((x) => (args[0] as number[]).includes(x.id))) {
+          const done = (r.picking_ids as number[]).some((p) => this.tables['stock.picking']!.find((x) => x.id === p)?.state === 'done');
+          if (!done) throw { message: 'Odoo Server Error', data: { name: 'odoo.exceptions.UserError', message: 'There is nothing to invoice: receive the products first.' } };
+          const total = this.tables['purchase.order.line']!.filter((l) => l.order_id === r.id).reduce((a, l) => a + (l.product_qty as number) * (l.price_unit as number ?? 0), 0);
+          const id = this.create('account.move', { move_type: 'in_invoice', state: 'draft', payment_state: 'not_paid', partner_id: r.partner_id, invoice_origin: r.name, amount_total: total });
+          r.invoice_ids = [...((r.invoice_ids as number[]) ?? []), id];
+          out.push(id);
+        }
+        return { res_id: out[0] };
+      }
+      case 'action_post':
+        for (const r of table.filter((x) => (args[0] as number[]).includes(x.id))) {
+          if (!r.invoice_date) throw { message: 'Odoo Server Error', data: { name: 'odoo.exceptions.UserError', message: 'The Bill/Refund date is required to validate this document.' } };
+          r.state = 'posted';
+        }
+        return true;
+      case 'action_create_payments': {
+        const w = table.find((x) => x.id === (args[0] as number[])[0])!;
+        for (const mid of w.active_ids as number[]) {
+          const m = this.tables['account.move']!.find((x) => x.id === mid)!;
+          m.payment_state = 'paid';
+          this.create('account.payment', { move_id: mid, journal_id: w.journal_id, amount: m.amount_total });
+        }
+        return true;
+      }
       case 'action_apply_inventory':
         for (const r of table.filter((x) => (args[0] as number[]).includes(x.id))) {
           r.quantity = r.inventory_quantity;
@@ -293,7 +343,7 @@ export class FakeOdoo {
       case 'fields_get': {
         if (model === 'mrp.production') return Object.fromEntries(this.batchFields.map((f) => [f, {}]));
         if (model === 'product.product') return Object.fromEntries([...this.productFields, ...(this.declared[model] ?? [])].map((f) => [f, {}]));
-        if (model === 'product.template') return Object.fromEntries([...this.templateFields, ...(this.declared[model] ?? []), ...table.flatMap((r) => Object.keys(r))].map((f) => [f, {}]));
+        if (model === 'product.template') return Object.fromEntries([...this.templateFields, ...(this.declared[model] ?? []), ...table.flatMap((r) => Object.keys(r))].map((f) => [f, this.fieldInfo[model]?.[f] ?? {}]));
         return Object.fromEntries([...(this.declared[model] ?? []), ...table.flatMap((r) => Object.keys(r))].map((f) => [f, {}]));
       }
     }

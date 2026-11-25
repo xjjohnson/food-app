@@ -9,13 +9,14 @@ import { loadPurchaseOrders, poStateLabel, PurchaseRow, Arrived, checkInChanges,
 import { fmtQty, isDate } from '../lib/production';
 import { searchProducts } from '../lib/stock';
 import { IngredientListScreen } from './IngredientListScreen';
+import { BoughtScreen } from './BoughtScreen';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const toNum = (t: string) => Number(t.replace(',', '.'));
 
-type Page = { p: 'menu' } | { p: 'list' } | { p: 'low' } | { p: 'order'; item: LowItem } | { p: 'levels'; item?: LowItem } | { p: 'receipts' } | { p: 'checkin'; receipt: Receipt } | { p: 'rule'; id: number } | { p: 'pos' } | { p: 'po'; id?: number; lines?: boolean };
+type Page = { p: 'menu' } | { p: 'bought' } | { p: 'list' } | { p: 'low' } | { p: 'order'; item: LowItem } | { p: 'levels'; item?: LowItem } | { p: 'receipts' } | { p: 'checkin'; receipt: Receipt } | { p: 'rule'; id: number } | { p: 'pos' } | { p: 'po'; id?: number; lines?: boolean };
 
 /** The page Back goes to from each page. */
 function upFrom(p: Page): Page {
@@ -39,6 +40,8 @@ export function IngredientsScreen() {
   const menu = () => setPage({ p: 'menu' });
   useInnerBack(page.p === 'menu' ? null : () => setPage(upFrom(page)));
   switch (page.p) {
+    case 'bought':
+      return <BoughtScreen onBack={menu} />;
     case 'list':
       return <IngredientListScreen onBack={menu} />;
     case 'low':
@@ -75,8 +78,10 @@ export function IngredientsScreen() {
   }
   return (
     <Screen title="Ingredients" testID="ingredients-screen">
+      <Row title="Bought ingredients" detail="Shopped? Write down what you bought and paid. It goes into stock" onPress={() => setPage({ p: 'bought' })} testID="ing-bought" />
       <Row title="Ingredient list" detail="See, add and change ingredients, their cost and vendors" onPress={() => setPage({ p: 'list' })} testID="ing-list" />
       <Row title="Running low" detail="What to order, and the levels that mean low" onPress={() => setPage({ p: 'low' })} testID="ing-low" />
+      <Body muted>Ordering ahead, then receiving later:</Body>
       <Row title="Purchase orders" detail="See, add and change orders to vendors" onPress={() => setPage({ p: 'pos' })} testID="ing-pos" />
       <Row title="Check in a delivery" detail="Record what arrived, with batch numbers and use-by dates" onPress={() => setPage({ p: 'receipts' })} testID="ing-receipts" />
     </Screen>
