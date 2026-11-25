@@ -138,10 +138,22 @@ export interface ReceiptLine {
   tracked: boolean;
   from: number;
   to: number;
+  /** The order line this delivery line came from, and the price per unit on it (null if none). */
+  orderLineId: number | null;
+  price: number | null;
 }
 
 export async function loadReceiptLines(c: Client, pickingId: number): Promise<ReceiptLine[]> {
-  const moves = (await c.call('stock.move', 'search_read', [[['picking_id', '=', pickingId]]], { fields: ['product_id', 'product_uom_qty', 'location_id', 'location_dest_id'] })) as Record<string, unknown>[];
+  const moves = (await c.call('stock.move', 'search_read', [[['picking_id', '=', pickingId]]], { fields: ['product_id', 'product_uom_qty', 'location_id', 'location_dest_id', 'purchase_line_id'] })) as Record<string, unknown>[];
+  const orderIds = moves.map((m) => m2oId(m.purchase_line_id)).filter((x) => x > 0);
+  let prices: { id: number; price_unit?: number }[] = [];
+  if (orderIds.length) {
+    try {
+      prices = (await c.call('purchase.order.line', 'read', [orderIds], { fields: ['price_unit'] })) as { id: number; price_unit?: number }[];
+    } catch {
+      prices = [];
+    }
+  }
   const ids = moves.map((m) => m2oId(m.product_id));
   const prods = ids.length ? ((await c.call('product.product', 'read', [ids], { fields: ['tracking'] })) as { id: number; tracking?: string }[]) : [];
   return moves.map((m) => ({
@@ -152,6 +164,8 @@ export async function loadReceiptLines(c: Client, pickingId: number): Promise<Re
     tracked: prods.find((p) => p.id === m2oId(m.product_id))?.tracking === 'lot',
     from: m2oId(m.location_id),
     to: m2oId(m.location_dest_id),
+    orderLineId: m2oId(m.purchase_line_id) > 0 ? m2oId(m.purchase_line_id) : null,
+    price: prices.find((p) => p.id === m2oId(m.purchase_line_id))?.price_unit ?? null,
   }));
 }
 
@@ -160,6 +174,8 @@ export interface Arrived {
   qty: number;
   lot: string;
   useBy: string;
+  /** Price per unit as typed at check-in. Left out or equal to the order's price means no change. */
+  price?: number;
 }
 
 function lineValues(a: Arrived): Record<string, unknown> {
@@ -180,6 +196,11 @@ function lineValues(a: Arrived): Record<string, unknown> {
 export function checkInChanges(receipt: Receipt, arrived: Arrived[]): NewChange[] {
   const already = { model: 'stock.picking', domain: [['id', '=', receipt.id], ['state', '=', 'done']] };
   const out: NewChange[] = [];
+  // What was paid goes on the order line first, so Odoo works out the cost from it when the delivery is validated.
+  for (const a of arrived) {
+    if (a.price === undefined || a.line.orderLineId === null || a.price === a.line.price) continue;
+    out.push({ label: `Price of ${a.line.name} on ${receipt.name}: ${a.price}`, model: 'purchase.order.line', method: 'write', args: [[a.line.orderLineId], { price_unit: a.price }], already });
+  }
   for (const a of arrived) {
     out.push({
       label: `Received ${a.qty} ${a.line.name} on ${receipt.name}`,

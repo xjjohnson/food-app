@@ -105,6 +105,8 @@ export interface IngredientValues {
   taxIds: number[];
   reference: string;
   barcode: string;
+  /** True when Odoo works the cost out itself (Average Cost): the cost is then not written. */
+  costLocked?: boolean;
 }
 
 export function editIngredientChange(id: number, v: IngredientValues): NewChange {
@@ -112,7 +114,7 @@ export function editIngredientChange(id: number, v: IngredientValues): NewChange
     label: `Ingredient ${v.name.trim()}`,
     model: 'product.template',
     method: 'write',
-    args: [[id], { name: v.name.trim(), standard_price: v.cost, supplier_taxes_id: [[6, 0, v.taxIds]], default_code: v.reference.trim() || false, barcode: v.barcode.trim() || false, ...(v.categoryId ? { categ_id: v.categoryId } : {}) }],
+    args: [[id], { name: v.name.trim(), ...(v.costLocked ? {} : { standard_price: v.cost }), supplier_taxes_id: [[6, 0, v.taxIds]], default_code: v.reference.trim() || false, barcode: v.barcode.trim() || false, ...(v.categoryId ? { categ_id: v.categoryId } : {}) }],
   };
 }
 

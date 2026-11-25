@@ -17,6 +17,7 @@ import {
   removeVendorChange,
   VendorLine,
 } from '../lib/ingredientList';
+import { categoryCostMethod } from '../lib/costing';
 import { searchSuppliers } from '../lib/ingredients';
 import { ProductForm } from './ProductForm';
 import { fmtQty } from '../lib/production';
@@ -135,6 +136,15 @@ export function IngredientForm({ id, defaultCategory, onBack, onCreated }: { id:
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [avg, setAvg] = useState(false);
+  const catId = category?.id ?? 0;
+  useEffect(() => {
+    if (!client || offline || !id || !catId) {
+      setAvg(false);
+      return;
+    }
+    categoryCostMethod(client, catId).then((m) => setAvg(m === 'average'));
+  }, [client, offline, id, catId]);
   useInnerBack(picking ? () => setPicking(null) : vendor ? () => setVendor(null) : null);
 
   const load = useCallback(async () => {
@@ -218,7 +228,7 @@ export function IngredientForm({ id, defaultCategory, onBack, onCreated }: { id:
       />
     );
 
-  const values = { name, categoryId: category?.id ?? null, cost: toNum(cost), taxIds, reference, barcode };
+  const values = { name, categoryId: category?.id ?? null, cost: toNum(cost), taxIds, reference, barcode, costLocked: avg };
   const ready = name.trim().length > 0 && okMoney(cost) && (id ? !!ing : true);
   return (
     <Screen title={id ? name || 'Ingredient' : 'New ingredient'} testID="ingredient-form">
@@ -230,8 +240,9 @@ export function IngredientForm({ id, defaultCategory, onBack, onCreated }: { id:
       ) : (
         <Row title="Unit of measure" value={unit?.name ?? 'Choose'} onPress={() => setPicking('unit')} testID="ingredient-pick-unit" />
       )}
-      <Field label="Cost" value={cost} onChangeText={setCost} keyboardType="decimal-pad" testID="ingredient-cost" />
-      {cost !== '' && !okMoney(cost) ? <ErrorText>Type the cost as a number, like 2.41.</ErrorText> : null}
+      <Field label="Cost" value={cost} onChangeText={setCost} keyboardType="decimal-pad" editable={!avg} testID="ingredient-cost" />
+      {avg ? <Body muted>Odoo works this out from what you pay for deliveries and batches (Average Cost). It can’t be typed here.</Body> : null}
+      {!avg && cost !== '' && !okMoney(cost) ? <ErrorText>Type the cost as a number, like 2.41.</ErrorText> : null}
       <Card title="Purchase taxes (from Odoo)">
         {taxes.map((t) => (
           <SwitchRow key={t.id} title={t.name} value={taxIds.includes(t.id)} onChange={(v) => setTaxIds(v ? [...taxIds, t.id] : taxIds.filter((x) => x !== t.id))} testID={`tax-${t.id}`} />

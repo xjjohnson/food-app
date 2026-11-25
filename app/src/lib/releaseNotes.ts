@@ -11,6 +11,19 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.14',
+    changes: ['Buy, make, sell workflow. Check in a delivery now shows the price each and total paid per line, and saves them on the order. Orders that are confirmed but not finished can have their lines changed. Cost on a product is read-only when its category uses Average Cost. Finish batch asks how much of each ingredient was really used and shows the cost Odoo worked out. Market shows open registers with a Close register button. The Developer connection check lists each category’s costing.'],
+    test: [
+      'Ingredients, Check in a delivery, open one. Each line shows Price each and Total paid. Change the total and check the price follows. Check in, then open the purchase order in Odoo and see the new price on the line.',
+      'In Odoo, check the ingredient’s cost moved to the average of old and new purchases.',
+      'Ingredients, Purchase orders, open a confirmed order, Lines. You can change a price or amount.',
+      'Open an ingredient or product whose category is on Average Cost. Cost shows as read-only with a note.',
+      'Production, open a started batch. Under Finish this batch, each ingredient shows the recipe amount. Change one, then Finish batch. The batch page then shows what the batch cost and the cost each, from Odoo.',
+      'Market. If a register is open it shows under Open registers with how long. Close register opens the Point of Sale; in it tap the menu, then Close Register. Check whether Odoo then takes stock off.',
+      'Developer, Run the check. Each category shows its costing method. Raw Material should say Average Cost.',
+    ],
+  },
+  {
     release: '0.1.13',
     changes: ['Recipe ingredient picker shows raw materials only (with a switch for all products) and has Add a new ingredient. Start batch shows what the recipe makes, each ingredient with its unit, recipe and batch amounts, and need versus have with units. Stock has a new What’s in stock list.'],
     test: [

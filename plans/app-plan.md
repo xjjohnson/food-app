@@ -15,7 +15,7 @@ A phone and tablet app that runs the food business on top of our Odoo 19 databas
 ## The business
 
 - **Products:** jellies, cookies and other baked goods.
-- **Tracking:** every batch gets a batch number (Odoo calls it a "lot") and a use-by date. Lot and expiry tracking is already switched on in Odoo. The app will never switch Odoo settings on or off by itself.
+- **Tracking:** every batch gets a batch number (Odoo calls it a "lot") and a use-by date. Lot and expiry tracking is already switched on in Odoo. The app will never change an Odoo setting by itself.
 - **Where we sell:** our website shop (food.hivemindjohnson.work/shop) and in person with Point of Sale.
 - **Getting orders to customers:** local delivery and pickup. No shipping carriers or printed postage labels.
 - **Time clock:** not needed.
@@ -80,7 +80,7 @@ The garage door features themselves (springs, door jobs, field service) don't ca
 
 - Never bulk-send old phone data to Odoo in an update.
 - No automatic texting.
-- The app never switches Odoo settings on by itself. A person can switch Track Inventory, lot tracking and expiry for one product from its screen (Justin, 2026-11-25).
+- The app never changes an Odoo setting by itself. It may change one only when the owner taps a button that says exactly what it will change, in the management area, hidden from other roles. A person can still switch Track Inventory, lot tracking and expiry for one product from its screen (Justin, 2026-11-25).
 - Taxes, price lists and terms come from Odoo only.
 - A separate test database and API key, kept apart from the live database.
 
