@@ -49,7 +49,7 @@ export interface QueuedChange {
   kwargs?: Record<string, unknown>;
   /** Look for this in Odoo first; when found, the change is already there and isn't sent again. */
   already?: { model: string; domain: unknown[] };
-  /** Run on the new record right after a create (for example confirming a batch). */
+  /** Run on the record right after a create or a write (for example confirming a batch). */
   then?: ThenCall;
   /** Who made it (Odoo user id) and when. */
   by: number;
@@ -128,7 +128,10 @@ async function execute(c: Client, item: NewChange, checkAlready: boolean): Promi
     }
   }
   const result = await c.call(item.model, item.method, item.args, item.kwargs ?? {});
-  if (item.then && typeof result === 'number') await runThen(c, item, [result]);
+  if (item.then) {
+    const ids = typeof result === 'number' ? [result] : item.method === 'write' && Array.isArray(item.args[0]) ? (item.args[0] as number[]) : [];
+    await runThen(c, item, ids);
+  }
   return result;
 }
 
