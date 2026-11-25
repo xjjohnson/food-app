@@ -85,11 +85,7 @@ everyone, run the Android APK workflow by hand on main with "production".
    `keytool -genkeypair -storetype PKCS12 -keystore foodapp-release.p12 -alias foodapp -keyalg RSA -keysize 2048 -validity 10000`
    then `base64 -w0 foodapp-release.p12` for the secret. Keep the file safe:
    phones can only update with the same key.
-   No computer? Save a password of 16 or more characters as the secret
-   `ANDROID_KEYSTORE_PASSWORD`, then run Actions > **Make signing key**. It
-   leaves a one-day artifact with the key file (keep it as your backup) and
-   `ANDROID_KEYSTORE_BASE64.txt` to paste into the `ANDROID_KEYSTORE_BASE64`
-   secret. Delete the artifact afterwards.
+   (The one-time "Make signing key" workflow was removed once the key was set up.)
 
 ## Over-the-air updates
 
