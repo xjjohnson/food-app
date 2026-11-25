@@ -5,7 +5,7 @@ import { setDbKind } from '../lib/dbSwitch';
 import { lookupGroups, stockByBatchOf } from '../lib/lookup';
 import { log } from '../lib/log';
 import { ODOO_STORAGE_KEY, OdooClient } from '../lib/odoo';
-import { allFields, blankValue, changedValues, loadDraft, looksLikeHtml } from '../lib/odooForm';
+import { allFields, blankValue, changedValues, loadDraft, looksLikeHtml, searchRelation } from '../lib/odooForm';
 import { loadVariants, PRODUCT_SECTIONS, VARIANT_SECTIONS } from '../lib/productForm';
 import { deviceSecrets } from '../lib/secrets';
 import { bakery, FakeOdoo, URL } from '../testing/fakeOdoo';
@@ -142,5 +142,18 @@ describe('the log', () => {
     expect(text).not.toMatch(/res\.partner\.search_read ok/);
     expect(text).toMatch(/res\.partner\.create ok/);
     expect(text).toMatch(/error res\.partner\.write failed/);
+  });
+});
+
+describe('pickers search Odoo by name', () => {
+  test('work on Odoo 19 (domain) and on older Odoo (args)', async () => {
+    const { odoo } = bakery();
+    odoo.create('uom.uom', { name: 'Pack of 6' });
+    odoo.create('uom.uom', { name: 'Pack of 12' });
+    odoo.create('uom.uom', { name: 'Jars' });
+    const c = await client(odoo);
+    expect((await searchRelation(c, 'uom.uom', 'pack', [['name', 'ilike', '6']])).map((r) => r.name)).toEqual(['Pack of 6']);
+    odoo.oldNameSearch = true;
+    expect((await searchRelation(c, 'uom.uom', 'pack', [['name', 'ilike', '12']])).map((r) => r.name)).toEqual(['Pack of 12']);
   });
 });

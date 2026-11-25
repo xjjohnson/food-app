@@ -127,7 +127,14 @@ export async function loadDraft(c: Client, model: string, id: number, defs: Fiel
 
 /** Finds records to pick, by name. */
 export async function searchRelation(c: Client, relation: string, text: string, domain: unknown[] = []): Promise<Rel[]> {
-  const rows = (await c.call(relation, 'name_search', [], { name: text.trim(), args: domain, limit: 30 })) as [number, string][];
+  // Odoo 19 calls the option `domain`; older Odoo calls it `args`.
+  let rows: [number, string][];
+  try {
+    rows = (await c.call(relation, 'name_search', [], { name: text.trim(), domain, limit: 30 })) as [number, string][];
+  } catch (e) {
+    if (!(e instanceof Error) || !/unexpected keyword argument 'domain'/.test(e.message)) throw e;
+    rows = (await c.call(relation, 'name_search', [], { name: text.trim(), args: domain, limit: 30 })) as [number, string][];
+  }
   return rows.map(([id, name]) => ({ id, name }));
 }
 

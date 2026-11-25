@@ -11,6 +11,15 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.17',
+    changes: ['Fixes the pickers that said “Couldn’t read the list from Odoo” (an unexpected keyword argument): units for Packagings and Change the unit, and other pickers in the product and contact forms. Odoo 19 renamed that option.'],
+    test: [
+      'A product, Packagings tab, Add. Units such as Pack of 6 list. Pick one, Save, and check it in Odoo.',
+      'Ingredients, Bought ingredients, add an ingredient, Change the unit. Units list and one can be picked.',
+      'In a product, pick a category and a tax; in a contact, pick a country. The lists show with no error.',
+    ],
+  },
+  {
     release: '0.1.16',
     changes: ['New Bought ingredients button at the top of Ingredients: pick who you bought from, add what you bought with the price paid, Save. Odoo makes the order, receives it into stock, and makes a vendor bill marked paid. Works with no signal. Purchase orders and Check in a delivery are under “Ordering ahead”. Variants have their own tab on a product. Packagings are picked from Odoo’s units on the product (Packagings tab).'],
     test: [
