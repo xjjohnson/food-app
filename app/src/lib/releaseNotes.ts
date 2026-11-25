@@ -11,6 +11,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.3',
+    changes: ['Stock: count stock by batch, an Expiring soon list where you can throw out a batch, and Find a batch to see where it came from and where it went.'],
+    test: [
+      'Open Stock, then Count stock. Search for a product and open it.',
+      'Type a different number on one line and tap Save. In Odoo, Inventory shows that number on hand.',
+      'Open Expiring soon. Batches close to their use-by date show, soonest first. Switch between 7, 14 and 30 days.',
+      'Tap Throw out on a test batch and confirm. In Odoo the stock comes off and a scrap is recorded.',
+      'Open Find a batch and type part of a batch number. Open it: you see what it was made from and which orders it went out on.',
+      'Turn on Pretend offline and save a count: it waits, then goes to Odoo when you turn it off.',
+    ],
+  },
+  {
     release: '0.1.2',
     changes: ['Website orders: see orders waiting to be packed, pack them taking the batch that expires first, and mark each as delivered or picked up.'],
     test: [

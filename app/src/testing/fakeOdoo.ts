@@ -41,6 +41,7 @@ export class FakeOdoo {
     'stock.picking': [],
     'stock.move.line': [],
     'stock.quant': [],
+    'stock.scrap': [],
     'product.product': [],
     'ir.module.module': ['mrp', 'stock', 'sale_management', 'website_sale', 'purchase', 'point_of_sale', 'hr', 'contacts', 'product_expiry'].map((name, i) => ({ id: i + 1, name, state: 'installed' })),
   };
@@ -87,10 +88,19 @@ export class FakeOdoo {
     return domain.every((d) => {
       if (!Array.isArray(d)) return true;
       const [f, op, v] = d as [string, string, unknown];
+      if (f.includes('.')) return true; // paths through other tables aren't pretended
       const raw = r[f];
-      const val = Array.isArray(raw) && typeof raw[0] === 'number' && f !== 'category_ids' ? raw[0] : raw;
+      const many = ['category_ids', 'lot_producing_ids', 'move_line_ids', 'move_raw_ids'].includes(f);
+      const val = Array.isArray(raw) && typeof raw[0] === 'number' && !many ? raw[0] : raw;
       if (op === '=') return v === false ? !val : val === v;
-      if (op === 'in') return (v as unknown[]).includes(val);
+      if (op === '!=') return v === false ? !!val && !(Array.isArray(val) && !val.length) : val !== v;
+      if (op === 'in') return many && Array.isArray(val) ? (val as unknown[]).some((x) => (v as unknown[]).includes(x)) : (v as unknown[]).includes(val);
+      if (op === '<=' || op === '<' || op === '>' || op === '>=') {
+        if (val === false || val === undefined || val === null) return false;
+        const a = val as string | number;
+        const b = v as string | number;
+        return op === '<=' ? a <= b : op === '<' ? a < b : op === '>' ? a > b : a >= b;
+      }
       if (op === 'ilike') return typeof val === 'string' && val.toLowerCase().includes(String(v).toLowerCase());
       return true;
     });
@@ -132,7 +142,7 @@ export class FakeOdoo {
       case 'create': {
         const vals = { ...(args[0] as Record<string, unknown>) };
         if (model === 'mrp.production') return this.createBatch(vals);
-        return this.create(model, vals);
+        return this.create(model, model === 'stock.scrap' ? { state: 'draft', ...vals } : vals);
       }
       case 'action_confirm':
         for (const r of table.filter((x) => (args[0] as number[]).includes(x.id))) {
@@ -142,6 +152,19 @@ export class FakeOdoo {
             const p = this.tables['product.product']!.find((x) => x.id === (Array.isArray(m.product_id) ? m.product_id[0] : m.product_id))!;
             m.state = ((p.free_qty as number) ?? 0) >= (m.product_uom_qty as number) ? 'assigned' : 'confirmed';
           }
+        }
+        return true;
+      case 'action_apply_inventory':
+        for (const r of table.filter((x) => (args[0] as number[]).includes(x.id))) {
+          r.quantity = r.inventory_quantity;
+          r.inventory_quantity_set = false;
+        }
+        return true;
+      case 'action_validate':
+        for (const r of table.filter((x) => (args[0] as number[]).includes(x.id))) {
+          r.state = 'done';
+          const q = this.tables['stock.quant']!.find((x) => (Array.isArray(x.lot_id) ? x.lot_id[0] : x.lot_id) === (Array.isArray(r.lot_id) ? r.lot_id[0] : r.lot_id));
+          if (q) q.quantity = (q.quantity as number) - (r.scrap_qty as number);
         }
         return true;
       case 'button_validate':
