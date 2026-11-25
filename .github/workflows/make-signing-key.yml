@@ -54,7 +54,7 @@ jobs:
           mkdir -p "$RUNNER_TEMP/key"
           cd "$RUNNER_TEMP/key"
           keytool -genkeypair -storetype PKCS12 -keystore foodapp-release.p12 -alias "$ALIAS" \
-            -keyalg RSA -keysize 4096 -validity 10000 -dname "CN=Food app" \
+            -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Food app" \
             -storepass:env ANDROID_KEYSTORE_PASSWORD -keypass:env ANDROID_KEYSTORE_PASSWORD
           base64 -w0 foodapp-release.p12 > ANDROID_KEYSTORE_BASE64.txt
           keytool -list -v -keystore foodapp-release.p12 -storepass:env ANDROID_KEYSTORE_PASSWORD -alias "$ALIAS" | grep 'SHA256:' | awk '{print $NF}' > certificate-sha256.txt
