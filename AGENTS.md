@@ -22,13 +22,14 @@ Phone and tablet app that runs the food business (jellies, cookies, baked goods)
 ## Rules that must hold
 1. **Odoo is the source of truth.** Every save goes to Odoo (through the queue). The phone keeps copies only so work goes on without signal. Products, recipes, prices, taxes, pickup and delivery options come from Odoo; the app never works out prices or taxes itself.
 2. **Never bulk-write old phone data to Odoo in an update.** Only things a person did go in the queue. Queue entries are tagged with their database and never sent to another.
-3. **The app never switches Odoo settings on** (inventory tracking, lots, expiry, apps). The connection check only reads.
+3. **The app never switches Odoo settings on by itself** (apps, and inventory tracking, lots, expiry). The connection check only reads. A person may switch Track Inventory, lot tracking and expiry on or off for one product from its screen (Justin, 2026-11-25); that is their action, not the app's.
 4. **No automatic texting.** Payments are cash, Cash App and Venmo, set up in Odoo's Point of Sale. No card payments.
 5. **Name, logo and colors come from the Odoo company.** No hard-coded brand.
 6. **Owner-only setup lives in the management area**, hidden from other roles.
 7. **Release number:** every change that ships to phones raises `extra.release` in `app/app.json` (0.1.x); leave `version` alone unless a new APK is needed. CI fails the PR otherwise.
 8. Use `npx expo install` for packages, never plain `npm install <pkg>`.
 9. Words on screen are plain and short. No jargon.
+10. **Every add/edit screen covers the fields of its matching Odoo form** (products, ingredients, recipes, contacts, batches, orders), not a minimal subset. Check the Odoo form before calling a screen done.
 
 ## Code review rules
 Flag only P0/P1 problems: data loss, Odoo save or offline-queue conflicts (wrong database, double sends, lost entries), prices or taxes worked out in the app, brand hard-coded, owner-only screens shown to other roles, a missing release bump, broken tests. Skip style and formatting nitpicks.

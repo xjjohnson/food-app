@@ -9,3 +9,8 @@ Running list. Each item is fixed in its own pull request, in the order Justin se
 
 ## Open questions for Justin
 - Track Inventory: the app shows whether an ingredient has it, but never switches it on (project rule 3). Say if you want that changed for new ingredients.
+
+## Release 0.1.10 notes
+- Done: product (all tabs), ingredients (All product details), customers and suppliers (address, terms, tags, notes), batches (all dates, notes, Add a batch), purchase orders (list, new, header fields), reorder rules (All rule settings), production batches (All batch details).
+- Not done: lines on a purchase order and on a website order (quantity, unit, price) and the products on a production batch are still read-only in the app. Packagings on a product are view-only. Say if you want these next.
+- Odoo 19 field names written from memory and not checked on a live Odoo: is_storable, tracking, lot_valuated, serial_prefix_format, use_expiration_date, use_time, removal_time, alert_time, hs_code, country_of_origin, website_ribbon_id, show_availability, out_of_stock_message, pos_categ_ids, pos_optional_product_ids, public_description, use_date, removal_date, alert_date. A field Odoo doesn't have is hidden, not an error.

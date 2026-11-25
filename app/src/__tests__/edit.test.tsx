@@ -91,6 +91,7 @@ describe('edit screens', () => {
     await AsyncStorage.clear();
     const { odoo } = bakery();
     odoo.addEmployee('Sam Seller', odoo.addUser({ login: 'sell@example.com' }).id, ['Sales']);
+    odoo.declared['res.partner'] = ['name', 'phone', 'email', 'street', 'city'];
     globalThis.fetch = ((u: string, i: never) => odoo.fetch(u, i)) as never;
     const login = { url: URL, db: 'food-test', login: 'sell@example.com' };
     await AsyncStorage.setItem(ODOO_STORAGE_KEY, JSON.stringify(login));
@@ -104,9 +105,9 @@ describe('edit screens', () => {
     await fireEvent.press(screen.getByTestId('open-contacts'));
     await settle();
     await fireEvent.press(screen.getByTestId('new-contact'));
-    await fireEvent.changeText(screen.getByTestId('contact-name'), 'Lee Market');
-    await fireEvent.changeText(screen.getByTestId('contact-phone'), '555-0123');
-    await fireEvent.press(screen.getByTestId('save-contact'));
+    await fireEvent.changeText(await screen.findByTestId('f-name'), 'Lee Market');
+    await fireEvent.changeText(screen.getByTestId('f-phone'), '555-0123');
+    await fireEvent.press(screen.getByTestId('save-form'));
     await settle();
     expect(odoo.tables['res.partner']!.some((r) => r.name === 'Lee Market' && r.phone === '555-0123')).toBe(true);
   });

@@ -58,10 +58,10 @@ export function LookupScreen() {
       <Button label="Add a product" kind="plain" onPress={() => setForm({})} testID="add-product" />
       {items.map((p) => (
         <Card key={p.id} testID={`product-${p.id}`}>
-          <Row title={p.name} detail={`${fmtQty(p.onHand)} in stock`} value={p.price === null ? '' : `${symbol}${p.price.toFixed(2)}`} onPress={() => show(p)} />
+          <Row title={p.name} detail={`${fmtQty(p.onHand)} in stock`} value={p.price === null ? '' : `${symbol}${p.price.toFixed(2)}`} onPress={() => show(p)} testID={`open-product-${p.id}`} />
           {open === p.id ? (
             <>
-              <Button label="Change name, price or shelf life" kind="plain" onPress={() => setForm({ id: p.id })} testID={`edit-product-${p.id}`} />
+              <Button label="Open and change this product" kind="plain" onPress={() => setForm({ id: p.id })} testID={`edit-product-${p.id}`} />
               {p.photo ? <Image source={{ uri: `data:image/png;base64,${p.photo}` }} style={{ width: 128, height: 128, borderRadius: 8 }} accessibilityLabel={`Photo of ${p.name}`} /> : null}
               {batches && !batches.length ? <Body muted>No batch numbers on the shelves for this product.</Body> : null}
               {batches?.map((b) => (

@@ -80,9 +80,12 @@ The garage door features themselves (springs, door jobs, field service) don't ca
 
 - Never bulk-send old phone data to Odoo in an update.
 - No automatic texting.
-- The app never switches Odoo settings on (Inventory tracking, lots, expiry and so on). Justin does that in Odoo.
+- The app never switches Odoo settings on by itself. A person can switch Track Inventory, lot tracking and expiry for one product from its screen (Justin, 2026-11-25).
 - Taxes, price lists and terms come from Odoo only.
 - A separate test database and API key, kept apart from the live database.
+
+## Add and edit screens match Odoo's forms (Justin, 2026-11-25)
+Every add or edit screen covers the fields of the matching Odoo form (products, ingredients, recipes, customers, suppliers, batches and lots, orders), not a minimal subset. Fields can be grouped in tabs or sections to suit a phone, and a field Odoo doesn't have is skipped. Where Odoo has a switch (Track Inventory, lot tracking, expiry), the person may flip it from the app.
 
 ## How we'll build it
 

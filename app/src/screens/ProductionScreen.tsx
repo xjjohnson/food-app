@@ -2,6 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Body, Button, Card, Chip, ErrorText, Field, Row, Screen } from '../components/ui';
+import { PRODUCTION_SECTIONS } from '../lib/forms';
+import { GenericForm } from './GenericForm';
 import {
   addDays,
   Batch,
@@ -207,6 +209,7 @@ function BatchPage({ id, known, onBack }: { id: number; known?: Batch; onBack: (
   const [useBy, setUseBy] = useState('');
   const [days, setDays] = useState<number | null | undefined>(undefined);
   const [note, setNote] = useState('');
+  const [all, setAll] = useState(false);
 
   const load = useCallback(async () => {
     if (!client || offline) return;
@@ -238,6 +241,8 @@ function BatchPage({ id, known, onBack }: { id: number; known?: Batch; onBack: (
       </Screen>
     );
 
+  if (all) return <GenericForm model="mrp.production" recordId={id} title="Batch" noun="Batch" sections={PRODUCTION_SECTIONS} uniqueField="origin" testID="batch-all-form" onBack={() => { setAll(false); load(); }} />;
+
   const short = d ? shortIngredients(d) : [];
   const canFinish = shown.state === 'confirmed' || shown.state === 'progress' || shown.state === 'to_close';
   const okDate = isDate(useBy);
@@ -246,6 +251,7 @@ function BatchPage({ id, known, onBack }: { id: number; known?: Batch; onBack: (
   return (
     <Screen title={`${fmtQty(shown.qty)} ${shown.product}`} testID="batch-screen">
       <Chip label={`${shown.name} · ${stateLabel(shown.state)}`} testID="batch-state" />
+      {!offline ? <Button label="All batch details" kind="plain" onPress={() => setAll(true)} testID="batch-all" /> : null}
       {offline ? <Body muted>No signal. The ingredient list shows when the phone is back online.</Body> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
       {short.length ? (

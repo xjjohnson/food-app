@@ -11,6 +11,23 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.10',
+    changes: [
+      'Product screen now has the fields of Odoo’s product form in tabs: Main, Stock, Online, Point of Sale and Batches. You can switch on Track Inventory, batch tracking and expiry for a product.',
+      'Customers and suppliers: address, tax ID, tags, terms, price list and more. Batches: all dates and notes, and Add a batch. Purchase orders: a new list to see, add and change orders. Reorder rules and production batches: All settings screens. Ingredients: All product details.',
+    ],
+    test: [
+      'Find a product, open Apricot Freezer Jam, tap Open and change this product. Compare each tab with Odoo (Main, Stock, Online, Point of Sale, Batches).',
+      'On Stock, switch on Track Inventory, set Track by to Batch, switch on Has an expiration date and type Expires 120 days. Tap the one Save and check the product in Odoo.',
+      'On Main, add a sales tax from the list and change the cost, then Save.',
+      'Customers and suppliers: open one, check Address and Sales and buying tabs, change something, Save, check in Odoo.',
+      'Stock, Find a batch: open a batch, tap All batch details, change a date, Save. Also tap Add a batch.',
+      'Ingredients, Purchase orders: open one, change the vendor reference and expected arrival, Save. Tap New order too.',
+      'Ingredients, Running low: tap All rule settings on a rule. Ingredient list, open an ingredient, tap All product details.',
+      'Production, open a batch, tap All batch details.',
+    ],
+  },
+  {
     release: '0.1.9',
     changes: ['Recipes: the recipe screen now holds what Odoo’s recipe form holds. Product and variant, how many it makes and its unit, a reference, Made here or Kit, a unit for every ingredient, ingredient order, and by-products. One Save for the whole recipe.'],
     test: [

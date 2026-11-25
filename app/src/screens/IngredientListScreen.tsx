@@ -17,6 +17,7 @@ import {
   VendorLine,
 } from '../lib/ingredientList';
 import { searchSuppliers } from '../lib/ingredients';
+import { ProductForm } from './ProductForm';
 import { fmtQty } from '../lib/production';
 import type { NewChange } from '../lib/queue';
 import { useOdoo } from '../lib/useOdoo';
@@ -127,7 +128,7 @@ function IngredientForm({ id, defaultCategory, onBack }: { id: number | null; de
   const [taxIds, setTaxIds] = useState<number[]>([]);
   const [reference, setReference] = useState('');
   const [barcode, setBarcode] = useState('');
-  const [picking, setPicking] = useState<'category' | 'unit' | null>(null);
+  const [picking, setPicking] = useState<'category' | 'unit' | 'all' | null>(null);
   const [vendor, setVendor] = useState<VendorLine | 'new' | null>(null);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
@@ -197,6 +198,8 @@ function IngredientForm({ id, defaultCategory, onBack }: { id: number | null; de
         onBack={() => setPicking(null)}
       />
     );
+  if (picking === 'all' && id)
+    return <ProductForm templateId={id} onBack={() => setPicking(null)} />;
   if (vendor && ing)
     return (
       <VendorForm
@@ -232,9 +235,12 @@ function IngredientForm({ id, defaultCategory, onBack }: { id: number | null; de
       <Field label="Reference (optional)" value={reference} onChangeText={setReference} testID="ingredient-ref" />
       <Field label="Barcode (optional)" value={barcode} onChangeText={setBarcode} testID="ingredient-barcode" />
       {id && ing ? (
-        <Row title="Stock is counted" value={ing.tracked ? 'Yes' : 'No'} detail={ing.tracked ? `${fmtQty(ing.onHand)} ${ing.unit} on hand` : 'Turn on Track Inventory on this product in Odoo to count stock.'} />
+        <>
+          <Row title="Stock is counted" value={ing.tracked ? 'Yes' : 'No'} detail={ing.tracked ? `${fmtQty(ing.onHand)} ${ing.unit} on hand` : 'Switch on Track Inventory under All product details.'} />
+          <Button label="All product details (stock tracking, batches, expiry and more)" kind="plain" onPress={() => setPicking('all')} testID="ingredient-all" />
+        </>
       ) : (
-        <Body muted>To count stock for a new ingredient, switch on Track Inventory on it in Odoo. The app doesn’t change that.</Body>
+        <Body muted>Save the ingredient first. Then open All product details to switch on Track Inventory and batch tracking.</Body>
       )}
       {error ? <ErrorText>{error}</ErrorText> : null}
       {note ? <Body>{note}</Body> : null}

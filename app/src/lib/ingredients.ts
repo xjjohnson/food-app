@@ -192,3 +192,19 @@ export function checkInChanges(receipt: Receipt, arrived: Arrived[]): NewChange[
   out.push({ label: `Check in ${receipt.name}`, model: 'stock.picking', method: 'button_validate', args: [[receipt.id]], kwargs: { context: { skip_backorder: true, skip_sms: true, skip_immediate: true } }, already });
   return out;
 }
+
+export interface PurchaseRow {
+  id: number;
+  name: string;
+  vendor: string;
+  state: string;
+  date: string;
+}
+
+/** Recent purchase orders, newest first. */
+export async function loadPurchaseOrders(c: Pick<OdooClient, 'call'>): Promise<PurchaseRow[]> {
+  const rows = (await c.call('purchase.order', 'search_read', [[]], { fields: ['name', 'partner_id', 'state', 'date_order'], order: 'id desc', limit: 30 })) as Record<string, unknown>[];
+  return rows.map((r) => ({ id: r.id as number, name: String(r.name), vendor: Array.isArray(r.partner_id) ? String(r.partner_id[1]) : '', state: String(r.state ?? ''), date: typeof r.date_order === 'string' ? r.date_order.slice(0, 10) : '' }));
+}
+
+export const poStateLabel = (s: string) => ({ draft: 'Quote', sent: 'Quote sent', 'to approve': 'To approve', purchase: 'Ordered', done: 'Done', cancel: 'Cancelled' })[s] ?? s;
