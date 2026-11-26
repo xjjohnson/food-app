@@ -11,6 +11,26 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.28',
+    changes: [
+      'Management: new Online shop (owner). New website orders (last 3 days), On the shop (switch a product on or off, and whether it sells when out of stock), Specials (discount codes: a percent off the order, with dates and a limit, switch off without deleting), Delivery and pickup (areas, price, pickup), Closed days (a warning on the Delivery board only) and Newsletter.',
+      'Newsletter: pick who it goes to, write a subject and a few words, add new products with their Odoo prices, and save a draft. Nothing is sent until you open the draft and tap Send, and it first says how many people it goes to.',
+      'Today: new line for website orders from the last 3 days.',
+      'Delivery board: after Delivered, a How did it go? box (1 to 5 stars and a comment) saved as a note on the order.',
+      'Customer History tab: Sent by (adds a Referred by tag in Odoo) and the list of people they sent with their order counts. No rewards are sent.',
+      'Product screen, Online tab: more shop fields, including the page text, order on the shop page, and the search title, description and keywords.',
+    ],
+    test: [
+      'Management, Online shop, On the shop: switch a jelly off and on and check Published on the website changes on the product in Odoo.',
+      'Specials: make a 10 percent code HOLIDAY10 with dates. Check in Odoo, Sales, Discount programs, that it is there, then use the code on a test shop order. Tell me if Odoo refuses it.',
+      'Delivery and pickup: add a Pickup method and a local Delivery method with a price and zip range. Check them in Odoo.',
+      'Closed days: close tomorrow and check the Delivery board warns tomorrow.',
+      'Newsletter: save a draft to a small test list, check it in Odoo Email Marketing, then send it to yourself only and check it arrives. It must never send without your tap.',
+      'Mark one delivery Delivered and give it 4 stars. Check the note in the order’s chatter.',
+      'Open a customer, History tab, mark who sent them, and check the tag in Odoo.',
+    ],
+  },
+  {
     release: '0.1.27',
     changes: [
       'New area Quotes and orders (Sales). New quote: customer, addresses, dates, price list, payment terms, terms and notes, and lines. Prices, discounts, tax and totals are Odoo’s; leave Price blank to use Odoo’s price for that customer.',

@@ -30,7 +30,7 @@ describe('today and product lookup', () => {
     const baker = await loadToday(c, { ...NO_ROLES, production: true });
     expect(baker.map((t) => [t.id, t.count])).toEqual([['batches', 1]]);
     const owner = await loadToday(c, { ...NO_ROLES, owner: true });
-    expect(owner.map((t) => t.id)).toEqual(['batches', 'orders', 'expiring', 'low', 'deliveries', 'owed', 'out-today']);
+    expect(owner.map((t) => t.id)).toEqual(['batches', 'orders', 'expiring', 'low', 'deliveries', 'web-new', 'owed', 'out-today']);
     expect(owner.find((t) => t.id === 'orders')!.count).toBe(1);
   });
 

@@ -107,7 +107,7 @@ export class FakeOdoo {
       const [f, op, v] = d as [string, string, unknown];
       if (f.includes('.')) return true; // paths through other tables aren't pretended
       const raw = r[f];
-      const many = ['category_ids', 'lot_producing_ids', 'move_line_ids', 'move_raw_ids'].includes(f);
+      const many = ['category_id', 'category_ids', 'lot_producing_ids', 'move_line_ids', 'move_raw_ids'].includes(f);
       const val = Array.isArray(raw) && typeof raw[0] === 'number' && !many ? raw[0] : raw;
       if (op === '=') return v === false ? !val : val === v;
       if (op === '!=') return v === false ? !!val && !(Array.isArray(val) && !val.length) : val !== v;
@@ -246,6 +246,9 @@ export class FakeOdoo {
       }
       case 'action_send_mail':
         return true;
+      case 'action_launch':
+        for (const r of table.filter((x) => (args[0] as number[]).includes(x.id))) r.state = 'in_queue';
+        return true;
       case 'action_confirm':
         if (model === 'sale.order') {
           for (const r of table.filter((x) => (args[0] as number[]).includes(x.id))) {
@@ -363,6 +366,8 @@ export class FakeOdoo {
                 if (op === 4) cur.add(a);
               }
               r.lot_producing_ids = [...cur];
+            } else if (k === 'category_id' && Array.isArray(v) && Array.isArray(v[0]) && (v[0] as unknown[])[0] === 4) {
+              r[k] = [...new Set([...(Array.isArray(r[k]) ? (r[k] as number[]) : []), ...(v as [number, number][]).filter((x) => x[0] === 4).map((x) => x[1])])];
             } else if (Array.isArray(v) && Array.isArray(v[0]) && (v[0] as unknown[])[0] === 6) r[k] = (v[0] as unknown[])[2];
             else r[k] = v;
           }

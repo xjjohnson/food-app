@@ -6,6 +6,9 @@ import { BoardOrder, deliveredChange, loadBoard, mapLink, STEP_WORDS } from '../
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 import { PhotosCard } from './PhotosCard';
+import { FeedbackBox } from './ShopScreen';
+import { isClosed } from '../lib/shop';
+import { loadSettings } from '../lib/appSettings';
 
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const copyKey = (db: string) => `board/v1/${db}`;
@@ -18,6 +21,7 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
   const [fromPhone, setFromPhone] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [closedToday, setClosedToday] = useState(false);
 
   const load = useCallback(async () => {
     if (!db) return;
@@ -50,6 +54,9 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
   useEffect(() => {
     load();
   }, [load]);
+  useEffect(() => {
+    if (client && !offline) loadSettings(client).then((s) => setClosedToday(isClosed(s, new Date().toISOString().slice(0, 10)))).catch(() => undefined);
+  }, [client, offline]);
 
   const waiting = new Set(items.filter((i) => i.step?.kind === 'note').map((i) => (i.step as { resId: number }).resId));
 
@@ -65,6 +72,7 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
 
   return (
     <Screen title="Delivery board" testID="board-screen">
+      {closedToday ? <Body>Today is marked as a closed day. This is only a warning.</Body> : null}
       {fromPhone ? <Body muted>No signal. Showing what the phone saw last.</Body> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
       {!list ? <Body muted>{busy ? 'Loading…' : 'Nothing to show yet. Connect to Odoo to load the board.'}</Body> : null}
@@ -79,6 +87,7 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
             {o.address ? <Row title="Address" detail={o.address} onPress={() => Linking.openURL(mapLink(o.address))} testID={`board-map-${o.id}`} /> : <Body muted>No address on the contact.</Body>}
             {o.phone ? <Row title="Phone" detail={o.phone} onPress={() => Linking.openURL(`tel:${o.phone}`)} /> : null}
             {o.notes ? <Body>{`Notes: ${o.notes}`}</Body> : null}
+            {step === 'delivered' && o.saleId && !isWaiting ? <FeedbackBox orderId={o.saleId} orderName={o.origin || o.name} /> : null}
             {step === 'pack' ? <Button label="Pack it" kind="plain" onPress={onPack} testID={`board-pack-${o.id}`} /> : null}
             {o.saleId ? <PhotosCard model="sale.order" resId={o.saleId} recordName={o.origin || o.name} title="Delivery proof" about="Delivery proof" button="Take a proof photo" testID={`board-photos-${o.id}`} /> : null}
             {step === 'packed' && o.saleId ? <Button label="Delivered" onPress={() => delivered(o)} testID={`board-delivered-${o.id}`} /> : null}
