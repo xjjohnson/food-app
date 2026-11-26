@@ -3,6 +3,8 @@ import { act, fireEvent, screen } from '@testing-library/react-native';
 import { renderRouter } from 'expo-router/testing-library';
 import { setDbKind } from '../lib/dbSwitch';
 import { ODOO_STORAGE_KEY } from '../lib/odoo';
+import { TABS } from '../lib/tabs';
+import { forgetStarted } from '../screens/ProductionScreen';
 import { deviceSecrets } from '../lib/secrets';
 import { bakery, FakeOdoo, URL } from '../testing/fakeOdoo';
 
@@ -38,6 +40,8 @@ describe('the Make tab', () => {
     const bom = recipe(odoo);
     await open(odoo, '/', 'Production');
     await fireEvent.press(screen.getByTestId('tab-make'));
+    await settle();
+    await fireEvent.press(screen.getByTestId('make-seg-recipes'));
     await settle();
     expect(screen.getByTestId('recipe-box')).toBeTruthy();
     expect(screen.getByTestId(`make-recipe-${bom}`)).toHaveTextContent(/Chocolate chip cookies/);
@@ -120,7 +124,7 @@ describe('boards with stages', () => {
   test('Make, Batches shows a stage strip and opens on the first stage with a batch', async () => {
     const { odoo } = bakery();
     const jam = odoo.create('product.product', { name: 'Jam', free_qty: 0 });
-    odoo.create('mrp.production', { name: 'MO/1', state: 'confirmed', product_id: [jam, 'Jam'], product_qty: 12 });
+    odoo.create('mrp.production', { name: 'MO/1', state: 'progress', product_id: [jam, 'Jam'], product_qty: 12 });
     odoo.create('mrp.production', { name: 'MO/2', state: 'draft', product_id: [jam, 'Jam'], product_qty: 6 });
     await open(odoo, '/', 'Production');
     await fireEvent.press(screen.getByTestId('tab-make'));
@@ -163,4 +167,99 @@ describe('no doubles', () => {
     expect(screen.getByTestId('tab-screen-sell')).toBeTruthy();
     expect(screen.queryByTestId('board-screen')).toBeNull();
   });
+});
+
+describe('Make fixes', () => {
+  beforeEach(() => forgetStarted());
+
+  test('the tabs run Today, Buy, Make, Sell, More', () => {
+    expect(TABS.map((t) => t.id)).toEqual(['index', 'buy', 'make', 'sell', 'more']);
+  });
+
+  test('Make opens on Batches, with Food safety there and no Find a product card on any tab', async () => {
+    const { odoo } = bakery();
+    recipe(odoo);
+    await open(odoo, '/', 'Production');
+    await fireEvent.press(screen.getByTestId('tab-make'));
+    await settle();
+    expect(screen.getByTestId('make-batches')).toBeTruthy();
+    expect(screen.queryByTestId('recipe-box')).toBeNull();
+    expect(screen.queryByTestId('open-lookup')).toBeNull();
+    await fireEvent.press(screen.getByTestId('make-seg-recipes'));
+    await settle();
+    expect(screen.getByTestId('recipe-box')).toBeTruthy();
+    expect(screen.queryByTestId('area-safety')).toBeNull();
+    expect(screen.queryByTestId('open-lookup')).toBeNull();
+  });
+
+  test('Start a batch opens the new batch, and a second start a minute later asks first', async () => {
+    const { odoo } = bakery();
+    const bom = recipe(odoo);
+    await open(odoo, '/', 'Production');
+    await fireEvent.press(screen.getByTestId('tab-make'));
+    await settle();
+    await fireEvent.press(screen.getByTestId('make-start-batch'));
+    await settle();
+    await fireEvent.press(screen.getByTestId(`recipe-${bom}`));
+    await settle();
+    await fireEvent.press(screen.getByTestId('confirm-start'));
+    await settle();
+    expect(odoo.tables['mrp.production']).toHaveLength(1);
+    expect(screen.getByTestId('batch-state')).toHaveTextContent(/Odoo: Confirmed/);
+    expect(screen.getByText(/Batch started/)).toBeTruthy();
+    await fireEvent.press(screen.getByText('Back to batches'));
+    await settle();
+    // Back leaves for the Make tab, where the list shows the new batch.
+    expect(screen.getByTestId('make-batches')).toBeTruthy();
+    expect(screen.getByTestId(`make-batch-${odoo.tables['mrp.production']![0]!.id}`)).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('make-start-batch'));
+    await settle();
+    await fireEvent.press(screen.getByTestId(`recipe-${bom}`));
+    await settle();
+    await fireEvent.press(screen.getByTestId('confirm-start'));
+    await settle();
+    expect(screen.getByText(/started this recipe a minute ago/)).toBeTruthy();
+    expect(odoo.tables['mrp.production']).toHaveLength(1);
+    await fireEvent.press(screen.getByTestId('confirm-start'));
+    await settle();
+    expect(odoo.tables['mrp.production']).toHaveLength(2);
+  });
+
+  test('plan for later saves a planned batch, not a started one', async () => {
+    const { odoo } = bakery();
+    const bom = recipe(odoo);
+    await open(odoo, '/', 'Production');
+    await fireEvent.press(screen.getByTestId('tab-make'));
+    await settle();
+    await fireEvent.press(screen.getByTestId('make-start-batch'));
+    await settle();
+    await fireEvent.press(screen.getByTestId(`recipe-${bom}`));
+    await settle();
+    await fireEvent.press(screen.getByTestId('batch-when-later'));
+    await fireEvent.press(screen.getByTestId('confirm-start'));
+    await settle();
+    expect(odoo.tables['mrp.production']![0]!.state).toBe('draft');
+  });
+
+  test('Jars in stock lists the finished jars with how many there are', async () => {
+    const { odoo } = bakery();
+    odoo.create('product.product', { name: 'Peach Jam', free_qty: 11, qty_available: 11, uom_id: [1, 'Units'] });
+    await open(odoo, '/', 'Owner');
+    await fireEvent.press(screen.getByTestId('tab-make'));
+    await settle();
+    await fireEvent.press(screen.getByTestId('make-seg-jars'));
+    await settle();
+    expect(screen.getByTestId('make-jars')).toHaveTextContent(/Peach Jam/);
+    expect(screen.getByTestId('make-jars')).toHaveTextContent(/11 in stock/);
+    expect(screen.getByTestId('area-stock')).toBeTruthy();
+  });
+});
+
+import { qtyWords } from '../lib/production';
+test('counts read in plain words', () => {
+  expect(qtyWords(20, 'Pack of 6')).toBe('20 packs of 6');
+  expect(qtyWords(1, 'Pack of 6')).toBe('1 pack of 6');
+  expect(qtyWords(1, 'Units')).toBe('1 unit');
+  expect(qtyWords(12, 'Jars')).toBe('12 Jars');
+  expect(qtyWords(3)).toBe('3');
 });

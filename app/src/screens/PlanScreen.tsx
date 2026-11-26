@@ -3,7 +3,7 @@ import { draftOrderChanges } from '../lib/buying';
 import { useEffect, useMemo, useState } from 'react';
 import { Body, Button, Card, ErrorText, Field, Row, Screen, Segments, SwitchRow } from '../components/ui';
 import { loadNeedRows, loadPlanned, loadShoppingList, NeedRow, planBatchChange, planNeeds, PlanLine, ShopRow } from '../lib/plan';
-import { fmtQty, Recipe, startBatchChange } from '../lib/production';
+import { fmtQty, qtyWords, Recipe, startBatchChange } from '../lib/production';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 
@@ -100,9 +100,9 @@ function Plan({ recipes, tab, setTab, onBack }: TabProps) {
           <Button label="Start them all now" kind="plain" onPress={() => run((p) => startBatchChange(p.recipe, p.qty), 'Started in Odoo.')} busy={busy} testID="plan-start" />
         </>
       ) : null}
-      <Card title="Add a batch">
+      <Card title="Add to this plan">
         {recipes.map((r) => (
-          <Row key={r.id} title={r.name} detail={`Recipe makes ${fmtQty(r.makes)} ${r.unit}`.trim()} onPress={() => setAdding(r)} testID={`plan-recipe-${r.id}`} />
+          <Row key={r.id} title={r.name} detail={`Makes ${qtyWords(r.makes, r.unit)}`} onPress={() => setAdding(r)} testID={`plan-recipe-${r.id}`} />
         ))}
         {!recipes.length ? <Body muted>No recipes yet.</Body> : null}
       </Card>

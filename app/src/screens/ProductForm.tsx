@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { router } from 'expo-router';
 import { Body, Button, Card, LookScope, Row } from '../components/ui';
 import { m2oId } from '../lib/odoo';
-import { fmtQty, loadRecipes, type Recipe } from '../lib/production';
+import { fmtQty, loadRecipes, qtyWords, type Recipe } from '../lib/production';
 import { findPackagingField, loadLots, loadVariants, PRODUCT_SECTIONS, VARIANT_SECTIONS, type LotRow, type VariantRow } from '../lib/productForm';
 import type { Section } from '../lib/odooForm';
 import { useOdoo } from '../lib/useOdoo';
@@ -107,11 +107,12 @@ export function ProductForm({ productId, templateId, onBack, onRecipe }: { produ
                 label: 'Recipe',
                 render: () => (
                   <Card title="Recipe" testID="product-recipe">
-                    <Body muted>{`Makes ${fmtQty(recipe.makes)} ${recipe.unit}`.trim()}</Body>
+                    <Body muted>{`Makes ${qtyWords(recipe.makes, recipe.unit)}`}</Body>
                     {recipe.lines.map((l) => (
                       <Row key={l.productId} title={l.name} value={`${fmtQty(l.qty)} ${l.unit ?? ''}`.trim()} />
                     ))}
-                    <Button label="Edit the recipe" onPress={() => (onRecipe ? onRecipe(recipe.id) : router.push(`/area/production?go=recipe:${recipe.id}`))} testID="product-edit-recipe" />
+                    <Button label="Cook a batch" onPress={() => router.push(`/area/production?go=start:${recipe.id}`)} testID="product-cook" />
+                    <Button label="Edit the recipe" onPress={() => (onRecipe ? onRecipe(recipe.id) : router.push(`/area/production?go=recipe:${recipe.id}`))} kind="plain" testID="product-edit-recipe" />
                   </Card>
                 ),
               },

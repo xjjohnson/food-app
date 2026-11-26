@@ -23,8 +23,8 @@ export default function TabsLayout() {
   return (
     <Tabs tabBar={(p) => <TabBar {...p} />} screenOptions={{ headerShown: false, sceneStyle: { backgroundColor: colors.bg } }}>
       <Tabs.Screen name="index" />
-      <Tabs.Screen name="make" options={hide('make')} />
       <Tabs.Screen name="buy" options={hide('buy')} />
+      <Tabs.Screen name="make" options={hide('make')} />
       <Tabs.Screen name="sell" options={hide('sell')} />
       <Tabs.Screen name="more" />
     </Tabs>
