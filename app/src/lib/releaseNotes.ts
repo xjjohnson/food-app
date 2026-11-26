@@ -11,6 +11,19 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.33',
+    changes: [
+      'New look for moving around: five tabs along the bottom (Today, Make, Buy, Sell, More). Every screen is in one of them.',
+      'A + button on every tab: Start a batch, I bought something, New quote or order, A task. Each opens the same page as before, ready to fill in.',
+      'Today keeps the to-do list and Tasks, with a Search button at the top. Money, Online shop, Management and Developer are in More (owner only).',
+    ],
+    test: [
+      'Sign in as the owner: all five tabs show. Sign in as a baker: only Today, Make and More show, and More has no Management.',
+      'Tap + and each choice. Start a batch should open the new batch page, I bought something the Bought ingredients page.',
+      'Open a page from a tab and tap Back: you should land back on the tab you came from.',
+    ],
+  },
+  {
     release: '0.1.32',
     changes: [
       'Contacts, History tab: Call and Open map for a supplier, plus a scorecard (orders, on time or late, last 5 deliveries, price changes).',

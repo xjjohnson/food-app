@@ -60,6 +60,8 @@ describe('today and product lookup', () => {
     await renderRouter('src/app', { initialUrl: '/' });
     await settle();
     expect(screen.getByTestId('today-batches')).toHaveTextContent(/1/);
+    await fireEvent.press(screen.getByTestId('tab-make'));
+    await settle();
     await fireEvent.press(screen.getByTestId('open-lookup'));
     await settle();
     await fireEvent.press(await screen.findByLabelText('Chocolate chip cookies'));

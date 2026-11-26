@@ -12,7 +12,7 @@ import { StockScreen } from './StockScreen';
 import { ProductionScreen } from './ProductionScreen';
 
 /** Holds an area's place until its feature is built. */
-export function AreaScreen({ id }: { id: string }) {
+export function AreaScreen({ id, go }: { id: string; go?: string }) {
   const area = areaById(id);
   const { roles } = useRoles();
   if (!area || !canSee(roles, area.role))
@@ -21,12 +21,12 @@ export function AreaScreen({ id }: { id: string }) {
         <Body>This area isn’t part of your role.</Body>
       </Screen>
     );
-  if (area.id === 'production') return <ProductionScreen />;
+  if (area.id === 'production') return <ProductionScreen go={go} />;
   if (area.id === 'orders') return <OrdersScreen />;
   if (area.id === 'stock') return <StockScreen />;
-  if (area.id === 'ingredients') return <IngredientsScreen />;
+  if (area.id === 'ingredients') return <IngredientsScreen go={go} />;
   if (area.id === 'invoices') return <MoneyScreen kind="out" />;
-  if (area.id === 'sell') return <SellScreen />;
+  if (area.id === 'sell') return <SellScreen go={go} />;
   if (area.id === 'safety') return <SafetyScreen />;
   if (area.id === 'market') return <MarketScreen />;
   return (
