@@ -1,4 +1,5 @@
 import { useInnerBack } from '../lib/innerBack';
+import { SupplierBox } from './BuyingPages';
 import { SpecialDatesBox } from './TasksScreen';
 import { useEffect, useState } from 'react';
 import { Body, Button, ErrorText, Field, Row, Screen } from '../components/ui';
@@ -50,6 +51,7 @@ export function ContactsScreen() {
             <Button label="Invoices to this contact" onPress={() => setHist({ id: form.id!, name: list.find((c) => c.id === form.id)?.name ?? 'Contact', kind: 'out' })} testID="contact-invoices" />
             <Button label="Purchases from this contact" kind="plain" onPress={() => setHist({ id: form.id!, name: list.find((c) => c.id === form.id)?.name ?? 'Contact', kind: 'in' })} testID="contact-purchases" />
             <ReferralBox partnerId={form.id!} name={list.find((c) => c.id === form.id)?.name ?? 'this customer'} />
+            <SupplierBox partnerId={form.id!} name={list.find((c) => c.id === form.id)?.name ?? 'Supplier'} />
             <SpecialDatesBox partnerId={form.id!} name={list.find((c) => c.id === form.id)?.name ?? 'this customer'} />
             <RepeatLastButton partnerId={form.id!} name={list.find((c) => c.id === form.id)?.name ?? 'this customer'} />
           </>

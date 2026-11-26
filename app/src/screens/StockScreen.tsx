@@ -1,4 +1,6 @@
 import { useInnerBack } from '../lib/innerBack';
+import { labelText } from '../lib/buying';
+import { ScanButton } from './BuyingPages';
 import { useEffect, useState } from 'react';
 import { Share } from 'react-native';
 import { Body, Button, Card, ErrorText, Field, Row, Screen, Segments } from '../components/ui';
@@ -333,6 +335,7 @@ function FindBatch({ onBack }: { onBack: () => void }) {
         {recall ? (
           <Card title="Who to tell if there is a recall" testID="recall-card">
             {recall.customers.length ? recall.customers.map((n) => <Body key={n}>{n}</Body>) : <Body muted>No customer has had this batch yet.</Body>}
+            <Button label="Share label text" kind="plain" onPress={async () => { if (client) Share.share({ message: await labelText(client, recall.trace) }); }} testID="share-label" />
             <Button label="Share traceability sheet" kind="plain" onPress={() => Share.share({ message: recallText(recall, new Date().toISOString().slice(0, 10)) })} testID="share-trace" />
           </Card>
         ) : null}
@@ -381,6 +384,7 @@ function FindBatch({ onBack }: { onBack: () => void }) {
     <Screen title="Find a batch" testID="find-screen">
       {offline ? <NeedsSignal onBack={onBack} /> : <Field label="Batch number" value={text} onChangeText={setText} testID="find-text" />}
       {error ? <ErrorText>{error}</ErrorText> : null}
+      {!offline ? <ScanButton label="Scan a batch code" onMatch={(m) => m.kind === 'lot' && setText(m.name)} /> : null}
       <Button label="Add a batch" kind="plain" onPress={() => setForm({})} testID="new-lot" />
       {found.map((f) => (
         <Row

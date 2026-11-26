@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { draftOrderChanges } from '../lib/buying';
 import { useEffect, useMemo, useState } from 'react';
 import { Body, Button, Card, ErrorText, Field, Row, Screen, Segments, SwitchRow } from '../components/ui';
 import { loadNeedRows, loadPlanned, loadShoppingList, NeedRow, planBatchChange, planNeeds, PlanLine, ShopRow } from '../lib/plan';
@@ -115,6 +116,8 @@ function Shopping({ recipes, tab, setTab, onBack }: TabProps) {
   const [list, setList] = useState<ShopRow[] | null>(null);
   const [ticked, setTicked] = useState<number[]>([]);
   const [error, setError] = useState('');
+  const [msg, setMsg] = useState('');
+  const { save } = useQueue();
 
   useEffect(() => {
     if (!client || offline) return;
@@ -150,6 +153,26 @@ function Shopping({ recipes, tab, setTab, onBack }: TabProps) {
           ))}
         </Card>
       ))}
+      {list?.length ? (
+        <Button
+          label="Make draft orders per supplier"
+          kind="plain"
+          testID="make-drafts"
+          onPress={async () => {
+            setMsg('');
+            const changes = draftOrderChanges(list.map((r) => ({ productId: r.productId, name: r.name, qty: r.buy, supplierId: r.supplierId ?? 0, supplier: r.supplier })), new Date().toISOString().slice(0, 10));
+            if (!changes.length) return setMsg('No item has a usual supplier yet, so there is nothing to order.');
+            try {
+              let queued = false;
+              for (const ch of changes) if ((await save(ch)).status === 'queued') queued = true;
+              setMsg(`${queued ? 'Saved on the phone.' : 'Saved in Odoo.'} ${changes.length} draft ${changes.length === 1 ? 'order' : 'orders'}. Nothing is confirmed; check each one before you send it.`);
+            } catch (e) {
+              setError(`Odoo said no: ${why(e)}`);
+            }
+          }}
+        />
+      ) : null}
+      {msg ? <Body>{msg}</Body> : null}
       <Body muted>Ticks stay on this phone. When you buy, use Bought ingredients under Ingredients.</Body>
       <Button label="Back" kind="plain" onPress={onBack} />
     </Screen>
