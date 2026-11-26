@@ -19,6 +19,7 @@ import {
 } from '../lib/ingredientList';
 import { categoryCostMethod } from '../lib/costing';
 import { searchSuppliers } from '../lib/ingredients';
+import { PriceHistoryScreen } from './PriceHistoryScreen';
 import { ProductForm } from './ProductForm';
 import { fmtQty } from '../lib/production';
 import type { NewChange } from '../lib/queue';
@@ -131,7 +132,7 @@ export function IngredientForm({ id, defaultCategory, onBack, onCreated }: { id:
   const [taxIds, setTaxIds] = useState<number[]>([]);
   const [reference, setReference] = useState('');
   const [barcode, setBarcode] = useState('');
-  const [picking, setPicking] = useState<'category' | 'unit' | 'all' | null>(null);
+  const [picking, setPicking] = useState<'category' | 'unit' | 'all' | 'history' | null>(null);
   const [vendor, setVendor] = useState<VendorLine | 'new' | null>(null);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
@@ -214,6 +215,7 @@ export function IngredientForm({ id, defaultCategory, onBack, onCreated }: { id:
         onBack={() => setPicking(null)}
       />
     );
+  if (picking === 'history' && id) return <PriceHistoryScreen templateId={id} name={name || 'Ingredient'} onBack={() => setPicking(null)} />;
   if (picking === 'all' && id)
     return <ProductForm templateId={id} onBack={() => setPicking(null)} />;
   if (vendor && ing)
@@ -254,6 +256,7 @@ export function IngredientForm({ id, defaultCategory, onBack, onCreated }: { id:
       {id && ing ? (
         <>
           <Row title="Stock is counted" value={ing.tracked ? 'Yes' : 'No'} detail={ing.tracked ? `${fmtQty(ing.onHand)} ${ing.unit} on hand` : 'Switch on Track Inventory under All product details.'} />
+          <Button label="Prices paid over time" kind="plain" onPress={() => setPicking('history')} testID="ingredient-history" />
           <Button label="All product details (stock tracking, batches, expiry and more)" kind="plain" onPress={() => setPicking('all')} testID="ingredient-all" />
         </>
       ) : (

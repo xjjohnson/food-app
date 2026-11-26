@@ -10,7 +10,7 @@ import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
-const copyKey = (kind: MoneyKind, db: string) => `money/${kind}/${db}`;
+const copyKey = (kind: MoneyKind, db: string, partnerId?: number) => `money/${kind}/${db}${partnerId ? `/${partnerId}` : ''}`;
 const journalKey = (db: string) => `money/journals/${db}`;
 
 const WORDS: Record<MoneyKind, { title: string; empty: string; who: string; owed: string; paid: string }> = {
@@ -25,7 +25,7 @@ const SHOW: { id: Show; label: string }[] = [
 ];
 
 /** Invoices (what customers owe) or Purchase history (every vendor bill): newest first, tap for the lines, mark paid. */
-export function MoneyScreen({ kind, onBack }: { kind: MoneyKind; onBack?: () => void }) {
+export function MoneyScreen({ kind, onBack, partnerId, title }: { kind: MoneyKind; onBack?: () => void; partnerId?: number; title?: string }) {
   const { client, db, offline } = useOdoo();
   const { items } = useQueue();
   const w = WORDS[kind];
@@ -46,10 +46,10 @@ export function MoneyScreen({ kind, onBack }: { kind: MoneyKind; onBack?: () => 
     if (client && !offline) {
       setBusy(true);
       try {
-        const list = await loadMoney(client, kind);
+        const list = await loadMoney(client, kind, { partnerId });
         setRows(list);
         setFromPhone(false);
-        await AsyncStorage.setItem(copyKey(kind, db), JSON.stringify(list));
+        await AsyncStorage.setItem(copyKey(kind, db, partnerId), JSON.stringify(list));
         setSymbol(await currencySymbol(client, client.session.companyId));
         return;
       } catch (e) {
@@ -59,7 +59,7 @@ export function MoneyScreen({ kind, onBack }: { kind: MoneyKind; onBack?: () => 
       }
     }
     try {
-      const raw = await AsyncStorage.getItem(copyKey(kind, db));
+      const raw = await AsyncStorage.getItem(copyKey(kind, db, partnerId));
       if (raw) {
         setRows(JSON.parse(raw) as MoneyRow[]);
         setFromPhone(true);
@@ -67,7 +67,7 @@ export function MoneyScreen({ kind, onBack }: { kind: MoneyKind; onBack?: () => 
     } catch {
       // No copy yet.
     }
-  }, [client, db, offline, kind]);
+  }, [client, db, offline, kind, partnerId]);
 
   useEffect(() => {
     load();
@@ -81,7 +81,7 @@ export function MoneyScreen({ kind, onBack }: { kind: MoneyKind; onBack?: () => 
   if (open) return <Detail row={open} money={money} waiting={waiting.has(open.id)} kind={kind} onBack={() => { setOpen(null); load(); }} />;
 
   return (
-    <Screen title={w.title} testID={`money-${kind}`}>
+    <Screen title={title ?? w.title} testID={`money-${kind}`}>
       {fromPhone ? <Body muted>No signal. Showing what the phone saw last.</Body> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
       <Segments options={SHOW.map((s) => (s.id === 'owed' && kind === 'out' ? { ...s, label: 'Owed' } : s))} value={show} onChange={setShow} testID="money-show" />

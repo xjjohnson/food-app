@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { Body, Button, Card, Chip, Row, Screen, useUi } from '../components/ui';
-import { AREAS } from '../lib/areas';
+import { AREAS, areasForRoles } from '../lib/areas';
 import { canSee, hasAnyRole, roleNames } from '../lib/roles';
 import { loadToday, TodayItem } from '../lib/today';
 import { useBrand } from '../lib/useBrand';
@@ -15,7 +15,7 @@ export function HomeScreen() {
   const { roles, mine, loading } = useRoles();
   const { name } = useBrand();
   const s = useUi();
-  const areas = AREAS.filter((a) => canSee(roles, a.role));
+  const areas = areasForRoles(AREAS.filter((a) => canSee(roles, a.role)), roles);
   const first = client?.session.name.split(' ')[0] ?? '';
   const [today, setToday] = useState<TodayItem[]>([]);
   useEffect(() => {
@@ -49,6 +49,8 @@ export function HomeScreen() {
           ))}
         </Card>
       ) : null}
+
+      {hasAnyRole(roles) ? <Row title="Search everything" detail="Products, customers, batches and orders in one box" onPress={() => router.push('/search')} testID="open-search" /> : null}
 
       {hasAnyRole(roles) ? <Row title="Find a product" detail="Price, photo and stock by batch" onPress={() => router.push('/lookup')} testID="open-lookup" /> : null}
 

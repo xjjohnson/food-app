@@ -4,6 +4,7 @@ import { Body, Button, ErrorText, Field, Row, Screen } from '../components/ui';
 import { Contact, searchContacts } from '../lib/edit';
 import { CONTACT_SECTIONS } from '../lib/forms';
 import { useOdoo } from '../lib/useOdoo';
+import { MoneyScreen } from './MoneyScreen';
 import { GenericForm } from './GenericForm';
 
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -15,8 +16,9 @@ export function ContactsScreen() {
   const [list, setList] = useState<Contact[]>([]);
   const [tick, setTick] = useState(0);
   const [form, setForm] = useState<{ id?: number } | null>(null);
+  const [hist, setHist] = useState<{ id: number; name: string; kind: 'out' | 'in' } | null>(null);
   const [error, setError] = useState('');
-  useInnerBack(form ? () => { setForm(null); setTick((n) => n + 1); } : null);
+  useInnerBack(hist ? () => setHist(null) : form ? () => { setForm(null); setTick((n) => n + 1); } : null);
 
   useEffect(() => {
     if (!client || offline) return;
@@ -28,6 +30,8 @@ export function ContactsScreen() {
     return () => clearTimeout(t);
   }, [client, offline, text, tick]);
 
+  if (hist) return <MoneyScreen kind={hist.kind} partnerId={hist.id} title={`${hist.name}: ${hist.kind === 'out' ? 'invoices' : 'purchases'}`} onBack={() => setHist(null)} />;
+
   if (form)
     return (
       <GenericForm
@@ -38,6 +42,12 @@ export function ContactsScreen() {
         sections={CONTACT_SECTIONS}
         required={['name']}
         testID="contact-form"
+        extraTabs={form.id ? [{ id: 'history', label: 'History', render: () => (
+          <>
+            <Button label="Invoices to this contact" onPress={() => setHist({ id: form.id!, name: list.find((c) => c.id === form.id)?.name ?? 'Contact', kind: 'out' })} testID="contact-invoices" />
+            <Button label="Purchases from this contact" kind="plain" onPress={() => setHist({ id: form.id!, name: list.find((c) => c.id === form.id)?.name ?? 'Contact', kind: 'in' })} testID="contact-purchases" />
+          </>
+        ) }] : undefined}
         onBack={() => {
           setForm(null);
           setTick((n) => n + 1);
