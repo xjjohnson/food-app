@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { loadSettings, settingChange, useByDays } from '../lib/appSettings';
+import { loadSettings, settingChange, shelfLifeDefault, useByDays } from '../lib/appSettings';
 import { useQueue } from '../lib/useQueue';
 import { Image, View } from 'react-native';
 import { Body, Button, Card, ErrorText, Field, Row, Screen, SwitchRow } from '../components/ui';
@@ -72,6 +72,42 @@ function StockAlerts() {
           setError('');
           try {
             const out = await save(settingChange('useByDays', String(n)));
+            setNote(out.status === 'queued' ? 'Saved on the phone. It goes to Odoo when signal is back.' : 'Saved in Odoo.');
+          } catch (e) {
+            setError(`Odoo would not take that. ${e instanceof Error ? e.message : String(e)}`);
+          }
+        }}
+      />
+    </Card>
+  );
+}
+
+/** The shelf life used to fill in a use-by date when a product has none in Odoo. */
+function ShelfLifeDefault() {
+  const { client, offline } = useOdoo();
+  const { save } = useQueue();
+  const [days, setDays] = useState('');
+  const [note, setNote] = useState('');
+  const [error, setError] = useState('');
+  useEffect(() => {
+    if (!client || offline) return;
+    loadSettings(client).then((s) => setDays(String(shelfLifeDefault(s) ?? '')));
+  }, [client, offline]);
+  const n = Number(days);
+  return (
+    <Card title="Shelf life" testID="shelf-card">
+      <Body muted>When a batch is finished, the use-by date starts as today plus the product’s shelf life in Odoo. If a product has none, it uses this many days instead.</Body>
+      <Field label="Default shelf life in days" value={days} onChangeText={setDays} keyboardType="number-pad" testID="shelf-days" />
+      {error ? <ErrorText>{error}</ErrorText> : null}
+      {note ? <Body>{note}</Body> : null}
+      <Button
+        label="Save"
+        disabled={!(Number.isInteger(n) && n >= 1 && n <= 3650)}
+        testID="shelf-save"
+        onPress={async () => {
+          setError('');
+          try {
+            const out = await save(settingChange('shelfLifeDays', String(n)));
             setNote(out.status === 'queued' ? 'Saved on the phone. It goes to Odoo when signal is back.' : 'Saved in Odoo.');
           } catch (e) {
             setError(`Odoo would not take that. ${e instanceof Error ? e.message : String(e)}`);
@@ -168,6 +204,7 @@ export function ManagementScreen() {
       </Card>
 
       <StockAlerts />
+      <ShelfLifeDefault />
 
       <Card title="Setup">
         <Row title="Connection check and test database" detail="Developer screen" onPress={() => router.push('/developer')} />

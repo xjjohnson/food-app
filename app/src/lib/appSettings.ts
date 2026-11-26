@@ -55,6 +55,12 @@ export function useByDays(s: Settings): number {
   return Number.isFinite(n) && n > 0 && n <= 365 ? Math.round(n) : USE_BY_DEFAULT;
 }
 
+/** The owner's default shelf life in days, used when a product has none in Odoo. Null when not set. */
+export function shelfLifeDefault(s: Settings): number | null {
+  const n = Number(s.shelfLifeDays);
+  return Number.isFinite(n) && n >= 1 && n <= 3650 ? Math.round(n) : null;
+}
+
 /** Saves one setting (makes the contact if needed). Owner only; goes through the queue. */
 export function settingChange(key: string, value: string): NewChange {
   return {

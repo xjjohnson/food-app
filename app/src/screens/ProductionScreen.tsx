@@ -33,12 +33,17 @@ import {
   startBatchChange,
   stateLabel,
   stateWithOdoo,
+  addMonths,
+  useByStart,
+  type UseBySource,
   batchStep,
   finishReasons,
   qtyWords,
   suggestBatchNumber,
 } from '../lib/production';
 import { PlanScreen } from './PlanScreen';
+import { DatePicker } from '../components/DatePicker';
+import { loadSettings, shelfLifeDefault } from '../lib/appSettings';
 import { ChecklistCard } from './ChecklistCard';
 import { PhotosCard } from './PhotosCard';
 import { loadAllergens } from '../lib/allergens';
@@ -288,6 +293,7 @@ function BatchPage({ id, known, onBack, started }: { id: number; known?: Batch; 
   const [lot, setLot] = useState('');
   const [useBy, setUseBy] = useState('');
   const [days, setDays] = useState<number | null | undefined>(undefined);
+  const [source, setSource] = useState<{ source: UseBySource; days: number | null } | null>(null);
   const [note, setNote] = useState('');
   const [all, setAll] = useState(false);
   const [parts, setParts] = useState(false);
@@ -308,7 +314,9 @@ function BatchPage({ id, known, onBack, started }: { id: number; known?: Batch; 
         setLot((x) => x || suggestBatchNumber(detail.name));
         const n = await shelfLifeDays(client, detail.productId);
         setDays(n);
-        if (n) setUseBy((x) => x || addDays(new Date(), n));
+        const start = useByStart(n, shelfLifeDefault(await loadSettings(client)));
+        setSource(start);
+        setUseBy((x) => x || start.date);
       }
     } catch (e) {
       setError(`Couldn’t read this batch from Odoo. ${why(e)}`);
@@ -450,15 +458,20 @@ function BatchPage({ id, known, onBack, started }: { id: number; known?: Batch; 
         <Card title="Finish this batch">
           {!d.canRecordLot ? <ErrorText>This Odoo can’t record batch numbers on a batch. Turn on Lots and Serial Numbers in Odoo Inventory settings, then try again.</ErrorText> : null}
           <Field label="Batch number" value={lot} onChangeText={setLot} autoCapitalize="characters" testID="lot-name" />
-          <Field label="Use by (year-month-day)" value={useBy} onChangeText={setUseBy} placeholder="2026-12-25" keyboardType="numbers-and-punctuation" testID="use-by" />
+          <DatePicker label="Use by" value={useBy} onChange={setUseBy} testID="use-by" />
+          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
+            <Button label="+3 months" kind="plain" onPress={() => setUseBy(addMonths(new Date(), 3))} testID="useby-3m" />
+            <Button label="+6 months" kind="plain" onPress={() => setUseBy(addMonths(new Date(), 6))} testID="useby-6m" />
+            <Button label="+1 year" kind="plain" onPress={() => setUseBy(addMonths(new Date(), 12))} testID="useby-12m" />
+          </View>
           {d.ingredients.length ? <Body muted>How much of each ingredient was really used. It starts as the recipe amount. Change it if you used more or less.</Body> : null}
           {d.ingredients.map((i) => (
             <Field key={i.id} label={`${i.name} used (recipe ${fmtQty(i.needed)})`} value={used[i.id] ?? ''} onChangeText={(v) => setUsed({ ...used, [i.id]: v })} keyboardType="decimal-pad" testID={`used-${i.id}`} />
           ))}
           {badAmount ? <ErrorText>Check the amounts used. They must be numbers.</ErrorText> : null}
-          {days === null ? <Body muted>This product has no shelf life in Odoo, so type the date. You can set it in Odoo on the product, Inventory tab.</Body> : null}
-          {days ? <Body muted>{`Suggested from the product’s shelf life of ${days} days. Change it if you need to.`}</Body> : null}
-          {useBy && !okDate ? <ErrorText>Use the form 2026-12-25.</ErrorText> : null}
+          {source?.source === 'product' ? <Body muted>{`Filled in from the product’s shelf life of ${source.days} days in Odoo. Change it if you need to.`}</Body> : null}
+          {source?.source === 'default' ? <Body muted>{`The product has no shelf life in Odoo, so this uses your default of ${source.days} days (More, Management). Change it if you need to.`}</Body> : null}
+          {source?.source === 'fallback' ? <Body muted>No shelf life in Odoo or in Management, so this starts at six months. Change it if you need to.</Body> : null}
           {note ? <Body>{note}</Body> : null}
           {reasons.length ? <View testID="finish-reasons"><Body>{`Finish batch is off because: ${reasons.join(' ')}`}</Body></View> : null}
           <Button

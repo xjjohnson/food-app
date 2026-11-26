@@ -280,13 +280,10 @@ describe('the batch page next step', () => {
     expect(screen.getByTestId('batch-step-1')).toHaveTextContent('● Cooking');
     expect(screen.getByTestId('batch-step-2')).toHaveTextContent('○ Finish');
     await fireEvent.changeText(screen.getByTestId('lot-name'), '');
-    await fireEvent.changeText(screen.getByTestId('use-by'), '');
     await settle();
     expect(screen.getByTestId('finish-reasons')).toHaveTextContent(/Batch number is empty/);
-    expect(screen.getByTestId('finish-reasons')).toHaveTextContent(/Use-by date is empty/);
     expect(screen.getByTestId('finish-batch')).toBeDisabled();
     await fireEvent.changeText(screen.getByTestId('lot-name'), 'J-1');
-    await fireEvent.changeText(screen.getByTestId('use-by'), '2026-12-25');
     await settle();
     expect(screen.queryByTestId('finish-reasons')).toBeNull();
     expect(screen.getByTestId('finish-batch')).toBeEnabled();
@@ -313,4 +310,42 @@ describe('the batch page next step', () => {
     await settle();
     expect(odoo.tables['stock.move']!.find((m) => m.id === mv)!.picked).toBe(true);
   });
+});
+
+describe('the use-by date', () => {
+  async function batch(odoo: FakeOdoo) {
+    const jam = odoo.create('product.product', { name: 'Jam', free_qty: 0 });
+    const id = odoo.create('mrp.production', { name: 'WH/MO/7', state: 'confirmed', product_id: [jam, 'Jam'], product_qty: 12 });
+    await open(odoo, `/area/production?go=batch:${id}`, 'Production');
+  }
+
+  test('it is filled in (six months when nothing else is set) and the shortcuts and calendar change it', async () => {
+    const { odoo } = bakery();
+    await batch(odoo);
+    const label = () => String(screen.getByTestId('use-by').props.accessibilityLabel);
+    expect(label()).toMatch(/Use by: \d{4}-\d{2}-\d{2}/);
+    expect(screen.getByText(/starts at six months/)).toBeTruthy();
+    const six = label();
+    await fireEvent.press(screen.getByTestId('useby-12m'));
+    expect(label()).not.toBe(six);
+    await fireEvent.press(screen.getByTestId('use-by'));
+    await fireEvent.press(screen.getByTestId('date-day-15'));
+    expect(label()).toMatch(/-15$/);
+  });
+
+  test('the owner’s default shelf life is used when the product has none', async () => {
+    const { odoo } = bakery();
+    odoo.create('res.partner', { name: 'Food app settings', comment: '<p>shelfLifeDays=90</p>' });
+    await batch(odoo);
+    expect(screen.getByText(/uses your default of 90 days/)).toBeTruthy();
+  });
+});
+
+import { addMonths, useByStart } from '../lib/production';
+test('use-by start: product shelf life, then the default, then six months', () => {
+  const today = new Date(2026, 10, 26);
+  expect(useByStart(30, 90, today)).toEqual({ date: '2026-12-26', source: 'product', days: 30 });
+  expect(useByStart(null, 90, today)).toEqual({ date: '2027-02-24', source: 'default', days: 90 });
+  expect(useByStart(null, null, today)).toEqual({ date: '2027-05-26', source: 'fallback', days: null });
+  expect(addMonths(new Date(2026, 7, 31), 6)).toBe('2027-02-28');
 });

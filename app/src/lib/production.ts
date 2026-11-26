@@ -259,6 +259,28 @@ export function addDays(from: Date, days: number): string {
   return ymd(d);
 }
 
+/** Today plus a number of months, as "YYYY-MM-DD" (the 31st stays inside shorter months). */
+export function addMonths(from: Date, months: number): string {
+  const day = from.getDate();
+  const d = new Date(from.getFullYear(), from.getMonth() + months, 1);
+  const last = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  d.setDate(Math.min(day, last));
+  return ymd(d);
+}
+
+export type UseBySource = 'product' | 'default' | 'fallback';
+
+/**
+ * The use-by date to start from: the product's shelf life in Odoo, else the
+ * app's default shelf life (set by the owner), else six months. The person can
+ * change it.
+ */
+export function useByStart(productDays: number | null, defaultDays: number | null, today = new Date()): { date: string; source: UseBySource; days: number | null } {
+  if (productDays && productDays > 0) return { date: addDays(today, productDays), source: 'product', days: productDays };
+  if (defaultDays && defaultDays > 0) return { date: addDays(today, defaultDays), source: 'default', days: defaultDays };
+  return { date: addMonths(today, 6), source: 'fallback', days: null };
+}
+
 /** A first guess at the batch number, from the date and the batch's name. The person can change it. */
 export function suggestBatchNumber(batchName: string, now = new Date()): string {
   const p = (n: number) => String(n).padStart(2, '0');
