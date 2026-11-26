@@ -14,3 +14,17 @@ test('the connection check only reads, and says what to turn on in Odoo', async 
   expect(line('Use-by dates')).toMatchObject({ ok: false, note: expect.stringContaining('Expiration Dates') });
   expect(odoo.calls.filter((x) => !['search_read', 'read', 'search_count', 'has_group', 'fields_get'].includes(x.method))).toEqual([]);
 });
+
+test('the check lists each add-on feature in groups and says what to install', async () => {
+  const { odoo, owner } = bakery();
+  const c = await OdooClient.signIn(odoo.fetch, { url: URL, db: 'food-test', login: owner.login }, 'key');
+  const r = await checkOdoo(c);
+  const surveys = r.lines.find((x) => x.label === 'Customer feedback (Surveys)')!;
+  expect(surveys.group).toBe('Selling');
+  expect(surveys.ok).toBe(false);
+  expect(surveys.note).toContain('Install Surveys');
+  expect(r.lines.find((x) => x.label === 'Manufacturing (batches and recipes)')!.group).toBe('Core');
+  expect(r.lines.some((x) => x.group === 'Kitchen')).toBe(true);
+  expect(r.lines.some((x) => x.group === 'Extras')).toBe(true);
+  expect(odoo.calls.filter((x) => !['search_read', 'read', 'search_count', 'has_group', 'fields_get'].includes(x.method))).toEqual([]);
+});
