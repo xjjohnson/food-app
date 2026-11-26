@@ -11,6 +11,19 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.34',
+    changes: [
+      'Make tab: Recipes, Batches and Jars in stock sit at the top. Recipes is a recipe box; tap a recipe to open it.',
+      'Recipe pages (and the recipe box) have a new cookbook look: warm paper and dashed cards. Other screens stay clean.',
+      'Batches shows what is cooking, with Start a batch right there.',
+    ],
+    test: [
+      'Make tab, Recipes: your recipes are listed. Tap one and check it opens straight on the recipe, with the paper look.',
+      'Make tab, Batches: open a batch, and tap Start a batch.',
+      'Sign in as an inventory person: Make shows Jars in stock but no recipe box.',
+    ],
+  },
+  {
     release: '0.1.33',
     changes: [
       'New look for moving around: five tabs along the bottom (Today, Make, Buy, Sell, More). Every screen is in one of them.',

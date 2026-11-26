@@ -47,7 +47,10 @@ describe('the whole app', () => {
     for (const [tab, areas] of [['make', ['production', 'stock']], ['buy', ['ingredients']], ['sell', ['orders', 'market']]] as const) {
       await fireEvent.press(screen.getByTestId(`tab-${tab}`));
       await settle();
-      for (const a of areas) expect(screen.getByTestId(`area-${a}`)).toBeTruthy();
+      for (const a of areas) {
+        if (tab === 'make') await fireEvent.press(screen.getByTestId(a === 'stock' ? 'make-seg-jars' : 'make-seg-batches'));
+        expect(screen.getByTestId(`area-${a}`)).toBeTruthy();
+      }
     }
     await fireEvent.press(screen.getByTestId('tab-more'));
     await settle();
@@ -65,6 +68,7 @@ describe('the whole app', () => {
     expect(screen.queryByTestId('tab-sell')).toBeNull();
     await fireEvent.press(screen.getByTestId('tab-make'));
     await settle();
+    await fireEvent.press(screen.getByTestId('make-seg-batches'));
     expect(screen.getByTestId('area-production')).toBeTruthy();
     expect(screen.queryByTestId('area-market')).toBeNull();
     await fireEvent.press(screen.getByTestId('tab-more'));
@@ -131,6 +135,7 @@ describe('the whole app', () => {
     expect(screen.getByTestId('home-screen')).toBeTruthy();
     await fireEvent.press(screen.getByTestId('tab-make'));
     await settle();
+    await fireEvent.press(screen.getByTestId('make-seg-batches'));
     expect(screen.getByTestId('area-production')).toBeTruthy();
     expect(screen.getByTestId('queue-band')).toHaveTextContent(/No signal: working offline/);
   });
