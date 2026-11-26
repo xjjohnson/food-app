@@ -11,6 +11,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.42',
+    changes: [
+      'The use-by date on a batch is now a calendar, with +3 months, +6 months and +1 year buttons.',
+      'It fills in by itself: first the product’s shelf life in Odoo, then the default shelf life the owner sets in More, Management, then six months. The batch page says which one it used.',
+    ],
+    test: [
+      'Open a Cooking batch: the use-by date should be filled in, with a line saying where it came from.',
+      'Tap the date: a calendar opens. Pick a day, or tap +3 months, +6 months or +1 year.',
+      'More, Management, Shelf life: set a default in days and save. A product with no shelf life in Odoo should use it.',
+    ],
+  },
+  {
     release: '0.1.41',
     changes: [
       'The Delivery board works again. Odoo 19 has no Mobile field on contacts, and the board (and the supplier call page) asked for it. They now ask only for fields Odoo has.',

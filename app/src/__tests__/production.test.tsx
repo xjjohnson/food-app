@@ -132,9 +132,9 @@ describe('production screen', () => {
     expect(screen.getByTestId('batch-state')).toHaveTextContent(/Ready to cook \(Odoo: Confirmed\)/);
     expect(screen.getByText(/Batch started/)).toBeTruthy();
     expect(screen.getByTestId('batch-short')).toHaveTextContent(/Flour/);
-    expect(screen.getByTestId('use-by').props.value).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(screen.getByTestId('use-by').props.accessibilityLabel).toMatch(/Use by: \d{4}-\d{2}-\d{2}/);
     await fireEvent.changeText(screen.getByTestId('lot-name'), 'CC-1');
-    await fireEvent.changeText(screen.getByTestId('use-by'), '2026-12-20');
+    await fireEvent.press(screen.getByTestId('useby-3m'));
     await fireEvent.press(screen.getByTestId('finish-batch'));
     await settle();
     expect(mo.state).toBe('done');
