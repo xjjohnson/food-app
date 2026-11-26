@@ -1,5 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { ShareCsv } from './MoneyPages';
+import { moneyCells } from '../lib/packet';
 import { Body, Button, Card, Chip, ErrorText, Field, Row, Screen, Segments } from '../components/ui';
 import { Journal, loadJournals } from '../lib/ingredients';
 import { useInnerBack } from '../lib/innerBack';
@@ -98,6 +100,7 @@ export function MoneyScreen({ kind, onBack, partnerId, title }: { kind: MoneyKin
           testID={`money-${r.id}`}
         />
       ))}
+      {shown.length ? <ShareCsv name={kind === 'out' ? 'invoices' : 'purchase-history'} cells={moneyCells(shown)} /> : null}
       <Button label="Refresh" kind="plain" onPress={load} busy={busy} />
       {onBack ? <Button label="Back" kind="plain" onPress={onBack} /> : null}
     </Screen>

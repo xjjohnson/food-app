@@ -11,6 +11,25 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.25',
+    changes: [
+      'Management: Reports became Money and reports (owner only), now a menu. New: Bills due (unpaid bills, late ones marked), Cash in and out (by cash, Cash App, Venmo and bank), Sales tax as Odoo booked it by month, Month goal with a progress bar, Budget against spent by category, Add an expense, and Accountant packet.',
+      'Add an expense: what, store, date, amount, category and how it was paid, with a receipt photo. It makes a bill in Odoo, posts it, marks it paid if you picked a way to pay, and keeps the receipt on it. It works without signal.',
+      'Accountant packet: one spreadsheet file for a month (sales, tax, cash, invoices, purchase bills) to share to email or Drive.',
+      'Share as a spreadsheet file now also on Sales, Profit, Invoices and Purchase history lists.',
+    ],
+    test: [
+      'Money and reports, Bills due: compare with Odoo bills not yet paid. A bill past its due date should say LATE.',
+      'Cash in and out: pick This month and compare with your payments in Odoo.',
+      'Sales tax: compare a month with Odoo’s tax lines. Ask your accountant if unsure; it is information only.',
+      'Month goal: type a goal, save, and check the bar matches this month’s sales from Reports, Sales.',
+      'Budget: open a category, type a budget, save, and check spent and left.',
+      'Add an expense: lids from a shop, a category, Paid with Cash, and a receipt photo. Check in Odoo a posted, paid vendor bill with the photo attached. Try it once with airplane mode on.',
+      'Accountant packet: build last month and share it to your email. Open the file in a spreadsheet and check each section.',
+      'Invoices, Share as a spreadsheet file: check the file opens.',
+    ],
+  },
+  {
     release: '0.1.24',
     changes: [
       'Management: new Reports (owner only). Sales shows best and slowest sellers for today, 7 days, this month, last month or this year, counting website orders and market sales. Profit shows sold total, units and Odoo’s cost beside each product. Stock value shows what is on the shelves, as Odoo values it. Year compares each month with the same month last year. Break-even says how many units cover a cost you type.',

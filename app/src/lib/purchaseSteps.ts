@@ -15,6 +15,7 @@ import { lineValues, loadReceiptLines } from './ingredients';
 import { runSetting } from './appSettings';
 import { runMove } from './places';
 import { runPhoto } from './photos';
+import { runExpense, type ExpenseStep } from './expense';
 import { runCount } from './stock';
 import type { OdooClient } from './odoo';
 
@@ -35,6 +36,7 @@ export type Step =
       /** The payment journal (Cash, Bank...) the bill was paid from, or null for "not paid yet". */
       journalId: number | null;
     }
+  | ExpenseStep
   | { kind: 'setting'; key: string; value: string }
   /** A picture on a record. `uri` is the file waiting on the phone. */
   | { kind: 'photo'; model: string; resId: number; name: string; uri: string }
@@ -125,6 +127,7 @@ export async function runStep(c: Client, step: Step): Promise<void> {
   if (step.kind === 'setting') return runSetting(c, step.key, step.value);
   if (step.kind === 'move') return runMove(c, step);
   if (step.kind === 'count') return runCount(c, step);
+  if (step.kind === 'expense') return runExpense(c, step);
   if (step.kind === 'photo') return runPhoto(c, step);
   if (step.kind === 'note') return note(c, step);
   if (step.kind === 'pay') return pay(c, step);
