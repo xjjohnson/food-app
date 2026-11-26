@@ -2,6 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 import { Linking } from 'react-native';
 import { Body, Button, Card, Chip, ErrorText, Screen, Row } from '../components/ui';
+import { thankYouChange } from '../lib/activities';
 import { BoardOrder, deliveredChange, loadBoard, mapLink, STEP_WORDS } from '../lib/deliveryBoard';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
@@ -64,6 +65,7 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
     setError('');
     try {
       await save(deliveredChange(o));
+      if (o.partnerId && client) await save(thankYouChange({ partnerId: o.partnerId, customer: o.customer, saleName: o.origin || o.name }, client.session.uid)).catch(() => undefined);
       await load();
     } catch (e) {
       setError(`Odoo would not take that. ${why(e)}`);

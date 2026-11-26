@@ -1,4 +1,5 @@
 import { categoryCostMethod } from '../lib/costing';
+import { HistoryCard } from './TasksScreen';
 import { useInnerBack } from '../lib/innerBack';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { Body, Button, ErrorText, Screen, Segments } from '../components/ui';
@@ -121,8 +122,9 @@ export function GenericForm({ model, recordId, title, sections: all, required = 
   if (picking) return <RelationPicker def={picking} selected={draft[picking.name]!} onChange={(v) => setValue(picking.name, v)} onBack={() => setPicking(null)} />;
 
   const section = shownSections.find((s) => s.id === tab);
-  const extra = recordId ? extraTabs.find((t) => t.id === tab) : undefined;
-  const tabs = [...shownSections.map((s) => ({ id: s.id, label: s.title })), ...(recordId ? extraTabs.map((t) => ({ id: t.id, label: t.label })) : [])];
+  const allExtra: ExtraTab[] = recordId ? [...extraTabs, { id: 'changes', label: 'Changes', render: () => <HistoryCard model={model} id={recordId} /> }] : [];
+  const extra = allExtra.find((t) => t.id === tab);
+  const tabs = [...shownSections.map((s) => ({ id: s.id, label: s.title })), ...allExtra.map((t) => ({ id: t.id, label: t.label }))];
 
   const doSave = async () => {
     setBusy(true);

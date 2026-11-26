@@ -32,6 +32,7 @@ export class FakeOdoo {
     'res.currency': [{ id: 1, name: 'USD', symbol: '$' }],
     'res.partner': [],
     'hr.employee': [],
+    'mail.activity': [],
     'hr.employee.category': [],
     'mail.message': [],
     'mrp.bom': [],
@@ -372,6 +373,11 @@ export class FakeOdoo {
             else r[k] = v;
           }
         }
+        return true;
+      }
+      case 'action_feedback': {
+        const [ids] = args as [number[]];
+        this.tables[model] = (this.tables[model] ?? []).filter((r) => !ids.includes(r.id));
         return true;
       }
       case 'message_post': {
