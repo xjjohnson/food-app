@@ -12,6 +12,9 @@
  * Kept free of React; the client is passed in.
  */
 import { lineValues, loadReceiptLines } from './ingredients';
+import { runSetting } from './appSettings';
+import { runMove } from './places';
+import { runCount } from './stock';
 import type { OdooClient } from './odoo';
 
 type Client = Pick<OdooClient, 'call'>;
@@ -31,6 +34,9 @@ export type Step =
       /** The payment journal (Cash, Bank...) the bill was paid from, or null for "not paid yet". */
       journalId: number | null;
     }
+  | { kind: 'setting'; key: string; value: string }
+  | { kind: 'count'; quantId: number; counted: number; expected: number }
+  | { kind: 'move'; token: string; productId: number; lotId: number; qty: number; fromId: number; toId: number }
   | {
       /** A note on a record's chatter, posted once (Delivered on the delivery board). */
       kind: 'note';
@@ -113,6 +119,9 @@ async function note(c: Client, step: Extract<Step, { kind: 'note' }>): Promise<v
 }
 
 export async function runStep(c: Client, step: Step): Promise<void> {
+  if (step.kind === 'setting') return runSetting(c, step.key, step.value);
+  if (step.kind === 'move') return runMove(c, step);
+  if (step.kind === 'count') return runCount(c, step);
   if (step.kind === 'note') return note(c, step);
   if (step.kind === 'pay') return pay(c, step);
   if (step.kind === 'receive') return receive(c, step);

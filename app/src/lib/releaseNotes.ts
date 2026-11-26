@@ -11,6 +11,23 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.21',
+    changes: [
+      'Management: new Stock alerts. The owner sets how many days ahead use-by alerts show (14 by default). It is saved in Odoo (in a contact called Food app settings, made the first time) so every phone uses the same number. Today and Expiring soon use it.',
+      'Stock: new Waste and spoilage. Pick a product, the batch, how many, and a reason (Odoo’s scrap reasons). It comes off the stock in Odoo.',
+      'Stock: Count stock now stops safely if stock moved since you counted (for example a count made with no signal), and says what changed so you can count again.',
+      'Stock: new Places. What is in each storage place and moving stock between places. It needs Storage Locations switched on in Odoo Inventory settings; the app says so if it is off.',
+      'Stock: new Unit helper. Type once that 1 cup of an ingredient is, say, 120 g, and it converts on screen. Odoo’s own unit is never changed.',
+    ],
+    test: [
+      'Management, Stock alerts: change the days to 10 and Save. Check in Odoo the contact Food app settings has useByDays=10. Open Today and Expiring soon and check they use 10 days.',
+      'Stock, Waste and spoilage: pick a product with a batch, enter 1, pick a reason, save. Check in Odoo a scrap was made and validated and the stock went down by 1.',
+      'Stock, Count stock: count a product, save. Check Odoo stock matches. Then count with airplane mode on, change the same stock in Odoo, turn signal on, and check the waiting entry says stock changed and nothing was overwritten.',
+      'Turn on Storage Locations in Odoo and make places Pantry and Freezer. Stock, Places: move a few of something from Pantry to Freezer and check the transfer in Odoo is done and the stock is in the new place.',
+      'Stock, Unit helper: pick flour, set 1 cup = 120 g, save. Type 2 cups and check it shows 240 g. Close and reopen: the match is remembered.',
+    ],
+  },
+  {
     release: '0.1.20',
     changes: [
       'Production: new Plan batches. Pick recipes and how many; it adds up what they need and shows what you have, what is on order, and what is short. Jars, lids and labels are marked as packaging. Save as planned batches (draft batches in Odoo) or start them all now.',

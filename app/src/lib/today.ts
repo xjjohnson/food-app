@@ -4,6 +4,7 @@
  *
  * Kept free of React; the client is passed in, so tests use a fake.
  */
+import { loadSettings, useByDays } from './appSettings';
 import { loadRules } from './ingredients';
 import type { OdooClient } from './odoo';
 import { loadExpiring } from './stock';
@@ -35,7 +36,7 @@ export async function loadToday(c: Client, roles: Roles): Promise<TodayItem[]> {
   };
   await add({ id: 'batches', title: 'Batches to make or finish', area: 'production', role: 'production' }, () => count(c, 'mrp.production', [['state', 'in', ['confirmed', 'progress', 'to_close']]]));
   await add({ id: 'orders', title: 'Website orders to pack', area: 'orders', role: 'shipping' }, () => count(c, 'stock.picking', [['picking_type_code', '=', 'outgoing'], ['state', '=', 'assigned'], ['sale_id.website_id', '!=', false]]));
-  await add({ id: 'expiring', title: 'Batches close to their use-by date', area: 'stock', role: 'inventory' }, async () => (await loadExpiring(c, 7)).length);
+  await add({ id: 'expiring', title: 'Batches close to their use-by date', area: 'stock', role: 'inventory' }, async () => (await loadExpiring(c, useByDays(await loadSettings(c)))).length);
   await add({ id: 'low', title: 'Ingredients running low', area: 'ingredients', role: 'inventory' }, async () => (await loadRules(c, true)).length);
   await add({ id: 'deliveries', title: 'Deliveries to check in', area: 'ingredients', role: 'inventory' }, () => count(c, 'stock.picking', [['picking_type_code', '=', 'incoming'], ['state', '=', 'assigned']]));
   await add({ id: 'owed', title: 'Invoices not paid yet', area: 'invoices', role: 'sales' }, () => count(c, 'account.move', [['move_type', '=', 'out_invoice'], ['state', '=', 'posted'], ['payment_state', 'in', ['not_paid', 'partial']]]));

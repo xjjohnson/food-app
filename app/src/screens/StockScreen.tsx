@@ -7,13 +7,15 @@ import { fmtQty, isDate } from '../lib/production';
 import type { LotStock } from '../lib/orders';
 import { stockByBatch } from '../lib/lookup';
 import { InStockRow, loadInStock, StockKind, BatchTrace, CountLine, countChange, ExpiringLot, findLots, loadCountLines, loadExpiring, ProductRow, searchProducts, throwOutChange, traceLot } from '../lib/stock';
+import { loadSettings, useByDays } from '../lib/appSettings';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 import { GenericForm } from './GenericForm';
+import { PlacesPage, UnitHelperPage, WastePage } from './StockExtras';
 
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 
-type Page = 'menu' | 'have' | 'count' | 'expiring' | 'find';
+type Page = 'menu' | 'have' | 'count' | 'expiring' | 'find' | 'waste' | 'places' | 'units';
 
 /** Stock: counts, expiring soon, and finding a batch. */
 export function StockScreen() {
@@ -24,11 +26,17 @@ export function StockScreen() {
   if (page === 'count') return <CountStock onBack={back} />;
   if (page === 'expiring') return <Expiring onBack={back} />;
   if (page === 'find') return <FindBatch onBack={back} />;
+  if (page === 'waste') return <WastePage onBack={back} />;
+  if (page === 'places') return <PlacesPage onBack={back} />;
+  if (page === 'units') return <UnitHelperPage onBack={back} />;
   return (
     <Screen title="Stock" testID="stock-screen">
       <Row title="What’s in stock" detail="Everything on the shelves, with how much and which batches" onPress={() => setPage('have')} testID="stock-have" />
       <Row title="Count stock" detail="Walk the shelves and type what is there" onPress={() => setPage('count')} testID="stock-count" />
       <Row title="Expiring soon" detail="Batches close to their use-by date" onPress={() => setPage('expiring')} testID="stock-expiring" />
+      <Row title="Waste and spoilage" detail="Take spoiled or dropped stock off, with a reason" onPress={() => setPage('waste')} testID="stock-waste" />
+      <Row title="Places" detail="What is in the pantry, freezer or market bin, and moving it" onPress={() => setPage('places')} testID="stock-places" />
+      <Row title="Unit helper" detail="Cups, ounces and pounds beside Odoo’s unit" onPress={() => setPage('units')} testID="stock-units" />
       <Row title="Find a batch" detail="Where a batch came from and where it went" onPress={() => setPage('find')} testID="stock-find" />
     </Screen>
   );
@@ -195,6 +203,13 @@ function Expiring({ onBack }: { onBack: () => void }) {
   const { client, offline } = useOdoo();
   const { save } = useQueue();
   const [win, setWin] = useState<Window>('14');
+  useEffect(() => {
+    if (!client || offline) return;
+    loadSettings(client).then((st) => {
+      const d = String(useByDays(st));
+      if (d === '7' || d === '14' || d === '30') setWin(d);
+    });
+  }, [client, offline]);
   const [list, setList] = useState<ExpiringLot[] | null>(null);
   const [sure, setSure] = useState<number | null>(null);
   const [error, setError] = useState('');

@@ -1,7 +1,9 @@
 import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
+import { loadSettings, settingChange, useByDays } from '../lib/appSettings';
+import { useQueue } from '../lib/useQueue';
 import { Image, View } from 'react-native';
-import { Body, Button, Card, ErrorText, Row, Screen, SwitchRow } from '../components/ui';
+import { Body, Button, Card, ErrorText, Field, Row, Screen, SwitchRow } from '../components/ui';
 import { listPeople, Person, roleNames, ROLES, Roles, saveRoles } from '../lib/roles';
 import { useBrand } from '../lib/useBrand';
 import { useOdoo } from '../lib/useOdoo';
@@ -42,6 +44,41 @@ function PersonRoles({ person, onSaved }: { person: Person; onSaved: (p: Person)
         testID={`save-roles-${person.id}`}
       />
     </View>
+  );
+}
+
+/** How many days ahead a use-by alert shows. Saved in Odoo so every phone uses the same number. */
+function StockAlerts() {
+  const { client, offline } = useOdoo();
+  const { save } = useQueue();
+  const [days, setDays] = useState('');
+  const [note, setNote] = useState('');
+  const [error, setError] = useState('');
+  useEffect(() => {
+    if (!client || offline) return;
+    loadSettings(client).then((s) => setDays(String(useByDays(s))));
+  }, [client, offline]);
+  const n = Number(days);
+  return (
+    <Card title="Stock alerts" testID="alerts-card">
+      <Field label="Show use-by alerts this many days ahead" value={days} onChangeText={setDays} keyboardType="number-pad" testID="alert-days" />
+      {error ? <ErrorText>{error}</ErrorText> : null}
+      {note ? <Body>{note}</Body> : null}
+      <Button
+        label="Save"
+        disabled={!(Number.isInteger(n) && n >= 1 && n <= 365)}
+        testID="alert-save"
+        onPress={async () => {
+          setError('');
+          try {
+            const out = await save(settingChange('useByDays', String(n)));
+            setNote(out.status === 'queued' ? 'Saved on the phone. It goes to Odoo when signal is back.' : 'Saved in Odoo.');
+          } catch (e) {
+            setError(`Odoo would not take that. ${e instanceof Error ? e.message : String(e)}`);
+          }
+        }}
+      />
+    </Card>
   );
 }
 
@@ -111,6 +148,8 @@ export function ManagementScreen() {
         <Row title="Second color" value={brand.secondary || 'None in Odoo'} right={<View style={{ width: 28, height: 28, borderRadius: 6, backgroundColor: colors.second }} />} />
         <Button label="Read the brand again" kind="plain" disabled={offline} onPress={() => refresh()} testID="refresh-brand" />
       </Card>
+
+      <StockAlerts />
 
       <Card title="Setup">
         <Row title="Connection check and test database" detail="Developer screen" onPress={() => router.push('/developer')} />
