@@ -17,6 +17,7 @@ export interface BoardOrder {
   saleId: number;
   origin: string;
   customer: string;
+  partnerId?: number;
   phone: string;
   address: string;
   notes: string;
@@ -57,6 +58,7 @@ export async function loadBoard(c: Client, now = new Date()): Promise<BoardOrder
         saleId,
         origin: str(r.origin),
         customer: Array.isArray(r.partner_id) ? String(r.partner_id[1] ?? '') : '',
+        partnerId: m2oId(r.partner_id) || undefined,
         phone: str(p.mobile) || str(p.phone),
         address: [p.street, p.street2, p.city, p.zip].filter((x) => typeof x === 'string' && x).join(', '),
         notes: str(p.comment).replace(/<[^>]+>/g, ' ').trim(),

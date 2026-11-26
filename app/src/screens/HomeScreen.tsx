@@ -45,10 +45,12 @@ export function HomeScreen() {
       {today.length ? (
         <Card title="Today" testID="today-card">
           {today.map((t) => (
-            <Row key={t.id} title={t.title} value={String(t.count)} onPress={() => router.push(`/area/${t.area}`)} testID={`today-${t.id}`} />
+            <Row key={t.id} title={t.title} value={String(t.count)} onPress={() => router.push(t.area === 'tasks' ? '/tasks' : `/area/${t.area}`)} testID={`today-${t.id}`} />
           ))}
         </Card>
       ) : null}
+
+      {hasAnyRole(roles) ? <Row title="Tasks" detail="Jobs to do, and special dates" onPress={() => router.push('/tasks')} testID="open-tasks" /> : null}
 
       {hasAnyRole(roles) ? <Row title="Search everything" detail="Products, customers, batches and orders in one box" onPress={() => router.push('/search')} testID="open-search" /> : null}
 

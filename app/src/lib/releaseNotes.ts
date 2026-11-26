@@ -11,6 +11,23 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.30',
+    changes: [
+      'New Tasks page (Home, and a Today line). The owner gives out tasks with a due date, a person and an optional batch or order; each person ticks theirs Done. They are Odoo activities. A person with no Odoo login gets their task as the owner.',
+      'Delivered now also makes a reminder to write a thank-you note by hand (once per order).',
+      'Customer History tab: Special dates (birthday, order anniversary) as reminders to you only. Today shows how many fall this week.',
+      'Every record page has a Changes tab: who changed what and when, from Odoo.',
+      'Waiting to send: each item shows its database and steps, Odoo’s refusal in plain words, and only the owner can remove one.',
+    ],
+    test: [
+      'Home, Tasks, New task: give yourself a task, tick it Done, and check it is gone from Odoo’s activities.',
+      'Mark a delivery Delivered, then check Tasks and the customer in Odoo for the thank-you reminder.',
+      'Open a customer, History tab, add a birthday a few days away, and check Today.',
+      'Open any product or contact, Changes tab, and check the history reads well.',
+      'Waiting to send as a non-owner: you should not see Remove.',
+    ],
+  },
+  {
     release: '0.1.29',
     changes: [
       'Management: new Prices and seasons. Customer groups (a price list with its own rules, for example wholesale) and Seasons (a start and end day each year for a product).',

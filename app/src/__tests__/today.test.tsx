@@ -28,9 +28,9 @@ describe('today and product lookup', () => {
     bakeryDay(odoo);
     const c = await OdooClient.signIn(odoo.fetch, { url: URL, db: 'food-test', login: 'baker@example.com' }, 'key');
     const baker = await loadToday(c, { ...NO_ROLES, production: true });
-    expect(baker.map((t) => [t.id, t.count])).toEqual([['batches', 1]]);
+    expect(baker.map((t) => [t.id, t.count])).toEqual([['tasks', 0], ['batches', 1]]);
     const owner = await loadToday(c, { ...NO_ROLES, owner: true });
-    expect(owner.map((t) => t.id)).toEqual(['batches', 'orders', 'expiring', 'low', 'deliveries', 'web-new', 'season-now', 'season-soon', 'owed', 'out-today']);
+    expect(owner.map((t) => t.id)).toEqual(['tasks', 'special-soon', 'batches', 'orders', 'expiring', 'low', 'deliveries', 'web-new', 'season-now', 'season-soon', 'owed', 'out-today']);
     expect(owner.find((t) => t.id === 'orders')!.count).toBe(1);
   });
 

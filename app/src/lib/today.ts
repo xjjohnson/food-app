@@ -9,9 +9,10 @@ import { loadRules } from './ingredients';
 import type { OdooClient } from './odoo';
 import { loadExpiring } from './stock';
 import type { RoleId, Roles } from './roles';
+import { countMyTasks, countSpecialSoon } from './activities';
 import { seasonCounts } from './season';
 
-type Client = Pick<OdooClient, 'call'>;
+type Client = Pick<OdooClient, 'call' | 'session'>;
 
 export interface TodayItem {
   id: string;
@@ -19,7 +20,7 @@ export interface TodayItem {
   count: number;
   /** The area this opens. */
   area: string;
-  role: RoleId;
+  role: RoleId | 'any';
 }
 
 const count = async (c: Client, model: string, domain: unknown[]) => Number(await c.call(model, 'search_count', [domain])) || 0;
@@ -28,13 +29,15 @@ const count = async (c: Client, model: string, domain: unknown[]) => Number(awai
 export async function loadToday(c: Client, roles: Roles): Promise<TodayItem[]> {
   const out: TodayItem[] = [];
   const add = async (item: Omit<TodayItem, 'count'>, get: () => Promise<number>) => {
-    if (!(roles.owner || roles[item.role])) return;
+    if (!(item.role === 'any' || roles.owner || roles[item.role])) return;
     try {
       out.push({ ...item, count: await get() });
     } catch {
       // Not readable for this person: skip it.
     }
   };
+  await add({ id: 'tasks', title: 'Tasks due or late', area: 'tasks', role: 'any' }, () => countMyTasks(c));
+  await add({ id: 'special-soon', title: 'Birthdays and anniversaries this week', area: 'tasks', role: 'sales' }, () => countSpecialSoon(c));
   await add({ id: 'batches', title: 'Batches to make or finish', area: 'production', role: 'production' }, () => count(c, 'mrp.production', [['state', 'in', ['confirmed', 'progress', 'to_close']]]));
   await add({ id: 'orders', title: 'Website orders to pack', area: 'orders', role: 'shipping' }, () => count(c, 'stock.picking', [['picking_type_code', '=', 'outgoing'], ['state', '=', 'assigned'], ['sale_id.website_id', '!=', false]]));
   await add({ id: 'expiring', title: 'Batches close to their use-by date', area: 'stock', role: 'inventory' }, async () => (await loadExpiring(c, useByDays(await loadSettings(c)))).length);
