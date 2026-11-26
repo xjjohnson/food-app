@@ -12,7 +12,7 @@ const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
  * The camera, full screen. expo-camera is already in the app; it is loaded only when this
  * opens, so screens that never take a photo don't need it.
  */
-function CameraSheet({ onTaken, onClose }: { onTaken: (uri: string) => void; onClose: () => void }) {
+export function CameraSheet({ onTaken, onClose }: { onTaken: (uri: string) => void; onClose: () => void }) {
   const cam = require('expo-camera') as typeof import('expo-camera');
   const [perm, ask] = cam.useCameraPermissions();
   const [ref, setRef] = useState<InstanceType<typeof cam.CameraView> | null>(null);

@@ -1,29 +1,33 @@
 import { useEffect, useState } from 'react';
 import { Body, Card, ErrorText, Field, Row, Screen, Segments } from '../components/ui';
+import { Button } from '../components/ui';
 import { useInnerBack } from '../lib/innerBack';
 import { BreakEvenProduct, bestFirst, breakEvenUnits, findForBreakEven, loadSold, loadStockValue, loadYears, Range, RANGES, rangeDays, slowest, SoldRow, StockValue } from '../lib/reports';
 import { useOdoo } from '../lib/useOdoo';
 import { useRoles } from '../lib/useRoles';
+import { BillsPage, BudgetPage, CashPage, ExpensePage, GoalPage, PacketPage, ShareCsv, TaxPage } from './MoneyPages';
+import { soldCells } from '../lib/packet';
 
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const money = (n: number) => n.toFixed(2);
 const qty = (n: number) => String(Math.round(n * 100) / 100);
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-type Tab = 'sales' | 'profit' | 'stock' | 'years' | 'even';
+type Tab = 'menu' | 'sales' | 'profit' | 'stock' | 'years' | 'even' | 'tax' | 'cash' | 'bills' | 'goal' | 'budget' | 'expense' | 'packet';
 
 /** Owner reports. Odoo's own numbers, side by side; nothing is worked out here beyond adding up. */
 export function ReportsScreen() {
   const { client, offline } = useOdoo();
   const { roles } = useRoles();
-  const [tab, setTab] = useState<Tab>('sales');
+  const [tab, setTab] = useState<Tab>('menu');
   const [range, setRange] = useState<Range>('month');
   const [sold, setSold] = useState<SoldRow[] | null>(null);
   const [slow, setSlow] = useState<{ name: string; units: number }[]>([]);
   const [stock, setStock] = useState<StockValue | null>(null);
   const [years, setYears] = useState<{ year: number; thisYear: number[]; lastYear: number[] } | null>(null);
   const [error, setError] = useState('');
-  useInnerBack(null);
+  const back = () => setTab('menu');
+  useInnerBack(tab !== 'menu' ? back : null);
 
   useEffect(() => {
     if (!client || offline || !roles.owner) return;
@@ -52,20 +56,39 @@ export function ReportsScreen() {
     );
 
   const best = sold ? bestFirst(sold) : [];
+  const pages: Partial<Record<Tab, React.ReactElement>> = {
+    tax: <TaxPage onBack={back} />,
+    cash: <CashPage onBack={back} />,
+    bills: <BillsPage onBack={back} />,
+    goal: <GoalPage onBack={back} />,
+    budget: <BudgetPage onBack={back} />,
+    expense: <ExpensePage onBack={back} />,
+    packet: <PacketPage onBack={back} />,
+  };
+  if (pages[tab]) return pages[tab]!;
+  if (tab === 'menu')
+    return (
+      <Screen title="Money and reports" testID="reports-screen">
+        <Card title="Reports">
+          <Row title="Sales" detail="Best and slowest sellers" onPress={() => setTab('sales')} testID="rep-sales" />
+          <Row title="Profit" detail="Sold, units and cost side by side" onPress={() => setTab('profit')} testID="rep-profit" />
+          <Row title="Stock value" detail="What is on the shelves" onPress={() => setTab('stock')} testID="rep-stock" />
+          <Row title="Year against last year" onPress={() => setTab('years')} testID="rep-years" />
+          <Row title="Break-even" detail="Units to cover a cost" onPress={() => setTab('even')} testID="rep-even" />
+          <Row title="Month goal" detail="Your goal and how far along" onPress={() => setTab('goal')} testID="rep-goal" />
+        </Card>
+        <Card title="Money">
+          <Row title="Bills due" detail="Unpaid bills, late ones marked" onPress={() => setTab('bills')} testID="rep-bills" />
+          <Row title="Cash in and out" onPress={() => setTab('cash')} testID="rep-cash" />
+          <Row title="Sales tax" detail="As Odoo booked it" onPress={() => setTab('tax')} testID="rep-tax" />
+          <Row title="Budget" detail="Spent against what you set, by category" onPress={() => setTab('budget')} testID="rep-budget" />
+          <Row title="Add an expense" detail="With a receipt photo" onPress={() => setTab('expense')} testID="rep-expense" />
+          <Row title="Accountant packet" detail="One file for the month" onPress={() => setTab('packet')} testID="rep-packet" />
+        </Card>
+      </Screen>
+    );
   return (
     <Screen title="Reports" testID="reports-screen">
-      <Segments
-        value={tab}
-        onChange={setTab}
-        testID="reports-tab"
-        options={[
-          { id: 'sales', label: 'Sales' },
-          { id: 'profit', label: 'Profit' },
-          { id: 'stock', label: 'Stock value' },
-          { id: 'years', label: 'Year' },
-          { id: 'even', label: 'Break-even' },
-        ]}
-      />
       {offline ? <Body muted>No signal. Reports need Odoo.</Body> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
       {tab === 'sales' || tab === 'profit' ? <Segments value={range} onChange={setRange} options={RANGES} testID="reports-range" /> : null}
@@ -118,6 +141,9 @@ export function ReportsScreen() {
       ) : null}
 
       {tab === 'even' ? <BreakEven /> : null}
+      {tab === 'sales' && sold?.length ? <ShareCsv name="sales-by-product" cells={soldCells(best)} /> : null}
+      {tab === 'profit' && sold?.length ? <ShareCsv name="profit-by-product" cells={soldCells(best)} /> : null}
+      <Button label="Back" kind="plain" onPress={back} />
     </Screen>
   );
 }

@@ -42,3 +42,9 @@ jest.mock('./src/lib/photoFiles', () => {
     __files: files,
   };
 });
+
+// The share sheet is a phone thing; tests record what would be shared.
+jest.mock('./src/lib/shareFile', () => {
+  const shared = [];
+  return { shareText: async (name, text) => void shared.push({ name, text }), __shared: shared };
+});
