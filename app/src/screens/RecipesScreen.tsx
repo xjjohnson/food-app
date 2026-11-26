@@ -1,4 +1,5 @@
 import { useInnerBack } from '../lib/innerBack';
+import { TestsPage, VersionBox } from './MakingPages';
 import { View } from 'react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { Body, Button, Card, ErrorText, Field, Row, Screen, Segments, SwitchRow } from '../components/ui';
@@ -10,6 +11,7 @@ import { blankRecipe, BomType, loadRecipe, loadVariants, moveLine, newKey, newRe
 import { ProductRow, searchProducts } from '../lib/stock';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
+import { useRoles } from '../lib/useRoles';
 import { Choose } from './IngredientListScreen';
 
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -79,6 +81,8 @@ export function RecipesScreen({ onBack }: { onBack: () => void }) {
   const [list, setList] = useState<RecipeRow[] | null>(null);
   const [open, setOpen] = useState<number | 'new' | 'newkit' | null>(null);
   const [view, setView] = useState<'recipes' | 'kits'>('recipes');
+  const [tests, setTests] = useState(false);
+  const { roles } = useRoles();
   const [kits, setKits] = useState<KitRow[] | null>(null);
   const [error, setError] = useState('');
 
@@ -94,8 +98,9 @@ export function RecipesScreen({ onBack }: { onBack: () => void }) {
   useEffect(() => {
     load();
   }, [load]);
-  useInnerBack(open !== null ? () => { setOpen(null); load(); } : null);
+  useInnerBack(tests ? () => setTests(false) : open !== null ? () => { setOpen(null); load(); } : null);
 
+  if (tests) return <TestsPage onBack={() => setTests(false)} />;
   if (open !== null)
     return (
       <RecipeForm
@@ -124,6 +129,7 @@ export function RecipesScreen({ onBack }: { onBack: () => void }) {
       ) : (
         <>
       <Button label="New recipe" onPress={() => setOpen('new')} disabled={offline} testID="new-recipe" />
+      {roles.owner ? <Button label="Recipe tests" kind="plain" onPress={() => setTests(true)} testID="open-tests" /> : null}
       {list?.map((r) => (
         <Row key={r.id} title={r.name} detail={`Makes ${fmtQty(r.makes)} ${r.unit} · ${r.lines.length} ingredients`.replace('  ', ' ')} onPress={() => setOpen(r.id)} testID={`recipe-edit-${r.id}`} />
       ))}
@@ -148,6 +154,8 @@ function RecipeForm({ id, kit, onBack }: { id: number | null; kit?: boolean; onB
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const [versioning, setVersioning] = useState(false);
+  const { roles: formRoles } = useRoles();
   useInnerBack(picking && draft.templateId ? () => setPicking(null) : null);
 
   const load = useCallback(async () => {
@@ -233,6 +241,7 @@ function RecipeForm({ id, kit, onBack }: { id: number | null; kit?: boolean; onB
     );
   }
 
+  if (versioning && before && id) return <VersionBox recipe={{ id, name: draft.variantName || draft.templateName }} onBack={() => setVersioning(false)} onDone={onBack} />;
   if (id && !before)
     return (
       <Screen title="Recipe" testID="recipe-editor">
@@ -307,6 +316,7 @@ function RecipeForm({ id, kit, onBack }: { id: number | null; kit?: boolean; onB
         }}
       />
       {before && changes.length ? <Button label="Discard my changes" kind="plain" onPress={() => setDraft(before)} testID="discard-recipe" /> : null}
+      {id && before && formRoles.owner && !kit ? <Button label="Save as new version" kind="plain" onPress={() => setVersioning(true)} testID="new-version" /> : null}
       <Button label="Back to recipes" kind="plain" onPress={onBack} />
     </Screen>
   );

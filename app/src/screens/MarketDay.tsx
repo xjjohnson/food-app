@@ -29,7 +29,7 @@ function Page({ title, onBack, children, testID }: { title: string; onBack: () =
  * One typed line kept in Odoo (Food app settings) and on the phone, so counts made at the
  * market without signal are not lost. Saving goes through the offline queue.
  */
-function useTyped(key: string) {
+export function useTyped(key: string) {
   const { client, db, offline } = useOdoo();
   const { save } = useQueue();
   const [value, setValue] = useState<string | undefined>(undefined);

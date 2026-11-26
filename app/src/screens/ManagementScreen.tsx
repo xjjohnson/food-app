@@ -153,6 +153,9 @@ export function ManagementScreen() {
         <Row title="Money and reports" detail="Sales, profit, bills due, tax, expenses, accountant packet" onPress={() => router.push('/reports')} testID="open-reports" />
       </Card>
 
+      <Card title="Events and booths">
+        <Row title="Events and booths" detail="Dates, place, bring-list and results" onPress={() => router.push('/events')} testID="open-events" />
+      </Card>
       <Card title="Prices and seasons">
         <Row title="Prices and seasons" detail="Customer groups (price lists) and when products are in season" onPress={() => router.push('/prices')} testID="open-prices" />
       </Card>

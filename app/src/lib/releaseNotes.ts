@@ -11,6 +11,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.31',
+    changes: [
+      'Production: new This week page. Planned batches by day; tap one to move it to another day.',
+      'Recipes: Save as new version (owner). Copies the recipe with a new reference like “Grape jelly v2”, notes why on the old one, and archives it. Batches already started keep what they had.',
+      'Recipes: Recipe tests (owner). Make a small test batch, score taste, texture and set from 1 to 5, add notes, then Keep (opens the new-version step) or Drop.',
+      'Management: new Events and booths (owner). Name, dates, place, who is in charge, a bring-list and results.',
+    ],
+    test: [
+      'Production, This week: move a planned batch to another day and check the date in Odoo.',
+      'Recipes, open a recipe, Save as new version with a reason. Check Odoo has the new copy, the old one archived, and the note on the old one.',
+      'Recipes, Recipe tests: make one test, score it, tap Keep.',
+      'Management, Events and booths: add a market, then fill the bring-list and results. Tell me if Odoo says the Events app is missing.',
+    ],
+  },
+  {
     release: '0.1.30',
     changes: [
       'New Tasks page (Home, and a Today line). The owner gives out tasks with a due date, a person and an optional batch or order; each person ticks theirs Done. They are Odoo activities. A person with no Odoo login gets their task as the owner.',
