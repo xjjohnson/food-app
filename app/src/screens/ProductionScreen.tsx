@@ -1,4 +1,5 @@
 import { useInnerBack } from '../lib/innerBack';
+import { WeekPage } from './MakingPages';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
@@ -53,7 +54,7 @@ interface Copy {
 
 const copyKey = (db: string) => `production/v1/${db}`;
 
-type View_ = { page: 'list' } | { page: 'plan'; tab: 'plan' | 'shop' } | { page: 'recipes' } | { page: 'start' } | { page: 'batch'; id: number };
+type View_ = { page: 'list' } | { page: 'plan'; tab: 'plan' | 'shop' } | { page: 'recipes' } | { page: 'week' } | { page: 'start' } | { page: 'batch'; id: number };
 
 /** Production: today's batches, start a batch, finish it with a batch number and use-by date. */
 export function ProductionScreen() {
@@ -100,6 +101,7 @@ export function ProductionScreen() {
   useInnerBack(view.page === 'list' ? null : () => { setView({ page: 'list' }); load(); });
 
   if (view.page === 'plan') return <PlanScreen recipes={data?.recipes ?? []} start={view.tab} onBack={() => setView({ page: 'list' })} />;
+  if (view.page === 'week') return <WeekPage onBack={() => setView({ page: 'list' })} />;
   if (view.page === 'recipes') return <RecipesScreen onBack={() => { setView({ page: 'list' }); load(); }} />;
   if (view.page === 'start')
     return <StartBatch recipes={data?.recipes ?? []} onBack={() => setView({ page: 'list' })} onSaved={() => { setView({ page: 'list' }); load(); }} />;
@@ -111,6 +113,7 @@ export function ProductionScreen() {
   return (
     <Screen title="Production" testID="production-screen">
       <Row title="Plan batches and shopping list" detail="What the next batches need, what you have, what to buy" onPress={() => setView({ page: 'plan', tab: 'plan' })} testID="open-plan" />
+      <Row title="This week" detail="Planned batches by day. Move one to another day" onPress={() => setView({ page: 'week' })} testID="open-week" />
       <Button label="Start a batch" onPress={() => setView({ page: 'start' })} disabled={!data?.recipes.length} testID="start-batch" />
       {fromPhone ? <Body muted>No signal. Showing what the phone saw last. Anything you save waits and goes to Odoo when signal is back.</Body> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
