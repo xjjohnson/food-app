@@ -6,6 +6,7 @@ import { OrdersScreen } from './OrdersScreen';
 import { MarketScreen } from './MarketScreen';
 import { IngredientsScreen } from './IngredientsScreen';
 import { MoneyScreen } from './MoneyScreen';
+import { SafetyScreen } from './SafetyScreen';
 import { StockScreen } from './StockScreen';
 import { ProductionScreen } from './ProductionScreen';
 
@@ -24,6 +25,7 @@ export function AreaScreen({ id }: { id: string }) {
   if (area.id === 'stock') return <StockScreen />;
   if (area.id === 'ingredients') return <IngredientsScreen />;
   if (area.id === 'invoices') return <MoneyScreen kind="out" />;
+  if (area.id === 'safety') return <SafetyScreen />;
   if (area.id === 'market') return <MarketScreen />;
   return (
     <Screen title={area.title} testID={`area-screen-${area.id}`}>

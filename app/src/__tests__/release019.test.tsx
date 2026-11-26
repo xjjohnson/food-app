@@ -92,7 +92,7 @@ describe('customer history, search, Today and home order', () => {
 
   test('a production person sees batches before everything else', () => {
     const mine = areasForRoles(AREAS, { owner: false, production: true, inventory: false, sales: true, shipping: false });
-    expect(mine.slice(0, 3).map((a) => a.id)).toEqual(['production', 'invoices', 'market']);
+    expect(mine.slice(0, 3).map((a) => a.id)).toEqual(['production', 'safety', 'invoices']);
     expect(areasForRoles(AREAS, ALL).map((a) => a.id)).toEqual(AREAS.map((a) => a.id));
   });
 });
