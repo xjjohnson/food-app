@@ -12,6 +12,8 @@ import { PhotosCard } from './PhotosCard';
 import { FeedbackBox } from './ShopScreen';
 import { isClosed } from '../lib/shop';
 import { loadSettings } from '../lib/appSettings';
+import { payMethods, salePayChange } from '../lib/deliveryPay';
+import { Journal, loadJournals } from '../lib/ingredients';
 
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const copyKey = (db: string) => `board/v1/${db}`;
@@ -77,6 +79,8 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
     setError('');
     try {
       await save(deliveredChange(o));
+      // The invoice is made now; the payment is chosen on the card that opens.
+      await save(salePayChange(o.saleId, o.origin || o.name, null, '', new Date().toISOString().slice(0, 10)));
       if (o.partnerId && client) await save(thankYouChange({ partnerId: o.partnerId, customer: o.customer, saleName: o.origin || o.name }, client.session.uid)).catch(() => undefined);
       await load();
     } catch (e) {
@@ -119,6 +123,7 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
             {o.address ? <Row title="Address" detail={o.address} onPress={() => Linking.openURL(mapLink(o.address))} testID={`board-map-${o.id}`} /> : <Body muted>No address on the contact.</Body>}
             {o.phone ? <Row title="Phone" detail={o.phone} onPress={() => Linking.openURL(`tel:${o.phone}`)} /> : null}
             {o.notes ? <Body>{`Notes: ${o.notes}`}</Body> : null}
+            {step === 'delivered' && o.saleId ? <PaymentCard order={o} /> : null}
             {step === 'delivered' && o.saleId && !isWaiting ? <FeedbackBox orderId={o.saleId} orderName={o.origin || o.name} /> : null}
             {step === 'pack' ? <Button label="Pack it" kind="plain" onPress={onPack} testID={`board-pack-${o.id}`} /> : null}
             {o.saleId ? <PhotosCard model="sale.order" resId={o.saleId} recordName={o.origin || o.name} title="Delivery proof" about="Delivery proof" button="Take a proof photo" testID={`board-photos-${o.id}`} /> : null}
@@ -129,5 +134,70 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
       <Button label="Refresh" kind="plain" onPress={load} busy={busy} />
       <Button label="Back" kind="plain" onPress={onBack} />
     </Screen>
+  );
+}
+
+const journalKey = (db: string) => `money/journals/${db}`;
+
+/** After Delivered: how did the customer pay? Cash, Cash App, Venmo, or not yet. The invoice is Odoo's. */
+function PaymentCard({ order }: { order: BoardOrder }) {
+  const { client, db, offline } = useOdoo();
+  const { save } = useQueue();
+  const [journals, setJournals] = useState<Journal[]>([]);
+  const [paid, setPaid] = useState(false);
+  const [note, setNote] = useState('');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!db) return;
+    if (client && !offline) {
+      loadJournals(client).then((j) => {
+        setJournals(j);
+        AsyncStorage.setItem(journalKey(db), JSON.stringify(j)).catch(() => undefined);
+      });
+      client
+        .call('sale.order', 'read', [[order.saleId]], { fields: ['invoice_ids'] })
+        .then(async (r) => {
+          const ids = ((r as { invoice_ids?: number[] }[])[0]?.invoice_ids ?? []) as number[];
+          if (!ids.length) return;
+          const moves = (await client.call('account.move', 'read', [ids], { fields: ['payment_state', 'state'] })) as { payment_state?: string; state?: string }[];
+          const live = moves.filter((m) => m.state !== 'cancel');
+          if (live.length && live.every((m) => m.payment_state === 'paid' || m.payment_state === 'in_payment')) setPaid(true);
+        })
+        .catch(() => undefined);
+    } else {
+      AsyncStorage.getItem(journalKey(db)).then((raw) => raw && setJournals(JSON.parse(raw) as Journal[])).catch(() => undefined);
+    }
+  }, [client, db, offline, order.saleId]);
+
+  const methods = payMethods(journals);
+  const name = order.origin || order.name;
+  const pay = async (label: string, journalId: number | null) => {
+    setError('');
+    try {
+      const out = await save(salePayChange(order.saleId, name, journalId, label, new Date().toISOString().slice(0, 10)));
+      const queued = out.status === 'queued';
+      if (journalId) setPaid(true);
+      setNote(journalId ? (queued ? `Paid with ${label}. Saved on the phone; it goes to Odoo when signal is back.` : `Paid with ${label}. The invoice is in Odoo.`) : 'Not paid yet. The invoice is open in Odoo, under Money.');
+    } catch (e) {
+      setError(`Odoo would not take that. ${why(e)}`);
+    }
+  };
+  return (
+    <Card title="Payment" testID={`board-pay-${order.id}`}>
+      {paid && !note ? <Body>Paid.</Body> : null}
+      {!paid ? (
+        <>
+          <Body>How did the customer pay?</Body>
+          {methods.map((m) => (
+            <Button key={m.key} label={m.label} onPress={() => pay(m.label, m.journal.id)} testID={`pay-${order.id}-${m.key}`} />
+          ))}
+          {!methods.length ? <Body muted>Odoo has no Cash, Cash App or Venmo payment method yet. Add them in Odoo, Accounting, Configuration, Journals.</Body> : null}
+          <Button label="Not paid yet" kind="plain" onPress={() => pay('', null)} testID={`pay-${order.id}-none`} />
+        </>
+      ) : null}
+      {error ? <ErrorText>{error}</ErrorText> : null}
+      {note ? <Body>{note}</Body> : null}
+    </Card>
   );
 }

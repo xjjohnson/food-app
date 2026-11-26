@@ -11,6 +11,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.43',
+    changes: [
+      'Pay on delivery: when you tap Move to Delivered, the app now makes the Odoo invoice for the order, and a Payment card asks how the customer paid: Cash, Cash App, Venmo, or Not paid yet.',
+      'Cash, Cash App and Venmo mark the invoice paid in Odoo with the payment method of that name. Not paid yet leaves the invoice open under Money. Works without signal and is sent in order.',
+    ],
+    test: [
+      'Sell, Orders, Delivery board: on a packed stop tap Move to Delivered. A Payment card should show.',
+      'Tap Cash (or Cash App or Venmo). In Odoo the order should have a posted invoice that is Paid. If a method is missing, the card says to add it in Odoo, Accounting, Configuration, Journals.',
+      'Try Not paid yet on another order: the invoice should be open under Money.',
+    ],
+  },
+  {
     release: '0.1.42',
     changes: [
       'The use-by date on a batch is now a calendar, with +3 months, +6 months and +1 year buttons.',

@@ -240,7 +240,7 @@ export class FakeOdoo {
         for (const oid of ctx.active_ids ?? []) {
           const o = (this.tables['sale.order'] ??= []).find((x) => x.id === oid);
           if (!o) continue;
-          const inv = this.create('account.move', { move_type: 'out_invoice', state: 'draft', payment_state: 'not_paid', partner_id: o.partner_id, invoice_origin: o.name, amount_total: o.amount_total ?? 0 });
+          const inv = this.create('account.move', { move_type: 'out_invoice', state: 'draft', payment_state: 'not_paid', invoice_date: new Date().toISOString().slice(0, 10), partner_id: o.partner_id, invoice_origin: o.name, amount_total: o.amount_total ?? 0 });
           o.invoice_ids = [...((o.invoice_ids as number[]) ?? []), inv];
         }
         return true;
