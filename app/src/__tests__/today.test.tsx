@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { act, fireEvent, screen } from '@testing-library/react-native';
+import { router } from 'expo-router';
 import { renderRouter } from 'expo-router/testing-library';
 import { setDbKind } from '../lib/dbSwitch';
 import { currencySymbol, lookupProducts, stockByBatch } from '../lib/lookup';
@@ -60,9 +61,8 @@ describe('today and product lookup', () => {
     await renderRouter('src/app', { initialUrl: '/' });
     await settle();
     expect(screen.getByTestId('today-batches')).toHaveTextContent(/1/);
-    await fireEvent.press(screen.getByTestId('tab-make'));
-    await settle();
-    await fireEvent.press(screen.getByTestId('open-lookup'));
+    // Find a product is reached from Jars in stock (for stock roles) and Search; it is opened here by its address.
+    await act(async () => router.push('/lookup'));
     await settle();
     await fireEvent.press(await screen.findByLabelText('Chocolate chip cookies'));
     await settle();

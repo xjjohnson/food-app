@@ -128,8 +128,9 @@ describe('production screen', () => {
     await settle();
     const mo = odoo.tables['mrp.production']![0]!;
     expect(mo.state).toBe('confirmed');
-    await fireEvent.press(screen.getByTestId(`batch-${mo.id}`));
-    await settle();
+    // Starting opens the new batch right away.
+    expect(screen.getByTestId('batch-state')).toHaveTextContent(/Planned \(Odoo: Confirmed\)/);
+    expect(screen.getByText(/Batch started/)).toBeTruthy();
     expect(screen.getByTestId('batch-short')).toHaveTextContent(/Flour/);
     expect(screen.getByTestId('use-by').props.value).toMatch(/^\d{4}-\d{2}-\d{2}$/);
     await fireEvent.changeText(screen.getByTestId('lot-name'), 'CC-1');

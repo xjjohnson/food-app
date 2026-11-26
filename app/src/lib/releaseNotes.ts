@@ -11,6 +11,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.39',
+    changes: [
+      'Make opens on Batches. Order is Batches, Recipes, Jars in stock. The bottom tabs are now Today, Buy, Make, Sell, More.',
+      'Start a batch opens the new batch right away ("Batch started"). A second start of the same recipe within two minutes asks first. A new "Start now / Plan for later" switch replaces the second picker. Make lists refresh when you come back to them.',
+      'Batch states show our word first with Odoo\'s in brackets, such as Planned (Odoo: Confirmed). Planned now includes Odoo\'s Confirmed; Cooking is In Progress.',
+      'The batch shows Odoo\'s own ingredient amounts with units. The start screen says its numbers are from the recipe, and says "no cost set in Odoo yet" instead of 0.00.',
+      'Wording: "Makes 20 packs of 6", "1 unit". A Cook a batch button is on the recipe and the product\'s Recipe tab.',
+      'Jars in stock shows each finished product with how many are in stock, use-by soon first. Find a product and Food safety no longer repeat on every Make tab (Food safety is under Batches).',
+      'The Developer connection check no longer asks for the old Packagings setting.',
+    ],
+    test: [
+      'Make: it opens on Batches. Tap Start a batch, pick a recipe, tap Start. You should land on that batch, not the list. Go back, start the same recipe again, and it should ask first.',
+      'Check a started batch: do the ingredient amounts match the Odoo order (for example the Pineapple one: Butter 12, Sugar 10)? Tell me if not, with the recipe name.',
+      'Recipes tab: tap a recipe, then Cook a batch. Jars in stock: do the numbers match Odoo?',
+      'Bottom tabs: Today, Buy, Make, Sell, More.',
+    ],
+  },
+  {
     release: '0.1.38',
     changes: [
       'Developer, Connection check now lists every add-on the app uses, in groups (Core, Selling, Kitchen, Extras): Invoicing, Price lists, Discount codes, Delivery, Email Marketing, Events, Surveys, Storage places, Packagings, Discuss, Fleet. Each missing one says what to turn on in Odoo. It only reads.',

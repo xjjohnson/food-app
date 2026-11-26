@@ -33,6 +33,8 @@ export interface Ingredient {
   productId: number;
   name: string;
   needed: number;
+  /** The unit Odoo uses on this line, such as "g". */
+  unit?: string;
   /** Odoo's word for it: "assigned" means set aside, "confirmed" means short. */
   state: string;
 }
@@ -68,14 +70,14 @@ export interface Shortage {
 
 const nameOf = (v: unknown): string => (Array.isArray(v) && typeof v[1] === 'string' ? v[1] : '');
 
-/** "Planned", "Started" and so on, in plain words. */
+/** "Planned", "Cooking" and so on, in plain words. Odoo's own word is shown beside it by `stateWithOdoo`. */
 export function stateLabel(s: BatchState | string): string {
   switch (s) {
     case 'draft':
-      return 'Planned';
     case 'confirmed':
+      return 'Planned';
     case 'progress':
-      return 'Started';
+      return 'Cooking';
     case 'to_close':
       return 'Ready to finish';
     case 'done':
@@ -87,8 +89,27 @@ export function stateLabel(s: BatchState | string): string {
   }
 }
 
+const ODOO_WORDS: Record<string, string> = { draft: 'Draft', confirmed: 'Confirmed', progress: 'In Progress', to_close: 'To Close', done: 'Done', cancel: 'Cancelled' };
+
+/** "Planned (Odoo: Confirmed)": our word first, Odoo's word in small print beside it. */
+export const stateWithOdoo = (s: BatchState | string): string => `${stateLabel(s)} (Odoo: ${ODOO_WORDS[s] ?? s})`;
+
 /** A quantity without trailing zeros: 4, 2.5. */
 export const fmtQty = (n: number) => String(Math.round(n * 100) / 100);
+
+/**
+ * "20 packs of 6", "1 unit", "12 Jars": a count with its unit in plain words.
+ * Odoo's unit names are plural ("Units") or a pack name ("Pack of 6").
+ */
+export function qtyWords(n: number, unit?: string): string {
+  const u = (unit ?? '').trim();
+  const count = fmtQty(n);
+  if (!u) return count;
+  const pack = /^pack of (\d+)$/i.exec(u);
+  if (pack) return `${count} ${n === 1 ? 'pack' : 'packs'} of ${pack[1]}`;
+  if (/^units?$/i.test(u)) return `${count} ${n === 1 ? 'unit' : 'units'}`;
+  return `${count} ${u}`;
+}
 
 const BATCH_FIELDS = ['name', 'product_id', 'product_qty', 'product_uom_id', 'state'];
 
@@ -195,12 +216,12 @@ export async function loadBatchDetail(c: Client, id: number): Promise<BatchDetai
   const [r] = (await c.call('mrp.production', 'read', [[id]], { fields: [...BATCH_FIELDS, 'move_raw_ids', ...(hasLots ? ['lot_producing_ids'] : [])] })) as Record<string, unknown>[];
   if (!r) return null;
   const moveIds = (r.move_raw_ids as number[]) ?? [];
-  const moves = moveIds.length ? ((await c.call('stock.move', 'read', [moveIds], { fields: ['product_id', 'product_uom_qty', 'state'] })) as Record<string, unknown>[]) : [];
+  const moves = moveIds.length ? ((await c.call('stock.move', 'read', [moveIds], { fields: ['product_id', 'product_uom_qty', 'product_uom', 'state'] })) as Record<string, unknown>[]) : [];
   const lotIds = hasLots ? ((r.lot_producing_ids as number[]) ?? []) : [];
   const lots = lotIds.length ? ((await c.call('stock.lot', 'read', [lotIds], { fields: ['name', 'expiration_date'] })) as Record<string, unknown>[]) : [];
   return {
     ...toBatch(r),
-    ingredients: moves.map((m) => ({ id: m.id as number, productId: m2oId(m.product_id), name: nameOf(m.product_id), needed: Number(m.product_uom_qty ?? 0), state: String(m.state ?? '') })),
+    ingredients: moves.map((m) => ({ id: m.id as number, productId: m2oId(m.product_id), name: nameOf(m.product_id), needed: Number(m.product_uom_qty ?? 0), unit: nameOf(m.product_uom), state: String(m.state ?? '') })),
     lots: lots.map((l) => ({ id: l.id as number, name: String(l.name), useBy: typeof l.expiration_date === 'string' ? l.expiration_date.slice(0, 10) : '' })),
     canRecordLot: hasLots,
   };

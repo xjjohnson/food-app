@@ -32,6 +32,8 @@ import {
   needed,
   startBatchChange,
   stateLabel,
+  stateWithOdoo,
+  qtyWords,
   suggestBatchNumber,
 } from '../lib/production';
 import { PlanScreen } from './PlanScreen';
@@ -39,7 +41,7 @@ import { ChecklistCard } from './ChecklistCard';
 import { PhotosCard } from './PhotosCard';
 import { loadAllergens } from '../lib/allergens';
 import { RecipesScreen } from './RecipesScreen';
-import { loadPriceCost, PriceCost } from '../lib/plan';
+import { loadPriceCost, planBatchChange, PriceCost } from '../lib/plan';
 import { useRoles } from '../lib/useRoles';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
@@ -54,11 +56,12 @@ interface Copy {
 
 const copyKey = (db: string) => `production/v1/${db}`;
 
-type View_ = { page: 'list' } | { page: 'plan'; tab: 'plan' | 'shop' } | { page: 'recipes'; open?: number } | { page: 'week' } | { page: 'start' } | { page: 'batch'; id: number };
+type View_ = { page: 'list' } | { page: 'plan'; tab: 'plan' | 'shop' } | { page: 'recipes'; open?: number } | { page: 'week' } | { page: 'start'; recipeId?: number } | { page: 'batch'; id: number; started?: boolean };
 
 /** Where Production opens: `start`, `recipes`, `recipe:<id>` or `batch:<id>`, from the Make tab and the plus button. */
 function initialView(go?: string): View_ {
   if (go === 'start') return { page: 'start' };
+  if (go?.startsWith('start:') && Number(go.slice(6)) > 0) return { page: 'start', recipeId: Number(go.slice(6)) };
   if (go === 'recipes') return { page: 'recipes' };
   if (go === 'plan') return { page: 'plan', tab: 'plan' };
   if (go === 'week') return { page: 'week' };
@@ -118,10 +121,10 @@ export function ProductionScreen({ go }: { go?: string } = {}) {
   if (view.page === 'week') return <WeekPage onBack={() => setView({ page: 'list' })} />;
   if (view.page === 'recipes') return <RecipesScreen openId={view.open} onBack={() => { setView({ page: 'list' }); load(); }} />;
   if (view.page === 'start')
-    return <StartBatch recipes={data?.recipes ?? []} onBack={() => setView({ page: 'list' })} onSaved={() => { setView({ page: 'list' }); load(); }} />;
+    return <StartBatch recipes={data?.recipes ?? []} recipeId={view.recipeId} onBack={() => setView({ page: 'list' })} onSaved={(id) => { setView(id ? { page: 'batch', id, started: true } : { page: 'list' }); load(); }} />;
   if (view.page === 'batch') {
     const known = [...(data?.open ?? []), ...(data?.done ?? [])].find((b) => b.id === view.id);
-    return <BatchPage id={view.id} known={known} onBack={() => { setView({ page: 'list' }); load(); }} />;
+    return <BatchPage id={view.id} known={known} started={view.started} onBack={() => { setView({ page: 'list' }); load(); }} />;
   }
 
   return (
@@ -136,7 +139,7 @@ export function ProductionScreen({ go }: { go?: string } = {}) {
         {!data ? <Body muted>{busy ? 'Loading…' : 'Nothing to show yet. Connect to Odoo to load batches.'}</Body> : null}
         {data && !data.open.length ? <Body muted>No batches in progress.</Body> : null}
         {data?.open.map((b) => (
-          <Row key={b.id} title={`${fmtQty(b.qty)} ${b.product}`} detail={`${b.name} · ${stateLabel(b.state)}`} onPress={() => setView({ page: 'batch', id: b.id })} testID={`batch-${b.id}`} />
+          <Row key={b.id} title={`${fmtQty(b.qty)} ${b.product}`} detail={`${b.name} · ${stateWithOdoo(b.state)}`} onPress={() => setView({ page: 'batch', id: b.id })} testID={`batch-${b.id}`} />
         ))}
       </Card>
       {data?.done.length ? (
@@ -152,8 +155,13 @@ export function ProductionScreen({ go }: { go?: string } = {}) {
   );
 }
 
-function StartBatch({ recipes, onBack, onSaved }: { recipes: Recipe[]; onBack: () => void; onSaved: () => void }) {
-  const { client, offline } = useOdoo();
+/** When each recipe was last started on this phone, so a second tap a minute later asks first. */
+const startedAt = new Map<string, number>();
+/** Forgets those times (tests start the same recipe in a fresh database each time). */
+export const forgetStarted = () => startedAt.clear();
+
+function StartBatch({ recipes, recipeId, onBack, onSaved }: { recipes: Recipe[]; recipeId?: number; onBack: () => void; onSaved: (newId?: number) => void }) {
+  const { client, db, offline } = useOdoo();
   const { save } = useQueue();
   const [recipe, setRecipe] = useState<Recipe | null>(null);
   const [qtyText, setQtyText] = useState('');
@@ -165,6 +173,8 @@ function StartBatch({ recipes, onBack, onSaved }: { recipes: Recipe[]; onBack: (
   const { roles } = useRoles();
   const [priceCost, setPriceCost] = useState<PriceCost | null>(null);
 
+  const [later, setLater] = useState(false);
+  const [repeat, setRepeat] = useState(false);
   const qty = Number(qtyText.replace(',', '.'));
   const okQty = Number.isFinite(qty) && qty > 0;
   useInnerBack(recipe ? () => setRecipe(null) : null);
@@ -187,12 +197,18 @@ function StartBatch({ recipes, onBack, onSaved }: { recipes: Recipe[]; onBack: (
     }
   };
 
+  useEffect(() => {
+    const r = recipeId ? recipes.find((x) => x.id === recipeId) : undefined;
+    if (r && !recipe) pick(r);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recipeId, recipes]);
+
   if (!recipe)
     return (
       <Screen title="Start a batch" testID="start-screen">
         <Body>Pick what you are making.</Body>
         {recipes.map((r) => (
-          <Row key={r.id} title={r.name} detail={`Recipe makes ${fmtQty(r.makes)} ${r.unit}`.trim()} onPress={() => pick(r)} testID={`recipe-${r.id}`} />
+          <Row key={r.id} title={r.name} detail={`Makes ${qtyWords(r.makes, r.unit)}`} onPress={() => pick(r)} testID={`recipe-${r.id}`} />
         ))}
         <Button label="Back" kind="plain" onPress={onBack} />
       </Screen>
@@ -203,11 +219,12 @@ function StartBatch({ recipes, onBack, onSaved }: { recipes: Recipe[]; onBack: (
   const word = (n: number, u?: string) => `${fmtQty(n)}${u ? ` ${u}` : ''}`;
   return (
     <Screen title={recipe.name} testID="start-screen">
-      <Field label={`How many ${recipe.unit || 'to make'}`} value={qtyText} onChangeText={setQtyText} keyboardType="decimal-pad" testID="batch-qty" />
-      <Body muted>{`The recipe makes ${fmtQty(recipe.makes)} ${recipe.unit}`.trim()}</Body>
+      <Field label={`How many ${/^units?$/i.test(recipe.unit ?? '') ? 'units' : recipe.unit || 'to make'}`} value={qtyText} onChangeText={setQtyText} keyboardType="decimal-pad" testID="batch-qty" />
+      <Body muted>{`The recipe makes ${qtyWords(recipe.makes, recipe.unit)}`}</Body>
+      <Segments options={[{ id: 'now', label: 'Start now' }, { id: 'later', label: 'Plan for later' }]} value={later ? 'later' : 'now'} onChange={(v) => setLater(v === 'later')} testID="batch-when" />
       <Segments options={[{ id: 'half', label: 'Half' }, { id: 'one', label: 'Recipe' }, { id: 'double', label: 'Double' }]} value={qty === recipe.makes / 2 ? 'half' : qty === recipe.makes * 2 ? 'double' : qty === recipe.makes ? 'one' : ('' as never)} onChange={(v) => setQtyText(fmtQty(v === 'half' ? recipe.makes / 2 : v === 'double' ? recipe.makes * 2 : recipe.makes))} testID="batch-scale" />
-      {priceCost ? <Body muted>{`Odoo: price ${priceCost.price.toFixed(2)} · cost ${priceCost.cost.toFixed(2)} each`}</Body> : null}
-      <Card title="Ingredients for this batch">
+      {priceCost ? <Body muted>{priceCost.cost > 0 ? `Odoo: price ${priceCost.price.toFixed(2)} · cost ${priceCost.cost.toFixed(2)} each` : `Odoo: price ${priceCost.price.toFixed(2)} · no cost set in Odoo yet`}</Body> : null}
+      <Card title="From the recipe (Odoo shows the final amounts on the batch)">
         {okQty
           ? needed(recipe, qty).map((l) => <Row key={l.productId} title={l.name} detail={qty === recipe.makes ? undefined : `Recipe: ${word(l.recipeQty ?? 0, l.unit)}`} value={word(l.qty, l.unit)} testID={`need-${l.productId}`} />)
           : <Body muted>Type how many to see the ingredients.</Body>}
@@ -225,20 +242,29 @@ function StartBatch({ recipes, onBack, onSaved }: { recipes: Recipe[]; onBack: (
       {!free && okQty ? <Body muted>Stock levels aren’t loaded, so the app can’t check for shortages.</Body> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
       {note ? <Body>{note}</Body> : null}
+      {repeat ? <Body>{`You started this recipe a minute ago. Tap again only if you want a second batch.`}</Body> : null}
       <Button
-        label="Start batch"
-        disabled={!okQty || !!note}
+        label={repeat ? 'Yes, start another' : later ? 'Save as planned' : 'Start batch'}
+        disabled={!okQty || !!note || busy}
         busy={busy}
         testID="confirm-start"
         onPress={async () => {
+          // One tap at a time, and a second batch of the same recipe a minute later asks first.
+          if (busy) return;
+          const last = startedAt.get(`${db}/${recipe.id}`) ?? 0;
+          if (!later && !repeat && Date.now() - last < 120000) {
+            setRepeat(true);
+            return;
+          }
           setBusy(true);
           setError('');
           try {
-            const r = await save(startBatchChange(recipe, qty));
+            const r = await save(later ? planBatchChange(recipe, qty) : startBatchChange(recipe, qty));
+            if (!later) startedAt.set(`${db}/${recipe.id}`, Date.now());
             if (r.status === 'queued') {
               setNote('Saved on the phone. It goes to Odoo when signal is back.');
-              setTimeout(onSaved, 1500);
-            } else onSaved();
+              setTimeout(() => onSaved(), 1500);
+            } else onSaved(!later && typeof r.result === 'number' ? r.result : undefined);
           } catch (e) {
             setError(`Odoo said no: ${why(e)}`);
           } finally {
@@ -251,7 +277,7 @@ function StartBatch({ recipes, onBack, onSaved }: { recipes: Recipe[]; onBack: (
   );
 }
 
-function BatchPage({ id, known, onBack }: { id: number; known?: Batch; onBack: () => void }) {
+function BatchPage({ id, known, onBack, started }: { id: number; known?: Batch; onBack: () => void; started?: boolean }) {
   const { client, offline } = useOdoo();
   const { save } = useQueue();
   const [d, setD] = useState<BatchDetail | null>(null);
@@ -332,7 +358,7 @@ function BatchPage({ id, known, onBack }: { id: number; known?: Batch; onBack: (
 
   return (
     <Screen title={`${fmtQty(shown.qty)} ${shown.product}`} testID="batch-screen">
-      <Chip label={`${shown.name} · ${stateLabel(shown.state)}`} testID="batch-state" />
+      <Chip label={`${shown.name} · ${stateWithOdoo(shown.state)}`} testID="batch-state" />
       {!offline ? <Button label="All batch details" kind="plain" onPress={() => setAll(true)} testID="batch-all" /> : null}
       {offline ? <Body muted>No signal. The ingredient list shows when the phone is back online.</Body> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
@@ -344,8 +370,8 @@ function BatchPage({ id, known, onBack }: { id: number; known?: Batch; onBack: (
         </Card>
       ) : null}
       {d ? (
-        <Card title="Ingredients">
-          {d.ingredients.length ? d.ingredients.map((i) => <Row key={i.id} title={i.name} value={fmtQty(i.needed)} />) : <Body muted>No ingredients on this batch.</Body>}
+        <Card title="Ingredients (as Odoo has them)">
+          {d.ingredients.length ? d.ingredients.map((i) => <Row key={i.id} title={i.name} value={qtyWords(i.needed, i.unit)} />) : <Body muted>No ingredients on this batch.</Body>}
         </Card>
       ) : null}
       {d && d.ingredients.length ? (
@@ -369,6 +395,7 @@ function BatchPage({ id, known, onBack }: { id: number; known?: Batch; onBack: (
         </Card>
       ) : null}
       {shown.state === 'draft' ? <Body muted>This batch is planned in Odoo but not started. Start it in Odoo, or make a new one here.</Body> : null}
+      {started ? <Body>Batch started. Odoo has set the ingredients aside.</Body> : null}
       {canFinish && d ? (
         <Card title="Finish this batch">
           {!d.canRecordLot ? <ErrorText>This Odoo can’t record batch numbers on a batch. Turn on Lots and Serial Numbers in Odoo Inventory settings, then try again.</ErrorText> : null}

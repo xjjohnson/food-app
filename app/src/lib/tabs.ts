@@ -1,5 +1,5 @@
 /**
- * The five tabs along the bottom (Today, Make, Buy, Sell, More), which one
+ * The five tabs along the bottom (Today, Buy, Make, Sell, More), which one
  * shows for which role, and what the plus button offers. Pure, so tests can
  * check who sees what.
  */
@@ -10,8 +10,8 @@ export type TabId = 'index' | 'make' | 'buy' | 'sell' | 'more';
 
 export const TABS: { id: TabId; label: string; mark: string; title: string; areas: string[] }[] = [
   { id: 'index', label: 'Today', mark: '●', title: 'Today', areas: [] },
-  { id: 'make', label: 'Make', mark: '◍', title: 'Make', areas: ['production', 'stock', 'safety'] },
   { id: 'buy', label: 'Buy', mark: '◍', title: 'Buy', areas: ['ingredients'] },
+  { id: 'make', label: 'Make', mark: '◍', title: 'Make', areas: ['production', 'stock', 'safety'] },
   { id: 'sell', label: 'Sell', mark: '◍', title: 'Sell', areas: ['orders', 'invoices', 'sell', 'market'] },
   { id: 'more', label: 'More', mark: '≡', title: 'More', areas: [] },
 ];

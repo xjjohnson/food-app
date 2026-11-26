@@ -1,5 +1,6 @@
 import { useInnerBack, useLeaveAtBase } from '../lib/innerBack';
 import { TestsPage, VersionBox } from './MakingPages';
+import { router } from 'expo-router';
 import { View } from 'react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { Body, Button, Card, ErrorText, Field, LookScope, Row, Screen, Segments, SwitchRow } from '../components/ui';
@@ -285,6 +286,7 @@ function RecipeForm({ id, kit, onBack, onProduct }: { id: number | null; kit?: b
   return (
     <Screen title={draft.variantName || draft.templateName || 'New recipe'} testID="recipe-editor">
       {id && draft.templateId && onProduct ? <Row title="Product page" detail="Price, photos, stock and shop switches" onPress={() => onProduct(draft.templateId)} testID="recipe-product-page" /> : null}
+      {id && !kit ? <Button label="Cook a batch" onPress={() => router.push(`/area/production?go=start:${id}`)} testID="recipe-cook" /> : null}
       <Row title="Product" value={draft.templateName || 'Choose'} onPress={id ? undefined : () => setPicking({ k: 'product' })} testID="recipe-product" />
       {variants.length > 1 || draft.variantId ? <Row title="Product variant" value={draft.variantName || 'Any variant'} onPress={() => setPicking({ k: 'variant' })} testID="recipe-variant" /> : null}
       <Field label="Makes" value={draft.makes} onChangeText={(v) => set({ makes: v })} keyboardType="decimal-pad" testID="recipe-makes" />

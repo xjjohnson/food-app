@@ -28,3 +28,10 @@ test('the check lists each add-on feature in groups and says what to install', a
   expect(r.lines.some((x) => x.group === 'Extras')).toBe(true);
   expect(odoo.calls.filter((x) => !['search_read', 'read', 'search_count', 'has_group', 'fields_get'].includes(x.method))).toEqual([]);
 });
+
+test('the check no longer asks for the old Packagings setting', async () => {
+  const { odoo, owner } = bakery();
+  const c = await OdooClient.signIn(odoo.fetch, { url: URL, db: 'food-test', login: owner.login }, 'key');
+  const r = await checkOdoo(c);
+  expect(r.lines.some((x) => /Packagings/.test(x.label))).toBe(false);
+});

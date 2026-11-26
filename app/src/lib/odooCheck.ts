@@ -33,7 +33,6 @@ export const FEATURE_ADDONS: { group: string; label: string; module?: string; mo
   { group: 'Selling', label: 'Market and events (Events)', module: 'event', model: 'event.event', fix: 'Install Events in Odoo Apps.' },
   { group: 'Selling', label: 'Customer feedback (Surveys)', module: 'survey', model: 'survey.survey', fix: 'Install Surveys in Odoo Apps.' },
   { group: 'Kitchen', label: 'Storage places (Storage Locations)', groupXml: 'stock.group_stock_multi_locations', fix: 'Turn on Inventory > Settings > Storage Locations in Odoo.' },
-  { group: 'Kitchen', label: 'Case and box sizes (Packagings)', groupXml: 'product.group_stock_packaging', fix: 'Turn on Inventory > Settings > Product Packagings in Odoo.' },
   { group: 'Extras', label: 'Tasks and reminders (Discuss activities)', module: 'mail', model: 'mail.activity', fix: 'Install Discuss in Odoo Apps.' },
   { group: 'Extras', label: 'Mileage (Fleet)', module: 'fleet', model: 'fleet.vehicle.odometer', fix: 'Install Fleet in Odoo Apps.' },
 ];
