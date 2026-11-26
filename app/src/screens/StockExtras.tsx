@@ -11,7 +11,7 @@ import { useQueue } from '../lib/useQueue';
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const toNum = (t: string) => Number(t.replace(',', '.'));
 
-function useProductSearch(active: boolean) {
+export function useProductSearch(active: boolean) {
   const { client, offline } = useOdoo();
   const [text, setText] = useState('');
   const [found, setFound] = useState<ProductRow[]>([]);

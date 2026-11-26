@@ -11,6 +11,22 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.23',
+    changes: [
+      'New area Safety and records. Kitchen checks (fridge and freezer temperature, cleaning), Tasting log and Shelf-life check are Odoo Surveys. The owner taps once to make each survey in Odoo (the Surveys app must be on); after that anyone adds entries, with or without signal, and sees the latest ones.',
+      'Safety and records: Cottage-food rules. The owner types their own rules; everyone reads and ticks them before selling. The app knows no law, it only shows what was typed.',
+      'Safety and records: Nutrition notes per product, typed in and saved in Odoo. Never calculated.',
+    ],
+    test: [
+      'Turn on the Surveys app in Odoo. As owner, open Safety and records, Kitchen checks, tap Make the Kitchen checks survey. Check in Odoo a survey with that name and its questions now exists.',
+      'Add an entry (temperatures, Yes on cleaning). Check it shows under Latest entries and in Odoo under the survey Results.',
+      'Add an entry with airplane mode on. Check it says saved on the phone, then appears after signal returns, once.',
+      'Do the same for Tasting log and Shelf-life check.',
+      'As owner, Cottage-food rules, Change the rules, type two lines and save. Open it as someone else and tick each rule.',
+      'Nutrition notes: pick a jelly, type a few lines, save, close and reopen to see them again.',
+    ],
+  },
+  {
     release: '0.1.22',
     changes: [
       'Photos: batches now have Batch photos (a timeline, newest first), delivery board orders have Delivery proof, and a batch number page has Photos. The picture is saved as an attachment on the record in Odoo, so you see it in Odoo too. With no signal it waits on the phone and goes later.',

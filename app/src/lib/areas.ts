@@ -21,6 +21,7 @@ export const AREAS: Area[] = [
   { id: 'stock', title: 'Stock', detail: 'Counts, expiring soon, find a batch', role: 'inventory', comingIn: 'Step 4, Stock' },
   { id: 'ingredients', title: 'Ingredients', detail: 'Low stock, purchase orders, checking deliveries in', role: 'inventory', comingIn: 'Step 5, Ingredients' },
   { id: 'invoices', title: 'Invoices', detail: 'Who owes you, who has paid', role: 'sales', comingIn: 'Release A, Invoices' },
+  { id: 'safety', title: 'Safety and records', detail: 'Kitchen checks, tasting log, shelf-life checks, cottage-food rules', role: 'production', comingIn: 'Release F, Safety' },
   { id: 'market', title: 'Market', detail: "Ring up sales in Odoo's Point of Sale", role: 'sales', comingIn: 'Step 6, Market' },
 ];
 
