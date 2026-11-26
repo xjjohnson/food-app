@@ -5,6 +5,7 @@ import { Body, Button, Card, Chip, ErrorText, Screen, Row } from '../components/
 import { BoardOrder, deliveredChange, loadBoard, mapLink, STEP_WORDS } from '../lib/deliveryBoard';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
+import { PhotosCard } from './PhotosCard';
 
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const copyKey = (db: string) => `board/v1/${db}`;
@@ -79,6 +80,7 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
             {o.phone ? <Row title="Phone" detail={o.phone} onPress={() => Linking.openURL(`tel:${o.phone}`)} /> : null}
             {o.notes ? <Body>{`Notes: ${o.notes}`}</Body> : null}
             {step === 'pack' ? <Button label="Pack it" kind="plain" onPress={onPack} testID={`board-pack-${o.id}`} /> : null}
+            {o.saleId ? <PhotosCard model="sale.order" resId={o.saleId} recordName={o.origin || o.name} title="Delivery proof" about="Delivery proof" button="Take a proof photo" testID={`board-photos-${o.id}`} /> : null}
             {step === 'packed' && o.saleId ? <Button label="Delivered" onPress={() => delivered(o)} testID={`board-delivered-${o.id}`} /> : null}
           </Card>
         );

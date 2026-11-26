@@ -11,6 +11,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.22',
+    changes: [
+      'Photos: batches now have Batch photos (a timeline, newest first), delivery board orders have Delivery proof, and a batch number page has Photos. The picture is saved as an attachment on the record in Odoo, so you see it in Odoo too. With no signal it waits on the phone and goes later.',
+      'Batch: new Allergens card. Tag an ingredient on its product screen with a tag that starts with Contains (for example Contains milk) and every batch using it shows the allergens together.',
+      'Find a batch: now shows what the batch went into and a Who to tell if there is a recall list (customers who got it, directly or inside a finished batch), with a Share traceability sheet button that sends it as plain text.',
+    ],
+    test: [
+      'Open a started batch, tap Take a batch photo, allow the camera if asked, take a picture. Check it shows under Batch photos, and in Odoo on the batch (chatter attachments).',
+      'Take a photo with airplane mode on. Check it says it is saved on the phone. Turn signal on and check it appears.',
+      'Delivery board: tap Take a proof photo on an order and check the picture is on the sales order in Odoo.',
+      'Tag an ingredient Contains milk in Odoo (product Tags). Open a batch that uses it and check Allergens lists it.',
+      'Stock, Find a batch: pick an ingredient batch number that went into a finished batch sold to a customer. Check the customer shows under Who to tell, then tap Share traceability sheet and check the text is right.',
+    ],
+  },
+  {
     release: '0.1.21',
     changes: [
       'Management: new Stock alerts. The owner sets how many days ahead use-by alerts show (14 by default). It is saved in Odoo (in a contact called Food app settings, made the first time) so every phone uses the same number. Today and Expiring soon use it.',

@@ -1,5 +1,6 @@
 import { useInnerBack } from '../lib/innerBack';
 import { useEffect, useState } from 'react';
+import { Share } from 'react-native';
 import { Body, Button, Card, ErrorText, Field, Row, Screen, Segments } from '../components/ui';
 import { editLotChange } from '../lib/edit';
 import { LOT_SECTIONS } from '../lib/forms';
@@ -8,6 +9,8 @@ import type { LotStock } from '../lib/orders';
 import { stockByBatch } from '../lib/lookup';
 import { InStockRow, loadInStock, StockKind, BatchTrace, CountLine, countChange, ExpiringLot, findLots, loadCountLines, loadExpiring, ProductRow, searchProducts, throwOutChange, traceLot } from '../lib/stock';
 import { loadSettings, useByDays } from '../lib/appSettings';
+import { Recall, recallLot, recallText } from '../lib/recall';
+import { PhotosCard } from './PhotosCard';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 import { GenericForm } from './GenericForm';
@@ -265,12 +268,13 @@ function FindBatch({ onBack }: { onBack: () => void }) {
   const [text, setText] = useState('');
   const [found, setFound] = useState<{ id: number; name: string; product: string }[]>([]);
   const [trace, setTrace] = useState<BatchTrace | null>(null);
+  const [recall, setRecall] = useState<Recall | null>(null);
   const [error, setError] = useState('');
   const { save } = useQueue();
   const [edit, setEdit] = useState<{ name: string; useBy: string } | null>(null);
   const [note, setNote] = useState('');
   const [form, setForm] = useState<{ id?: number } | null>(null);
-  useInnerBack(form ? () => setForm(null) : trace ? () => { setTrace(null); setEdit(null); } : null);
+  useInnerBack(form ? () => setForm(null) : trace ? () => { setTrace(null); setRecall(null); setEdit(null); } : null);
 
   useEffect(() => {
     if (!client || offline || trace || form) return;
@@ -319,6 +323,20 @@ function FindBatch({ onBack }: { onBack: () => void }) {
             ))}
           </Card>
         ) : null}
+        {recall && recall.finished.length ? (
+          <Card title="Went into">
+            {recall.finished.map((f) => (
+              <Body key={f.batch}>{`${f.batch} · ${f.product}${f.lots.length ? ` (batch ${f.lots.join(', ')})` : ''}. ${f.customers.length ? `Sent to ${[...new Set(f.customers.map((o) => o.customer || o.name))].join(', ')}.` : 'Not sent to a customer yet.'}`}</Body>
+            ))}
+          </Card>
+        ) : null}
+        {recall ? (
+          <Card title="Who to tell if there is a recall" testID="recall-card">
+            {recall.customers.length ? recall.customers.map((n) => <Body key={n}>{n}</Body>) : <Body muted>No customer has had this batch yet.</Body>}
+            <Button label="Share traceability sheet" kind="plain" onPress={() => Share.share({ message: recallText(recall, new Date().toISOString().slice(0, 10)) })} testID="share-trace" />
+          </Card>
+        ) : null}
+        <PhotosCard model="stock.lot" resId={trace.lot.id} recordName={`batch ${trace.lot.name}`} testID="lot-photos" />
         <Card title="Went out on">
           {trace.wentOutOn.length ? trace.wentOutOn.map((o) => <Row key={o.name} title={o.customer || o.name} detail={`${o.origin || o.name} · ${fmtQty(o.qty)}`} />) : <Body muted>Not sent to any customer yet.</Body>}
         </Card>
@@ -355,7 +373,7 @@ function FindBatch({ onBack }: { onBack: () => void }) {
           </>
         )}
         {error ? <ErrorText>{error}</ErrorText> : null}
-        <Button label="Back to search" kind="plain" onPress={() => { setTrace(null); setEdit(null); }} />
+        <Button label="Back to search" kind="plain" onPress={() => { setTrace(null); setRecall(null); setEdit(null); }} />
       </Screen>
     );
 
@@ -372,7 +390,9 @@ function FindBatch({ onBack }: { onBack: () => void }) {
           onPress={async () => {
             if (!client) return;
             try {
-              setTrace(await traceLot(client, f.id));
+              const r = await recallLot(client, f.id);
+              setRecall(r);
+              setTrace(r?.trace ?? null);
             } catch (e) {
               setError(`Couldn’t trace this batch. ${why(e)}`);
             }
