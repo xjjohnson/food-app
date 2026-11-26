@@ -11,6 +11,19 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.29',
+    changes: [
+      'Management: new Prices and seasons. Customer groups (a price list with its own rules, for example wholesale) and Seasons (a start and end day each year for a product).',
+      'Recipes: new Gift boxes view. A gift box is a kit of products you pick, sold as one item.',
+      'Today: lines for products in season now and products starting their season soon. Nothing is switched on the shop by itself.',
+    ],
+    test: [
+      'Management, Prices and seasons, Customer groups: if it says to turn on Pricelists, do that in Odoo, then make a Wholesale group with one rule and check it in Odoo.',
+      'Seasons: give a product a start and end day that includes today, and check Today shows it in season.',
+      'Recipes, Gift boxes: make a box of two jellies and check it in Odoo as a kit.',
+    ],
+  },
+  {
     release: '0.1.28',
     changes: [
       'Management: new Online shop (owner). New website orders (last 3 days), On the shop (switch a product on or off, and whether it sells when out of stock), Specials (discount codes: a percent off the order, with dates and a limit, switch off without deleting), Delivery and pickup (areas, price, pickup), Closed days (a warning on the Delivery board only) and Newsletter.',

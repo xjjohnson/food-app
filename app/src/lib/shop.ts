@@ -208,3 +208,52 @@ export async function tagReferral(c: Client, partnerId: number, byName: string):
   if (!tag) tag = (await c.call('res.partner.category', 'create', [{ name }], {})) as number;
   await c.call('res.partner', 'write', [[partnerId], { category_id: [[4, tag]] }], {});
 }
+
+export interface Group {
+  id: number;
+  name: string;
+  currency: string;
+  rules: number;
+}
+
+/** Customer groups: Odoo price lists. Odoo applies them on orders; the app only shows and edits them. */
+export async function loadGroups(c: Client): Promise<Group[]> {
+  const rows = (await c.call('product.pricelist', 'search_read', [[]], { fields: ['name', 'currency_id', 'item_ids'], order: 'name asc, id asc', limit: 50 })) as Record<string, unknown>[];
+  return rows.map((r) => ({ id: r.id as number, name: String(r.name), currency: Array.isArray(r.currency_id) ? String(r.currency_id[1] ?? '') : '', rules: Array.isArray(r.item_ids) ? r.item_ids.length : 0 }));
+}
+
+export const GROUP_SECTIONS: Section[] = [
+  {
+    id: 'main',
+    title: 'Customer group (price list)',
+    fields: [
+      { name: 'name', label: 'Name (for example Wholesale)', kind: 'text' },
+      { name: 'currency_id', label: 'Currency', kind: 'one', relation: 'res.currency' },
+      { name: 'company_id', label: 'Company', kind: 'one', relation: 'res.company' },
+      { name: 'active', label: 'In use', kind: 'bool' },
+    ],
+  },
+];
+
+const relIdOf = (v: unknown) => (v && !Array.isArray(v) && typeof v === 'object' ? (v as { id: number }).id : 0);
+const numOf2 = (v: unknown) => Number(String(v ?? '').replace(',', '.')) || 0;
+
+/** One rule of a price list. Odoo works out the price from the rule. */
+export const GROUP_RULES: import('./subRecords').SubSpec = {
+  model: 'product.pricelist.item',
+  noun: 'rule',
+  columns: [
+    { name: 'applied_on', label: 'Applies to', kind: 'select', options: [{ id: '3_global', label: 'All products' }, { id: '2_product_category', label: 'A product category' }, { id: '1_product', label: 'One product' }, { id: '0_product_variant', label: 'One product variant' }] },
+    { name: 'categ_id', label: 'Category (if a category)', kind: 'one', relation: 'product.category' },
+    { name: 'product_tmpl_id', label: 'Product (if one product)', kind: 'one', relation: 'product.template' },
+    { name: 'compute_price', label: 'Price is', kind: 'select', options: [{ id: 'fixed', label: 'A set price' }, { id: 'percentage', label: 'A percent off' }] },
+    { name: 'fixed_price', label: 'Set price', kind: 'num' },
+    { name: 'percent_price', label: 'Percent off', kind: 'num' },
+    { name: 'min_quantity', label: 'From this quantity', kind: 'num' },
+    { name: 'date_start', label: 'Starts (year-month-day)', kind: 'date' },
+    { name: 'date_end', label: 'Ends (year-month-day)', kind: 'date' },
+  ],
+  required: ['applied_on', 'compute_price'],
+  titleColumn: 'applied_on',
+  already: (d, base) => [['pricelist_id', '=', base.pricelist_id], ['applied_on', '=', String(d.applied_on ?? '')], ['product_tmpl_id', '=', relIdOf(d.product_tmpl_id) || false], ['fixed_price', '=', numOf2(d.fixed_price)], ['percent_price', '=', numOf2(d.percent_price)]],
+};

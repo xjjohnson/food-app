@@ -224,3 +224,21 @@ export function moveLine(lines: RecipeLine[], index: number, by: -1 | 1): Recipe
   [copy[index], copy[j]] = [copy[j]!, copy[index]!];
   return copy;
 }
+
+export interface KitRow {
+  id: number;
+  name: string;
+  parts: string[];
+}
+
+/** Gift boxes: kits in Odoo (a bill of materials of type Kit), with what is in each. Selling one uses up its parts. */
+export async function loadKits(c: Client): Promise<KitRow[]> {
+  const boms = (await c.call('mrp.bom', 'search_read', [[['type', '=', 'phantom']]], { fields: ['product_tmpl_id', 'bom_line_ids'] })) as Record<string, unknown>[];
+  const lineIds = boms.flatMap((b) => (b.bom_line_ids as number[]) ?? []);
+  const lines = lineIds.length ? ((await c.call('mrp.bom.line', 'read', [lineIds], { fields: ['bom_id', 'product_id', 'product_qty'] })) as Record<string, unknown>[]) : [];
+  const nm = (v: unknown) => (Array.isArray(v) ? String(v[1] ?? '') : '');
+  const bomOf = (l: Record<string, unknown>) => (Array.isArray(l.bom_id) ? (l.bom_id[0] as number) : (l.bom_id as number));
+  return boms
+    .map((b) => ({ id: b.id as number, name: nm(b.product_tmpl_id), parts: lines.filter((l) => bomOf(l) === b.id).map((l) => `${Number(l.product_qty ?? 0)} x ${nm(l.product_id)}`) }))
+    .sort((a, z) => a.name.localeCompare(z.name));
+}
