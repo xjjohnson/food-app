@@ -50,7 +50,8 @@ describe('the whole app', () => {
       for (const a of areas) {
         if (tab === 'make') await fireEvent.press(screen.getByTestId(a === 'stock' ? 'make-seg-jars' : 'make-seg-batches'));
         if (tab === 'sell' && a === 'market') await fireEvent.press(screen.getByTestId('sell-seg-market'));
-        expect(screen.getByTestId(`area-${a}`)).toBeTruthy();
+        const id = a === 'production' ? 'make-start-batch' : a === 'ingredients' ? 'buy-bought' : a === 'orders' ? 'sell-board' : `area-${a}`;
+        expect(screen.getByTestId(id)).toBeTruthy();
       }
     }
     await fireEvent.press(screen.getByTestId('tab-more'));
@@ -70,7 +71,7 @@ describe('the whole app', () => {
     await fireEvent.press(screen.getByTestId('tab-make'));
     await settle();
     await fireEvent.press(screen.getByTestId('make-seg-batches'));
-    expect(screen.getByTestId('area-production')).toBeTruthy();
+    expect(screen.getByTestId('make-start-batch')).toBeTruthy();
     expect(screen.queryByTestId('area-market')).toBeNull();
     await fireEvent.press(screen.getByTestId('tab-more'));
     await settle();
@@ -137,7 +138,7 @@ describe('the whole app', () => {
     await fireEvent.press(screen.getByTestId('tab-make'));
     await settle();
     await fireEvent.press(screen.getByTestId('make-seg-batches'));
-    expect(screen.getByTestId('area-production')).toBeTruthy();
+    expect(screen.getByTestId('make-start-batch')).toBeTruthy();
     expect(screen.getByTestId('queue-band')).toHaveTextContent(/No signal: working offline/);
   });
 

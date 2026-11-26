@@ -23,7 +23,6 @@ export function BuyScreen() {
         <Row title="Purchase history" detail="Every purchase and bill: date, store, total, paid or not" onPress={() => go('history')} testID="buy-history" />
       </Card>
       <Card>
-        <Row title="Everything in Ingredients" detail="Prices, units and more" onPress={() => router.push('/area/ingredients')} testID="area-ingredients" />
         <Row title="Suppliers" detail="Find, add or change a supplier" onPress={() => router.push('/contacts')} testID="buy-suppliers" />
       </Card>
     </Screen>

@@ -1,4 +1,4 @@
-import { useInnerBack } from '../lib/innerBack';
+import { useInnerBack, useLeaveAtBase } from '../lib/innerBack';
 import { useEffect, useState } from 'react';
 import { Body, Button, Card, ErrorText, Field, Row, Screen } from '../components/ui';
 import { GenericForm } from './GenericForm';
@@ -47,6 +47,7 @@ function startPage(go?: string): Page {
 export function IngredientsScreen({ go }: { go?: string } = {}) {
   const [page, setPage] = useState<Page>(startPage(go));
   const menu = () => setPage({ p: 'menu' });
+  useLeaveAtBase(!!go, page.p === 'menu');
   useInnerBack(page.p === 'menu' ? null : () => setPage(upFrom(page)));
   switch (page.p) {
     case 'bought':

@@ -1,4 +1,4 @@
-import { useInnerBack } from '../lib/innerBack';
+import { useInnerBack, useLeaveAtBase } from '../lib/innerBack';
 import { WeekPage } from './MakingPages';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
@@ -60,6 +60,8 @@ type View_ = { page: 'list' } | { page: 'plan'; tab: 'plan' | 'shop' } | { page:
 function initialView(go?: string): View_ {
   if (go === 'start') return { page: 'start' };
   if (go === 'recipes') return { page: 'recipes' };
+  if (go === 'plan') return { page: 'plan', tab: 'plan' };
+  if (go === 'week') return { page: 'week' };
   const [kind, id] = (go ?? '').split(':');
   const n = Number(id);
   if (kind === 'recipe' && n > 0) return { page: 'recipes', open: n };
@@ -109,6 +111,7 @@ export function ProductionScreen({ go }: { go?: string } = {}) {
   useEffect(() => {
     load();
   }, [load]);
+  useLeaveAtBase(!!go, view.page === 'list');
   useInnerBack(view.page === 'list' ? null : () => { setView({ page: 'list' }); load(); });
 
   if (view.page === 'plan') return <PlanScreen recipes={data?.recipes ?? []} start={view.tab} onBack={() => setView({ page: 'list' })} />;

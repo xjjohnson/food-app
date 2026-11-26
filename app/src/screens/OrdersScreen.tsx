@@ -4,6 +4,7 @@ import { Body, Button, Card, Chip, ErrorText, Row, Screen, Segments } from '../c
 import { fmtQty } from '../lib/production';
 import { handOverChanges, Handover, loadLotStock, loadOrders, loadPackLines, LotPick, oldestFirst, Order, PackLine, readyToPack, stateWords } from '../lib/orders';
 import { DeliveryBoardScreen } from './DeliveryBoardScreen';
+import { useLeaveAtBase } from '../lib/innerBack';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 
@@ -17,6 +18,7 @@ export function OrdersScreen({ go }: { go?: string } = {}) {
   const [open, setOpen] = useState<Order | null>(null);
   const [fromPhone, setFromPhone] = useState(false);
   const [board, setBoard] = useState(go === 'board');
+  useLeaveAtBase(go === 'board', !board);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
