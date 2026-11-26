@@ -14,6 +14,7 @@
 import { lineValues, loadReceiptLines } from './ingredients';
 import { runSetting } from './appSettings';
 import { runMove } from './places';
+import { runPhoto } from './photos';
 import { runCount } from './stock';
 import type { OdooClient } from './odoo';
 
@@ -35,6 +36,8 @@ export type Step =
       journalId: number | null;
     }
   | { kind: 'setting'; key: string; value: string }
+  /** A picture on a record. `uri` is the file waiting on the phone. */
+  | { kind: 'photo'; model: string; resId: number; name: string; uri: string }
   | { kind: 'count'; quantId: number; counted: number; expected: number }
   | { kind: 'move'; token: string; productId: number; lotId: number; qty: number; fromId: number; toId: number }
   | {
@@ -122,6 +125,7 @@ export async function runStep(c: Client, step: Step): Promise<void> {
   if (step.kind === 'setting') return runSetting(c, step.key, step.value);
   if (step.kind === 'move') return runMove(c, step);
   if (step.kind === 'count') return runCount(c, step);
+  if (step.kind === 'photo') return runPhoto(c, step);
   if (step.kind === 'note') return note(c, step);
   if (step.kind === 'pay') return pay(c, step);
   if (step.kind === 'receive') return receive(c, step);

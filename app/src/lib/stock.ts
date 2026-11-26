@@ -168,7 +168,7 @@ export interface BatchTrace {
   /** The batch it was made in, and the ingredient batches that went into it. */
   madeIn: { name: string; ingredients: { product: string; lot: string }[] }[];
   /** Finished batches this one was used as an ingredient in. */
-  usedIn: { name: string; product: string }[];
+  usedIn: { id: number; name: string; product: string }[];
   /** Customer deliveries it went out on. */
   wentOutOn: { name: string; origin: string; customer: string; qty: number }[];
 }
@@ -220,7 +220,7 @@ export async function traceLot(c: Client, lotId: number): Promise<BatchTrace | n
   return {
     lot: { id: lotId, name: String(lot.name), product: nameOf(lot.product_id), useBy: day(lot.expiration_date), onHand: Number(lot.product_qty ?? 0) },
     madeIn,
-    usedIn: used.map((m) => ({ name: String(m.name), product: nameOf(m.product_id) })),
+    usedIn: used.map((m) => ({ id: m.id as number, name: String(m.name), product: nameOf(m.product_id) })),
     wentOutOn,
   };
 }

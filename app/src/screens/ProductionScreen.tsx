@@ -35,6 +35,8 @@ import {
 } from '../lib/production';
 import { PlanScreen } from './PlanScreen';
 import { ChecklistCard } from './ChecklistCard';
+import { PhotosCard } from './PhotosCard';
+import { loadAllergens } from '../lib/allergens';
 import { RecipesScreen } from './RecipesScreen';
 import { loadPriceCost, PriceCost } from '../lib/plan';
 import { useRoles } from '../lib/useRoles';
@@ -247,6 +249,7 @@ function BatchPage({ id, known, onBack }: { id: number; known?: Batch; onBack: (
   const [used, setUsed] = useState<Record<number, string>>({});
   const [cost, setCost] = useState<BatchCost | null>(null);
   const [finished, setFinished] = useState(false);
+  const [allergens, setAllergens] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     if (!client || offline) return;
@@ -254,6 +257,7 @@ function BatchPage({ id, known, onBack }: { id: number; known?: Batch; onBack: (
       const detail = await loadBatchDetail(client, id);
       setD(detail);
       if (detail) {
+        loadAllergens(client, detail.ingredients.map((i) => i.productId)).then(setAllergens).catch(() => undefined);
         setUsed((u) => ({ ...Object.fromEntries(detail.ingredients.map((i) => [i.id, fmtQty(i.needed)])), ...u }));
         if (detail.state === 'done') setCost(await loadBatchCost(client, id));
         setLot((x) => x || suggestBatchNumber(detail.name));
@@ -327,6 +331,12 @@ function BatchPage({ id, known, onBack }: { id: number; known?: Batch; onBack: (
           {d.ingredients.length ? d.ingredients.map((i) => <Row key={i.id} title={i.name} value={fmtQty(i.needed)} />) : <Body muted>No ingredients on this batch.</Body>}
         </Card>
       ) : null}
+      {d && d.ingredients.length ? (
+        <Card title="Allergens" testID="batch-allergens">
+          {allergens.length ? <Body>{allergens.join(', ')}</Body> : <Body muted>None marked. Tag an ingredient “Contains milk” (and so on) on its product screen and it shows here.</Body>}
+        </Card>
+      ) : null}
+      {shown.state !== 'draft' && shown.state !== 'cancel' ? <PhotosCard model="mrp.production" resId={id} recordName={`batch ${shown.name}`} title="Batch photos" about="Batch photo" button="Take a batch photo" testID="batch-photos" /> : null}
       {shown.state !== 'draft' && shown.state !== 'cancel' ? <ChecklistCard batchId={id} batchName={shown.name} /> : null}
       {finished ? <Body>Batch finished.</Body> : null}
       {shown.state === 'done' && cost ? (

@@ -85,7 +85,7 @@ describe('stock lib', () => {
     expect(t.wentOutOn).toEqual([{ name: 'WH/OUT/00005', origin: 'S00005', customer: 'Pat Customer', qty: 1 }]);
     // The other direction: the flour batch shows what it went into.
     const f = (await traceLot(c, s.fl))!;
-    expect(f.usedIn).toEqual([{ name: 'WH/MO/00001', product: expect.any(String) }]);
+    expect(f.usedIn).toEqual([{ id: expect.any(Number), name: 'WH/MO/00001', product: expect.any(String) }]);
   });
 });
 

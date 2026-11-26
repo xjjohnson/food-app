@@ -27,3 +27,18 @@ jest.mock('./src/lib/dbSnapshots', () => {
     __files: files,
   };
 });
+
+// Photos are files on a phone; tests keep them in memory.
+jest.mock('./src/lib/photoFiles', () => {
+  const files = new Map();
+  return {
+    keepPhoto: async (uri) => {
+      const to = `file:///photos/${files.size + 1}.jpg`;
+      files.set(to, `data-of-${uri}`);
+      return to;
+    },
+    readPhoto: async (uri) => (files.has(uri) ? files.get(uri) : null),
+    dropPhoto: async (uri) => void files.delete(uri),
+    __files: files,
+  };
+});
