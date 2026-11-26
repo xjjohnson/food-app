@@ -263,3 +263,54 @@ test('counts read in plain words', () => {
   expect(qtyWords(12, 'Jars')).toBe('12 Jars');
   expect(qtyWords(3)).toBe('3');
 });
+
+describe('the batch page next step', () => {
+  async function openBatch(odoo: FakeOdoo, state: string) {
+    const jam = odoo.create('product.product', { name: 'Jam', free_qty: 0 });
+    const id = odoo.create('mrp.production', { name: 'WH/MO/9', state, product_id: [jam, 'Jam'], product_qty: 12 });
+    await open(odoo, `/area/production?go=batch:${id}`, 'Production');
+    return id;
+  }
+
+  test('a confirmed batch shows the steps, and Finish says what is missing until it is filled in', async () => {
+    const { odoo } = bakery();
+    await openBatch(odoo, 'confirmed');
+    expect(screen.getByTestId('batch-state')).toHaveTextContent(/Ready to cook \(Odoo: Confirmed\)/);
+    expect(screen.getByTestId('batch-step-0')).toHaveTextContent('✓ Planned');
+    expect(screen.getByTestId('batch-step-1')).toHaveTextContent('● Cooking');
+    expect(screen.getByTestId('batch-step-2')).toHaveTextContent('○ Finish');
+    await fireEvent.changeText(screen.getByTestId('lot-name'), '');
+    await fireEvent.changeText(screen.getByTestId('use-by'), '');
+    await settle();
+    expect(screen.getByTestId('finish-reasons')).toHaveTextContent(/Batch number is empty/);
+    expect(screen.getByTestId('finish-reasons')).toHaveTextContent(/Use-by date is empty/);
+    expect(screen.getByTestId('finish-batch')).toBeDisabled();
+    await fireEvent.changeText(screen.getByTestId('lot-name'), 'J-1');
+    await fireEvent.changeText(screen.getByTestId('use-by'), '2026-12-25');
+    await settle();
+    expect(screen.queryByTestId('finish-reasons')).toBeNull();
+    expect(screen.getByTestId('finish-batch')).toBeEnabled();
+  });
+
+  test('a planned batch has a Confirm button that confirms it in Odoo', async () => {
+    const { odoo } = bakery();
+    const id = await openBatch(odoo, 'draft');
+    expect(screen.getByTestId('batch-step-0')).toHaveTextContent('● Planned');
+    await fireEvent.press(screen.getByTestId('batch-confirm'));
+    await settle();
+    expect(odoo.tables['mrp.production']!.find((m) => m.id === id)!.state).toBe('confirmed');
+    expect(screen.getByTestId('batch-step-1')).toHaveTextContent('● Cooking');
+  });
+
+  test('Start cooking ticks the ingredients as picked in Odoo, which is how Odoo moves the order to In Progress', async () => {
+    const { odoo } = bakery();
+    const jam = odoo.create('product.product', { name: 'Jam', free_qty: 0 });
+    const flour = odoo.create('product.product', { name: 'Flour', free_qty: 5 });
+    const mv = odoo.create('stock.move', { product_id: [flour, 'Flour'], product_uom_qty: 3, state: 'assigned', picked: false });
+    const id = odoo.create('mrp.production', { name: 'WH/MO/8', state: 'confirmed', product_id: [jam, 'Jam'], product_qty: 12, move_raw_ids: [mv] });
+    await open(odoo, `/area/production?go=batch:${id}`, 'Production');
+    await fireEvent.press(screen.getByTestId('batch-start-cooking'));
+    await settle();
+    expect(odoo.tables['stock.move']!.find((m) => m.id === mv)!.picked).toBe(true);
+  });
+});

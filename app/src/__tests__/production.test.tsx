@@ -129,7 +129,7 @@ describe('production screen', () => {
     const mo = odoo.tables['mrp.production']![0]!;
     expect(mo.state).toBe('confirmed');
     // Starting opens the new batch right away.
-    expect(screen.getByTestId('batch-state')).toHaveTextContent(/Planned \(Odoo: Confirmed\)/);
+    expect(screen.getByTestId('batch-state')).toHaveTextContent(/Ready to cook \(Odoo: Confirmed\)/);
     expect(screen.getByText(/Batch started/)).toBeTruthy();
     expect(screen.getByTestId('batch-short')).toHaveTextContent(/Flour/);
     expect(screen.getByTestId('use-by').props.value).toMatch(/^\d{4}-\d{2}-\d{2}$/);

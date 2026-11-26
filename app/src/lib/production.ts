@@ -70,12 +70,29 @@ export interface Shortage {
 
 const nameOf = (v: unknown): string => (Array.isArray(v) && typeof v[1] === 'string' ? v[1] : '');
 
+/** The three steps of a batch and where this one is: 0 planned, 1 cooking, 2 finish, 3 all done. */
+export const batchStep = (state: string): number => (state === 'draft' ? 0 : state === 'confirmed' || state === 'progress' ? 1 : state === 'to_close' ? 2 : state === 'done' ? 3 : 0);
+
+/** What stops Finish batch, in plain words. Empty when it can go. */
+export function finishReasons(a: { canFinish: boolean; loaded: boolean; canRecordLot: boolean; lot: string; okDate: boolean; useBy: string; badAmount: boolean; queued: boolean; state: string }): string[] {
+  const out: string[] = [];
+  if (!a.canFinish) out.push(a.state === 'draft' ? 'This batch is only planned. Confirm it first.' : a.state === 'done' ? 'This batch is already finished.' : 'This batch is cancelled.');
+  if (!a.loaded) out.push('Odoo has not answered yet. Check the signal.');
+  else if (!a.canRecordLot) out.push('This Odoo cannot take a batch number on a batch.');
+  if (!a.lot.trim()) out.push('Batch number is empty.');
+  if (!a.okDate) out.push(a.useBy ? 'Use-by is not a date. Use 2026-12-25.' : 'Use-by date is empty.');
+  if (a.badAmount) out.push('An amount used is not a number.');
+  if (a.queued) out.push('Saved on the phone, waiting to reach Odoo.');
+  return out;
+}
+
 /** "Planned", "Cooking" and so on, in plain words. Odoo's own word is shown beside it by `stateWithOdoo`. */
 export function stateLabel(s: BatchState | string): string {
   switch (s) {
     case 'draft':
-    case 'confirmed':
       return 'Planned';
+    case 'confirmed':
+      return 'Ready to cook';
     case 'progress':
       return 'Cooking';
     case 'to_close':
