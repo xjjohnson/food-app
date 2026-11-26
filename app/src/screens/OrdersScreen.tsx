@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Body, Button, Card, Chip, ErrorText, Row, Screen, Segments } from '../components/ui';
 import { fmtQty } from '../lib/production';
 import { handOverChanges, Handover, loadLotStock, loadOrders, loadPackLines, LotPick, oldestFirst, Order, PackLine, readyToPack, stateWords } from '../lib/orders';
+import { DeliveryBoardScreen } from './DeliveryBoardScreen';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 
@@ -15,6 +16,7 @@ export function OrdersScreen() {
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [open, setOpen] = useState<Order | null>(null);
   const [fromPhone, setFromPhone] = useState(false);
+  const [board, setBoard] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -50,6 +52,8 @@ export function OrdersScreen() {
     load();
   }, [load]);
 
+  if (board) return <DeliveryBoardScreen onBack={() => setBoard(false)} onPack={() => setBoard(false)} />;
+
   if (open)
     return (
       <PackOrder
@@ -63,6 +67,7 @@ export function OrdersScreen() {
 
   return (
     <Screen title="Website orders" testID="orders-screen">
+      <Button label="Delivery board (today)" onPress={() => setBoard(true)} testID="open-board" />
       {fromPhone ? <Body muted>No signal. Showing what the phone saw last.</Body> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
       <Card title="Waiting to be packed">

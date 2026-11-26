@@ -11,6 +11,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.19',
+    changes: [
+      'New Delivery board (button at the top of Website orders): today’s deliveries and pickups with the address (tap for the map), phone, the customer’s notes, and the step: To pack, Packed, Delivered. Tap Delivered once it is handed over; it is saved as a note on the order in Odoo.',
+      'Contacts have a History tab: that customer’s invoices, and purchases from that supplier.',
+      'Ingredients: a new “Prices paid over time” button on each ingredient shows each price paid, the store and date, with the cheapest marked.',
+      'New Search everything on the home screen: products, customers, batch numbers, orders and batches in one box.',
+      'Today now also shows Invoices not paid yet (Sales) and Deliveries and pickups due today (Shipping). The home screen puts your own role’s areas first.',
+    ],
+    test: [
+      'Website orders, Delivery board. Check today’s orders show with address, phone and the customer’s notes. Tap the address and check the map opens.',
+      'On a packed order tap Delivered. Check the order in Odoo has a note “Delivered”. Tap it with airplane mode on, then turn signal on and check one note arrives.',
+      'Home, Customers and suppliers, open a customer, History tab: Invoices to this contact lists their invoices. Open a supplier and check Purchases from this contact.',
+      'Ingredients, Ingredient list, open one, Prices paid over time. Check the prices match your bills and the cheapest is marked.',
+      'Home, Search everything. Type part of a customer name, a product and a batch number. Tap a customer or product to open it.',
+      'Sign in as Production, then Sales: check each sees their own area first on the home screen, and that Today shows the new counts.',
+    ],
+  },
+  {
     release: '0.1.18',
     changes: [
       'New Invoices on the home screen (Sales and Owner): who owes you and who has paid, newest first. Tap one to see what was on it, and mark it paid with Cash, Cash App or Venmo.',

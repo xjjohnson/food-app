@@ -32,6 +32,15 @@ export type Step =
       journalId: number | null;
     }
   | {
+      /** A note on a record's chatter, posted once (Delivered on the delivery board). */
+      kind: 'note';
+      model: string;
+      resId: number;
+      /** Identifies the note, so a retry never posts it twice. */
+      tag: string;
+      body: string;
+    }
+  | {
       /** Mark a bill or invoice that already exists as paid (Invoices and Purchase history). */
       kind: 'pay';
       moveId: number;
@@ -96,7 +105,15 @@ async function pay(c: Client, step: Extract<Step, { kind: 'pay' }>): Promise<voi
   await c.call('account.payment.register', 'action_create_payments', [[wiz]], { context: ctx });
 }
 
+/** Posts a note on the record unless a note with the same tag is already there. */
+async function note(c: Client, step: Extract<Step, { kind: 'note' }>): Promise<void> {
+  const found = (await c.call('mail.message', 'search', [[['model', '=', step.model], ['res_id', '=', step.resId], ['body', 'ilike', step.tag]]], { limit: 1 })) as number[];
+  if (found.length) return;
+  await c.call(step.model, 'message_post', [[step.resId]], { body: `${step.body} <small>[${step.tag}]</small>`, message_type: 'comment', subtype_xmlid: 'mail.mt_note' });
+}
+
 export async function runStep(c: Client, step: Step): Promise<void> {
+  if (step.kind === 'note') return note(c, step);
   if (step.kind === 'pay') return pay(c, step);
   if (step.kind === 'receive') return receive(c, step);
   return bill(c, step);

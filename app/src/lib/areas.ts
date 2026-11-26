@@ -25,3 +25,9 @@ export const AREAS: Area[] = [
 ];
 
 export const areaById = (id: string) => AREAS.find((a) => a.id === id);
+
+/** The areas a person sees, their own roles' areas first (production sees batches first, sales sees orders). */
+export function areasForRoles<T extends { role: RoleId }>(areas: T[], roles: Record<RoleId, boolean>): T[] {
+  const mine = (a: T) => (roles[a.role] && !roles.owner ? 0 : 1);
+  return areas.map((a, i) => ({ a, i })).sort((x, y) => mine(x.a) - mine(y.a) || x.i - y.i).map((x) => x.a);
+}
