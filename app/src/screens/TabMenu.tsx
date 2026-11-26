@@ -4,7 +4,7 @@ import { tabAreas, TABS, TabId } from '../lib/tabs';
 import { useRoles } from '../lib/useRoles';
 
 /** A work tab (Make, Buy, Sell): the areas this person may open, each one a row. */
-export function TabMenu({ tab }: { tab: Exclude<TabId, 'index' | 'more'> }) {
+export function TabMenu({ tab }: { tab: Exclude<TabId, 'index' | 'more' | 'make'> }) {
   const { roles } = useRoles();
   const t = TABS.find((x) => x.id === tab)!;
   const areas = tabAreas(tab, roles);
@@ -14,7 +14,6 @@ export function TabMenu({ tab }: { tab: Exclude<TabId, 'index' | 'more'> }) {
         {areas.map((a) => (
           <Row key={a.id} title={a.title} detail={a.detail} onPress={() => router.push(`/area/${a.id}`)} testID={`area-${a.id}`} />
         ))}
-        {tab === 'make' ? <Row title="Find a product" detail="Price, photo and stock by batch" onPress={() => router.push('/lookup')} testID="open-lookup" /> : null}
         {tab === 'sell' ? <Row title="Customers and suppliers" detail="Find, add or change a contact" onPress={() => router.push('/contacts')} testID="open-contacts" /> : null}
       </Card>
     </Screen>

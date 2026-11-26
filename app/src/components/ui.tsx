@@ -4,8 +4,8 @@
  * buttons stay big, so they work with floury hands and in a busy market.
  */
 import { router } from 'expo-router';
-import { ReactNode, useEffect } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, TextInputProps, View } from 'react-native';
+import { createContext, ReactNode, useContext, useEffect } from 'react';
+import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, TextInputProps, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Palette } from '../lib/palette';
 import { runInnerBack } from '../lib/innerBack';
@@ -13,6 +13,18 @@ import { log } from '../lib/log';
 import { useBrand, useStyles } from '../lib/useBrand';
 
 export const TOUCH = 52;
+
+/** The page look: clean everywhere, "cookbook" (paper, dashed cards, serif titles) on recipe pages. */
+export type Look = 'clean' | 'cookbook';
+const LookContext = createContext<Look>('clean');
+export const useLook = () => useContext(LookContext);
+/** Wrap recipe pages in this to give them the cookbook look. */
+export function LookScope({ look, children }: { look: Look; children: ReactNode }) {
+  return <LookContext.Provider value={look}>{children}</LookContext.Provider>;
+}
+const SERIF = Platform.select({ ios: 'Georgia', default: 'serif' });
+/** Warm paper tones for the cookbook look in light mode; dark mode keeps the brand dark colors. */
+export const PAPER = { page: '#FFFBEF', card: '#FFFDF6', edge: '#C9A66B' };
 
 const makeStyles = (c: Palette) =>
   StyleSheet.create({
@@ -58,13 +70,15 @@ export function useUi() {
 /** A page with the brand header. `back` shows a Back button (full pages); the home screen has none. */
 export function Screen({ title, back = true, children, right, testID }: { title: string; back?: boolean; children: ReactNode; right?: ReactNode; testID?: string }) {
   const s = useUi();
-  const { brand } = useBrand();
+  const { brand, dark } = useBrand();
+  const look = useLook();
+  const paper = look === 'cookbook' && !dark;
   // A trail of screens in the log: the id of the screen, not what is on it.
   useEffect(() => {
     log.info('screen', testID ?? title);
   }, [testID, title]);
   return (
-    <SafeAreaView style={s.page} edges={['top', 'left', 'right']} testID={testID}>
+    <SafeAreaView style={[s.page, paper && { backgroundColor: PAPER.page }]} edges={['top', 'left', 'right']} testID={testID}>
       <View style={s.head}>
         {back ? (
           <Pressable onPress={() => {
@@ -75,7 +89,7 @@ export function Screen({ title, back = true, children, right, testID }: { title:
         ) : brand.logo ? (
           <Image source={{ uri: brand.logo }} style={s.logo} resizeMode="contain" accessibilityLabel={`${brand.name} logo`} testID="brand-logo" />
         ) : null}
-        <Text style={s.headTitle} accessibilityRole="header" numberOfLines={1}>
+        <Text style={[s.headTitle, look === 'cookbook' && { fontFamily: SERIF }]} accessibilityRole="header" numberOfLines={1}>
           {title}
         </Text>
         {right}
@@ -89,10 +103,13 @@ export function Screen({ title, back = true, children, right, testID }: { title:
 
 export function Card({ title, children, testID }: { title?: string; children: ReactNode; testID?: string }) {
   const s = useUi();
+  const look = useLook();
+  const { dark } = useBrand();
+  const book = look === 'cookbook';
   return (
-    <View style={s.card} testID={testID}>
+    <View style={[s.card, book && { borderStyle: 'dashed', borderWidth: 2, borderRadius: 6 }, book && !dark && { backgroundColor: PAPER.card, borderColor: PAPER.edge }]} testID={testID}>
       {title ? (
-        <Text style={s.cardTitle} accessibilityRole="header">
+        <Text style={[s.cardTitle, book && { fontFamily: SERIF }]} accessibilityRole="header">
           {title}
         </Text>
       ) : null}

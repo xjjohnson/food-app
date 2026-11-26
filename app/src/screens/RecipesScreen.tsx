@@ -2,7 +2,7 @@ import { useInnerBack } from '../lib/innerBack';
 import { TestsPage, VersionBox } from './MakingPages';
 import { View } from 'react-native';
 import { useCallback, useEffect, useState } from 'react';
-import { Body, Button, Card, ErrorText, Field, Row, Screen, Segments, SwitchRow } from '../components/ui';
+import { Body, Button, Card, ErrorText, Field, LookScope, Row, Screen, Segments, SwitchRow } from '../components/ui';
 import { IngredientForm } from './IngredientListScreen';
 import { loadUnits } from '../lib/ingredientList';
 import { fmtQty, loadRecipes, Recipe as RecipeRow } from '../lib/production';
@@ -76,10 +76,19 @@ function ProductPicker({ title, onPick, onBack, markRecipes, raw }: { title: str
   );
 }
 
-export function RecipesScreen({ onBack }: { onBack: () => void }) {
+/** The recipe box. Recipe pages have the cookbook look. `openId` opens one recipe straight away. */
+export function RecipesScreen({ onBack, openId }: { onBack: () => void; openId?: number }) {
+  return (
+    <LookScope look="cookbook">
+      <RecipesInner onBack={onBack} openId={openId} />
+    </LookScope>
+  );
+}
+
+function RecipesInner({ onBack, openId }: { onBack: () => void; openId?: number }) {
   const { client, offline } = useOdoo();
   const [list, setList] = useState<RecipeRow[] | null>(null);
-  const [open, setOpen] = useState<number | 'new' | 'newkit' | null>(null);
+  const [open, setOpen] = useState<number | 'new' | 'newkit' | null>(openId ?? null);
   const [view, setView] = useState<'recipes' | 'kits'>('recipes');
   const [tests, setTests] = useState(false);
   const { roles } = useRoles();

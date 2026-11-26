@@ -1,5 +1,5 @@
-import { TabMenu } from '../../screens/TabMenu';
+import { MakeScreen } from '../../screens/MakeScreen';
 
 export default function MakeTab() {
-  return <TabMenu tab="make" />;
+  return <MakeScreen />;
 }

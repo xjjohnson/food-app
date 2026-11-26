@@ -54,12 +54,23 @@ interface Copy {
 
 const copyKey = (db: string) => `production/v1/${db}`;
 
-type View_ = { page: 'list' } | { page: 'plan'; tab: 'plan' | 'shop' } | { page: 'recipes' } | { page: 'week' } | { page: 'start' } | { page: 'batch'; id: number };
+type View_ = { page: 'list' } | { page: 'plan'; tab: 'plan' | 'shop' } | { page: 'recipes'; open?: number } | { page: 'week' } | { page: 'start' } | { page: 'batch'; id: number };
+
+/** Where Production opens: `start`, `recipes`, `recipe:<id>` or `batch:<id>`, from the Make tab and the plus button. */
+function initialView(go?: string): View_ {
+  if (go === 'start') return { page: 'start' };
+  if (go === 'recipes') return { page: 'recipes' };
+  const [kind, id] = (go ?? '').split(':');
+  const n = Number(id);
+  if (kind === 'recipe' && n > 0) return { page: 'recipes', open: n };
+  if (kind === 'batch' && n > 0) return { page: 'batch', id: n };
+  return { page: 'list' };
+}
 
 /** Production: today's batches, start a batch, finish it with a batch number and use-by date. */
 export function ProductionScreen({ go }: { go?: string } = {}) {
   const { client, db, offline } = useOdoo();
-  const [view, setView] = useState<View_>(go === 'start' ? { page: 'start' } : { page: 'list' });
+  const [view, setView] = useState<View_>(initialView(go));
   const [data, setData] = useState<Copy | null>(null);
   const [fromPhone, setFromPhone] = useState(false);
   const [error, setError] = useState('');
@@ -102,7 +113,7 @@ export function ProductionScreen({ go }: { go?: string } = {}) {
 
   if (view.page === 'plan') return <PlanScreen recipes={data?.recipes ?? []} start={view.tab} onBack={() => setView({ page: 'list' })} />;
   if (view.page === 'week') return <WeekPage onBack={() => setView({ page: 'list' })} />;
-  if (view.page === 'recipes') return <RecipesScreen onBack={() => { setView({ page: 'list' }); load(); }} />;
+  if (view.page === 'recipes') return <RecipesScreen openId={view.open} onBack={() => { setView({ page: 'list' }); load(); }} />;
   if (view.page === 'start')
     return <StartBatch recipes={data?.recipes ?? []} onBack={() => setView({ page: 'list' })} onSaved={() => { setView({ page: 'list' }); load(); }} />;
   if (view.page === 'batch') {
