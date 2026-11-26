@@ -3,9 +3,9 @@ import { applyRoute, moveStop, routeKey, routeLink, sortByZip } from '../lib/buy
 import { useTyped } from './MarketDay';
 import { useCallback, useEffect, useState } from 'react';
 import { Linking } from 'react-native';
-import { Body, Button, Card, Chip, ErrorText, Screen, Row } from '../components/ui';
+import { Body, Button, Card, Chip, ErrorText, Screen, Row, Segments } from '../components/ui';
 import { thankYouChange } from '../lib/activities';
-import { BoardOrder, deliveredChange, loadBoard, mapLink, STEP_WORDS } from '../lib/deliveryBoard';
+import { BoardOrder, deliveredChange, loadBoard, mapLink, STEP_WORDS, Step } from '../lib/deliveryBoard';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 import { PhotosCard } from './PhotosCard';
@@ -25,6 +25,7 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [closedToday, setClosedToday] = useState(false);
+  const [stage, setStage] = useState<Step | null>(null);
 
   const load = useCallback(async () => {
     if (!db) return;
@@ -66,6 +67,12 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
   const routeUrl = ordered ? routeLink(ordered) : '';
   const waiting = new Set(items.filter((i) => i.step?.kind === 'note').map((i) => (i.step as { resId: number }).resId));
 
+  const stepOf = (o: BoardOrder): Step => (waiting.has(o.saleId) ? 'delivered' : o.step);
+  const stages: Step[] = ['pack', 'packed', 'delivered'];
+  const count = (st: Step) => (ordered ? ordered.filter((o) => stepOf(o) === st).length : 0);
+  // The board opens on the first stage that has a card; tap another stage to see its cards.
+  const active: Step = stage ?? stages.find((st) => count(st) > 0) ?? 'pack';
+
   const delivered = async (o: BoardOrder) => {
     setError('');
     try {
@@ -91,7 +98,11 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
           {routeUrl ? <Button label="Open the whole route in Maps" onPress={() => Linking.openURL(routeUrl)} testID="route-open" /> : null}
         </Card>
       ) : null}
+      {ordered && ordered.length ? (
+        <Segments<Step> options={stages.map((st) => ({ id: st, label: `${STEP_WORDS[st]} (${count(st)})` }))} value={active} onChange={setStage} testID="board-stages" />
+      ) : null}
       {ordered?.map((o, n) => {
+        if (stepOf(o) !== active) return null;
         const isWaiting = waiting.has(o.saleId);
         const step = isWaiting ? 'delivered' : o.step;
         return (
@@ -111,7 +122,7 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
             {step === 'delivered' && o.saleId && !isWaiting ? <FeedbackBox orderId={o.saleId} orderName={o.origin || o.name} /> : null}
             {step === 'pack' ? <Button label="Pack it" kind="plain" onPress={onPack} testID={`board-pack-${o.id}`} /> : null}
             {o.saleId ? <PhotosCard model="sale.order" resId={o.saleId} recordName={o.origin || o.name} title="Delivery proof" about="Delivery proof" button="Take a proof photo" testID={`board-photos-${o.id}`} /> : null}
-            {step === 'packed' && o.saleId ? <Button label="Delivered" onPress={() => delivered(o)} testID={`board-delivered-${o.id}`} /> : null}
+            {step === 'packed' && o.saleId ? <Button label="Move to Delivered ›" onPress={() => delivered(o)} testID={`board-delivered-${o.id}`} /> : null}
           </Card>
         );
       })}

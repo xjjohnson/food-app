@@ -11,6 +11,19 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.36',
+    changes: [
+      'A recipe and its product are now one page. From a recipe, tap Product page for price, photos, stock and shop switches. A product with a recipe has a Recipe tab with its ingredients and Edit the recipe. Both have the cookbook look.',
+      'Delivery board: stage buttons (To pack, Packed, Delivered) with counts. Each card moves along with one button: Pack it, then Move to Delivered.',
+      'Make, Batches: stage buttons (Planned, Cooking, Ready to finish) with counts, so you see each stage on its own.',
+    ],
+    test: [
+      'Open a recipe in Make, tap Product page, then open the Recipe tab there and tap Edit the recipe. You should land back on the recipe.',
+      'Delivery board with a few orders: switch between the three stages and move a packed order to Delivered.',
+      'Make, Batches: check the counts match what is in Odoo, and open a batch from each stage.',
+    ],
+  },
+  {
     release: '0.1.35',
     changes: [
       'Buy tab: a big I bought something button, then Running low, Shopping list, Ingredient list, Purchase orders, Check in a delivery and Purchase history, each one tap away.',

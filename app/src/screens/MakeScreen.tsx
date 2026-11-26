@@ -7,6 +7,12 @@ import { useOdoo } from '../lib/useOdoo';
 import { useRoles } from '../lib/useRoles';
 
 type Seg = 'recipes' | 'batches' | 'jars';
+type Stage = 'planned' | 'cooking' | 'ready';
+const STAGES: { id: Stage; label: string; states: string[] }[] = [
+  { id: 'planned', label: 'Planned', states: ['draft'] },
+  { id: 'cooking', label: 'Cooking', states: ['confirmed', 'progress'] },
+  { id: 'ready', label: 'Ready to finish', states: ['to_close'] },
+];
 
 /** The Make tab: the recipe box (cookbook look), the batches, and the jars in stock. */
 export function MakeScreen() {
@@ -18,12 +24,17 @@ export function MakeScreen() {
   const [seg, setSeg] = useState<Seg>(first);
   const [recipes, setRecipes] = useState<Recipe[] | null>(null);
   const [batches, setBatches] = useState<Batch[] | null>(null);
+  const [stage, setStage] = useState<Stage | null>(null);
   useEffect(() => {
     if (!client || offline || !has('production')) return;
     loadRecipes(client).then(setRecipes).catch(() => setRecipes([]));
     loadBatches(client).then((b) => setBatches(b.open)).catch(() => setBatches([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client, offline, roles]);
+
+  const inStage = (id: Stage) => (batches ?? []).filter((b) => STAGES.find((s) => s.id === id)!.states.includes(b.state));
+  // The board opens on the first stage that has a batch.
+  const activeStage: Stage = stage ?? STAGES.find((s) => inStage(s.id).length > 0)?.id ?? 'planned';
 
   const options: { id: Seg; label: string }[] = [];
   if (has('production')) options.push({ id: 'recipes', label: 'Recipes' }, { id: 'batches', label: 'Batches' });
@@ -45,11 +56,12 @@ export function MakeScreen() {
         </LookScope>
       ) : null}
       {seg === 'batches' && has('production') ? (
-        <Card title="Batches in progress" testID="make-batches">
-          {batches?.map((b) => (
+        <Card title="Batches" testID="make-batches">
+          <Segments<Stage> options={STAGES.map((s) => ({ id: s.id, label: `${s.label} (${inStage(s.id).length})` }))} value={activeStage} onChange={setStage} testID="make-stages" />
+          {inStage(activeStage).map((b) => (
             <Row key={b.id} title={`${fmtQty(b.qty)} ${b.product}`} detail={`${b.name} · ${stateLabel(b.state)}`} onPress={() => router.push(`/area/production?go=batch:${b.id}`)} testID={`make-batch-${b.id}`} />
           ))}
-          {batches && !batches.length ? <Body muted>Nothing cooking right now.</Body> : null}
+          {batches && !inStage(activeStage).length ? <Body muted>{batches.length ? 'Nothing in this stage.' : 'Nothing cooking right now.'}</Body> : null}
           <Button label="Start a batch" onPress={() => router.push('/area/production?go=start')} testID="make-start-batch" />
           <Row title="Plan, week and more" detail="Planner, this week, finished batches" onPress={() => router.push('/area/production')} testID="area-production" />
         </Card>

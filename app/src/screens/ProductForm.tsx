@@ -1,8 +1,9 @@
 import { useInnerBack } from '../lib/innerBack';
 import { useEffect, useState } from 'react';
-import { Body, Button, Card, Row } from '../components/ui';
+import { router } from 'expo-router';
+import { Body, Button, Card, LookScope, Row } from '../components/ui';
 import { m2oId } from '../lib/odoo';
-import { fmtQty } from '../lib/production';
+import { fmtQty, loadRecipes, type Recipe } from '../lib/production';
 import { findPackagingField, loadLots, loadVariants, PRODUCT_SECTIONS, VARIANT_SECTIONS, type LotRow, type VariantRow } from '../lib/productForm';
 import type { Section } from '../lib/odooForm';
 import { useOdoo } from '../lib/useOdoo';
@@ -14,12 +15,14 @@ import { GenericForm } from './GenericForm';
  * batches. Track Inventory, batch tracking and expiry are switches the
  * person flips here; the app never flips them by itself.
  */
-export function ProductForm({ productId, templateId, onBack }: { productId?: number; templateId?: number; onBack: () => void }) {
+export function ProductForm({ productId, templateId, onBack, onRecipe }: { productId?: number; templateId?: number; onBack: () => void; onRecipe?: (bomId: number) => void }) {
   const { client, offline } = useOdoo();
   const [tmplId, setTmplId] = useState<number | null>(templateId ?? (productId ? null : 0));
   const [variants, setVariants] = useState<VariantRow[]>([]);
   const [lots, setLots] = useState<LotRow[]>([]);
   const [variant, setVariant] = useState<number | null>(null);
+  // A product that has a recipe is one page with the recipe: it gets a Recipe tab and the cookbook look.
+  const [recipe, setRecipe] = useState<Recipe | null>(null);
   // Packagings in Odoo 19 are units picked on the product; the field is found by its label.
   const [packSection, setPackSection] = useState<Section | null | undefined>(undefined);
   useInnerBack(variant ? () => setVariant(null) : null);
@@ -46,12 +49,15 @@ export function ProductForm({ productId, templateId, onBack }: { productId?: num
       const vs = await loadVariants(client, t);
       setVariants(vs);
       setLots(await loadLots(client, vs.map((v) => v.id)));
+      const rs = await loadRecipes(client).catch(() => [] as Recipe[]);
+      setRecipe(rs.find((r) => vs.some((v) => v.id === r.productId)) ?? null);
     })().catch(() => setTmplId(0));
   }, [client, offline, productId, templateId]);
 
   if (variant) {
     const vr = variants.find((v) => v.id === variant);
     return (
+      <LookScope look={recipe ? 'cookbook' : 'clean'}>
       <GenericForm
         key="variant"
         model="product.product"
@@ -76,10 +82,12 @@ export function ProductForm({ productId, templateId, onBack }: { productId?: num
           ) },
         ]}
       />
+      </LookScope>
     );
   }
   if (packSection === undefined || ((productId || templateId) && tmplId === null)) return <Body muted>Opening the product…</Body>;
   return (
+    <LookScope look={recipe ? 'cookbook' : 'clean'}>
     <GenericForm
       key="product"
       model="product.template"
@@ -92,6 +100,23 @@ export function ProductForm({ productId, templateId, onBack }: { productId?: num
       onBack={onBack}
       testID="product-form"
       extraTabs={[
+        ...(recipe
+          ? [
+              {
+                id: 'recipe',
+                label: 'Recipe',
+                render: () => (
+                  <Card title="Recipe" testID="product-recipe">
+                    <Body muted>{`Makes ${fmtQty(recipe.makes)} ${recipe.unit}`.trim()}</Body>
+                    {recipe.lines.map((l) => (
+                      <Row key={l.productId} title={l.name} value={`${fmtQty(l.qty)} ${l.unit ?? ''}`.trim()} />
+                    ))}
+                    <Button label="Edit the recipe" onPress={() => (onRecipe ? onRecipe(recipe.id) : router.push(`/area/production?go=recipe:${recipe.id}`))} testID="product-edit-recipe" />
+                  </Card>
+                ),
+              },
+            ]
+          : []),
         {
           id: 'variants',
           label: 'Variants',
@@ -121,5 +146,6 @@ export function ProductForm({ productId, templateId, onBack }: { productId?: num
         },
       ]}
     />
+    </LookScope>
   );
 }
