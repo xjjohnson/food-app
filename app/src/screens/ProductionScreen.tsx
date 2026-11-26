@@ -33,6 +33,8 @@ import {
   startBatchChange,
   stateLabel,
   stateWithOdoo,
+  batchStep,
+  finishReasons,
   qtyWords,
   suggestBatchNumber,
 } from '../lib/production';
@@ -355,10 +357,58 @@ function BatchPage({ id, known, onBack, started }: { id: number; known?: Batch; 
   const amounts: UsedAmount[] = (d?.ingredients ?? []).map((i) => ({ moveId: i.id, name: i.name, planned: i.needed, actual: Number((used[i.id] ?? fmtQty(i.needed)).replace(',', '.')) }));
   const badAmount = amounts.some((a) => !Number.isFinite(a.actual) || a.actual < 0);
   const ready = canFinish && !!d && d.canRecordLot && lot.trim().length > 0 && okDate && !note && !badAmount;
+  const reasons = finishReasons({ canFinish, loaded: !!d, canRecordLot: !!d?.canRecordLot, lot, okDate, useBy, badAmount, queued: !!note, state: shown.state });
 
   return (
     <Screen title={`${fmtQty(shown.qty)} ${shown.product}`} testID="batch-screen">
       <Chip label={`${shown.name} · ${stateWithOdoo(shown.state)}`} testID="batch-state" />
+      <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }} testID="batch-steps">
+        {['Planned', 'Cooking', 'Finish'].map((w, i) => (
+          <Chip key={w} label={`${batchStep(shown.state) > i ? '✓' : batchStep(shown.state) === i ? '●' : '○'} ${w}`} testID={`batch-step-${i}`} />
+        ))}
+      </View>
+      {shown.state === 'draft' && d ? (
+        <Button
+          label="Confirm this batch"
+          busy={busy}
+          testID="batch-confirm"
+          onPress={async () => {
+            setBusy(true);
+            setError('');
+            try {
+              await save({ label: `Confirm batch ${shown.name}`, model: 'mrp.production', method: 'action_confirm', args: [[id]], already: { model: 'mrp.production', domain: [['id', '=', id], ['state', '!=', 'draft']] } });
+              await load();
+            } catch (e) {
+              setError(`Odoo said no: ${why(e)}`);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        />
+      ) : null}
+      {shown.state === 'confirmed' && d ? (
+        <Button
+          label="Start cooking"
+          busy={busy}
+          testID="batch-start-cooking"
+          onPress={async () => {
+            setBusy(true);
+            setError('');
+            try {
+              // Ticking the ingredients as picked is what Odoo itself does when work starts; Odoo then moves the order to In Progress.
+              const ids = d.ingredients.map((i) => i.id);
+              if (ids.length) await save({ label: `Start cooking ${shown.name}`, model: 'stock.move', method: 'write', args: [ids, { picked: true }] });
+              await load();
+            } catch (e) {
+              setError(`Odoo said no: ${why(e)}`);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        />
+      ) : null}
+      {shown.state === 'confirmed' ? <Body muted>Tap Start cooking when you begin. Then tick the checklist, and when the jars are done fill in the batch number and use-by at the bottom and tap Finish batch.</Body> : null}
+      {shown.state === 'progress' ? <Body muted>Cooking. When the jars are done, fill in the batch number and use-by at the bottom and tap Finish batch.</Body> : null}
       {!offline ? <Button label="All batch details" kind="plain" onPress={() => setAll(true)} testID="batch-all" /> : null}
       {offline ? <Body muted>No signal. The ingredient list shows when the phone is back online.</Body> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
@@ -394,7 +444,7 @@ function BatchPage({ id, known, onBack, started }: { id: number; known?: Batch; 
           {d.lots.length ? d.lots.map((l) => <Row key={l.id} title={l.name} value={l.useBy || 'no date'} testID="finished-lot" />) : <Body muted>No batch number was recorded.</Body>}
         </Card>
       ) : null}
-      {shown.state === 'draft' ? <Body muted>This batch is planned in Odoo but not started. Start it in Odoo, or make a new one here.</Body> : null}
+      
       {started ? <Body>Batch started. Odoo has set the ingredients aside.</Body> : null}
       {canFinish && d ? (
         <Card title="Finish this batch">
@@ -410,6 +460,7 @@ function BatchPage({ id, known, onBack, started }: { id: number; known?: Batch; 
           {days ? <Body muted>{`Suggested from the product’s shelf life of ${days} days. Change it if you need to.`}</Body> : null}
           {useBy && !okDate ? <ErrorText>Use the form 2026-12-25.</ErrorText> : null}
           {note ? <Body>{note}</Body> : null}
+          {reasons.length ? <View testID="finish-reasons"><Body>{`Finish batch is off because: ${reasons.join(' ')}`}</Body></View> : null}
           <Button
             label="Finish batch"
             disabled={!ready}

@@ -11,6 +11,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.40',
+    changes: [
+      'The batch page shows three steps (Planned, Cooking, Finish) with a tick on what is done. A started batch says "Ready to cook" and has a Start cooking button. A planned batch has a Confirm this batch button.',
+      'If Finish batch is greyed out, the page now says why in plain words (for example "Batch number is empty").',
+    ],
+    test: [
+      'Open a started batch: you should see the three steps and "Ready to cook". Fill in the batch number and use-by and Finish batch should turn on. If it stays grey, the line under it should say why. Tell me what it says.',
+      'Open a planned (not yet confirmed) batch and tap Confirm this batch. It should become Ready to cook.',
+      'On a Ready to cook batch tap Start cooking. It should move to Cooking (and show under Cooking on the Make tab). If it stays Ready to cook, tell me: I could not test this against your Odoo.',
+    ],
+  },
+  {
     release: '0.1.39',
     changes: [
       'Make opens on Batches. Order is Batches, Recipes, Jars in stock. The bottom tabs are now Today, Buy, Make, Sell, More.',
