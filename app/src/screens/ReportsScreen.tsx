@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Body, Card, ErrorText, Field, Row, Screen, Segments } from '../components/ui';
+import { Text, View } from 'react-native';
+import { useBrand } from '../lib/useBrand';
+import { Body, Card, ErrorText, Field, Row, Screen, Segments, useUi } from '../components/ui';
 import { Button } from '../components/ui';
 import { useInnerBack } from '../lib/innerBack';
 import { BreakEvenProduct, bestFirst, breakEvenUnits, findForBreakEven, loadSold, loadStockValue, loadYears, Range, RANGES, rangeDays, slowest, SoldRow, StockValue } from '../lib/reports';
@@ -10,6 +12,7 @@ import { soldCells } from '../lib/packet';
 
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const money = (n: number) => n.toFixed(2);
+const fmtQty = (n: number) => String(Math.round(n * 100) / 100);
 const qty = (n: number) => String(Math.round(n * 100) / 100);
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -34,7 +37,7 @@ export function ReportsScreen() {
     setError('');
     const run = async () => {
       try {
-        if (tab === 'sales' || tab === 'profit') {
+        if (tab === 'sales' || tab === 'profit' || tab === 'menu') {
           const { from, to } = rangeDays(range);
           const rows = await loadSold(client, from, to);
           setSold(rows);
@@ -69,6 +72,7 @@ export function ReportsScreen() {
   if (tab === 'menu')
     return (
       <Screen title="Money and reports" testID="reports-screen">
+        <NumbersFirst rows={best} range={range} />
         <Card title="Reports">
           <Row title="Sales" detail="Best and slowest sellers" onPress={() => setTab('sales')} testID="rep-sales" />
           <Row title="Profit" detail="Sold, units and cost side by side" onPress={() => setTab('profit')} testID="rep-profit" />
@@ -180,6 +184,43 @@ function BreakEven() {
       {fixed && units === null ? <Body>The price is not above the cost, so it never covers the cost.</Body> : null}
       {units !== null ? <Body>{`About ${units} units. Before tax, a count only.`}</Body> : null}
       <Row title="Pick another product" onPress={() => { setPick(null); setFixed(''); }} testID="even-other" />
+    </Card>
+  );
+}
+
+/** The first thing on Money: this month's numbers and the best sellers as bars. Odoo's own totals, added up. */
+function NumbersFirst({ rows, range }: { rows: SoldRow[]; range: Range }) {
+  const s = useUi();
+  const { colors } = useBrand();
+  if (!rows.length) return null;
+  const total = rows.reduce((a, r) => a + r.sales, 0);
+  const units = rows.reduce((a, r) => a + r.units, 0);
+  const top = rows.slice(0, 5);
+  const biggest = Math.max(...top.map((r) => r.sales), 1);
+  const tile = { flexBasis: '47%' as const, flexGrow: 1, borderRadius: 14, padding: 12, backgroundColor: colors.tint, gap: 2 };
+  return (
+    <Card title={range === 'month' ? 'This month' : 'Sold'} testID="report-numbers">
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+        <View style={tile}>
+          <Text style={s.muted}>Sold</Text>
+          <Text style={{ fontSize: 26, fontWeight: '800', color: colors.text }} testID="numbers-sold">{money(total)}</Text>
+        </View>
+        <View style={tile}>
+          <Text style={s.muted}>Units out</Text>
+          <Text style={{ fontSize: 26, fontWeight: '800', color: colors.text }} testID="numbers-units">{fmtQty(units)}</Text>
+        </View>
+      </View>
+      {top.map((r) => (
+        <View key={r.productId} style={{ gap: 4 }}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+            <Text style={[s.rowTitle, { fontSize: 16 }]}>{r.name}</Text>
+            <Text style={s.rowValue}>{money(r.sales)}</Text>
+          </View>
+          <View style={{ height: 10, borderRadius: 5, backgroundColor: colors.line }}>
+            <View style={{ height: 10, borderRadius: 5, width: `${Math.max(4, (r.sales / biggest) * 100)}%`, backgroundColor: colors.accent }} />
+          </View>
+        </View>
+      ))}
     </Card>
   );
 }

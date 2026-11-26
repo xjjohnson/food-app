@@ -15,7 +15,7 @@ type Page = { p: 'menu' } | { p: 'list' } | { p: 'repeat' } | { p: 'quote'; id?:
 
 /** Quotes and orders for customers: new quote, wholesale order, repeat orders. */
 export function SellScreen({ go }: { go?: string } = {}) {
-  const [page, setPage] = useState<Page>(go === 'quote' ? { p: 'quote' } : { p: 'menu' });
+  const [page, setPage] = useState<Page>(go === 'quote' ? { p: 'quote' } : go === 'wholesale' ? { p: 'quote', wholesale: true } : go === 'list' ? { p: 'list' } : go === 'repeat' ? { p: 'repeat' } : { p: 'menu' });
   const menu = () => setPage({ p: 'menu' });
   useInnerBack(page.p === 'menu' ? null : page.p === 'quote' && page.lines ? () => setPage({ p: 'quote', id: page.id }) : page.p === 'quote' && page.id ? () => setPage({ p: 'list' }) : menu);
   if (page.p === 'list') return <QuoteList onBack={menu} onOpen={(id) => setPage({ p: 'quote', id })} />;

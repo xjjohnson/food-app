@@ -11,12 +11,12 @@ const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const copyKey = (db: string) => `orders/v1/${db}`;
 
 /** Website orders: what is waiting to be packed, and handing each over. */
-export function OrdersScreen() {
+export function OrdersScreen({ go }: { go?: string } = {}) {
   const { client, db, offline } = useOdoo();
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [open, setOpen] = useState<Order | null>(null);
   const [fromPhone, setFromPhone] = useState(false);
-  const [board, setBoard] = useState(false);
+  const [board, setBoard] = useState(go === 'board');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
 

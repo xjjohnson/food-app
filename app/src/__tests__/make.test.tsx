@@ -68,3 +68,45 @@ describe('the Make tab', () => {
     expect(screen.getByTestId('area-stock')).toBeTruthy();
   });
 });
+
+describe('the Buy and Sell tabs', () => {
+  test('Buy opens the Bought ingredients page in one tap', async () => {
+    const { odoo } = bakery();
+    await open(odoo, '/', 'Inventory');
+    await fireEvent.press(screen.getByTestId('tab-buy'));
+    await settle();
+    await fireEvent.press(screen.getByTestId('buy-bought'));
+    await settle();
+    expect(screen.getByTestId('bought-screen')).toBeTruthy();
+  });
+
+  test('Sell has market day as big buttons, and a day sheet tile opens that page', async () => {
+    const { odoo } = bakery();
+    await open(odoo, '/', 'Owner');
+    await fireEvent.press(screen.getByTestId('tab-sell'));
+    await settle();
+    expect(screen.getByTestId('sell-seg-delivery')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('sell-seg-market'));
+    expect(screen.getByTestId('market-tiles')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('market-tile-price'));
+    await settle();
+    expect(screen.queryByTestId('market-screen')).toBeNull();
+    expect(screen.queryByTestId('market-tiles')).toBeNull();
+  });
+});
+
+describe('Money and reports', () => {
+  test('opens on this month’s numbers, from Odoo’s own totals', async () => {
+    const { odoo } = bakery();
+    const jelly = odoo.create('product.product', { name: 'Grape jelly', display_name: 'Grape jelly', sale_ok: true, standard_price: 2, list_price: 6 });
+    const today = new Date().toISOString().slice(0, 10);
+    odoo.create('sale.report', { product_id: [jelly, 'Grape jelly'], product_uom_qty: 5, price_subtotal: 30, date: `${today} 10:00:00`, state: 'sale' });
+    await open(odoo, '/', 'Owner');
+    await fireEvent.press(screen.getByTestId('tab-more'));
+    await settle();
+    await fireEvent.press(screen.getByTestId('open-reports'));
+    await settle();
+    expect(screen.getByTestId('numbers-sold')).toHaveTextContent('30.00');
+    expect(screen.getByTestId('numbers-units')).toHaveTextContent('5');
+  });
+});

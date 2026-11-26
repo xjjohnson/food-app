@@ -7,11 +7,13 @@ import { useInnerBack } from '../lib/innerBack';
 import { DaySheetPage, DrawerPage, PricePage, ResultsPage, TakePage, TotalsPage } from './MarketDay';
 
 /** Market: opens Odoo's Point of Sale to ring up sales. */
-export function MarketScreen() {
+const MARKET_PAGES = ['results', 'sheet', 'take', 'price', 'drawer', 'totals'] as const;
+
+export function MarketScreen({ go }: { go?: string } = {}) {
   const { client, offline } = useOdoo();
   const [info, setInfo] = useState<MarketInfo | null>(null);
   const [error, setError] = useState('');
-  const [page, setPage] = useState<'main' | 'results' | 'sheet' | 'take' | 'price' | 'drawer' | 'totals'>('main');
+  const [page, setPage] = useState<'main' | (typeof MARKET_PAGES)[number]>(MARKET_PAGES.find((p) => p === go) ?? 'main');
   useInnerBack(page !== 'main' ? () => setPage('main') : null);
 
   useEffect(() => {

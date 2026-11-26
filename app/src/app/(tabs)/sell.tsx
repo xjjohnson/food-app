@@ -1,5 +1,5 @@
-import { TabMenu } from '../../screens/TabMenu';
+import { SellTab } from '../../screens/SellTab';
 
-export default function SellTab() {
-  return <TabMenu tab="sell" />;
+export default function SellRoute() {
+  return <SellTab />;
 }

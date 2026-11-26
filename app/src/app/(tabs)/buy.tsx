@@ -1,5 +1,5 @@
-import { TabMenu } from '../../screens/TabMenu';
+import { BuyScreen } from '../../screens/BuyScreen';
 
 export default function BuyTab() {
-  return <TabMenu tab="buy" />;
+  return <BuyScreen />;
 }

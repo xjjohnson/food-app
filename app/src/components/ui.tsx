@@ -230,3 +230,20 @@ export function Segments<T extends string>({ options, value, onChange, testID }:
     </View>
   );
 }
+
+/** A big button tile for standing-up work (market day): large text, easy to hit. */
+export function BigTile({ label, detail, onPress, testID }: { label: string; detail?: string; onPress: () => void; testID?: string }) {
+  const { colors } = useBrand();
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      testID={testID}
+      style={({ pressed }) => ({ flexBasis: '47%', flexGrow: 1, minHeight: 104, borderRadius: 16, padding: 14, justifyContent: 'space-between', backgroundColor: colors.accent, opacity: pressed ? 0.75 : 1 })}
+    >
+      <Text style={{ fontSize: 22, fontWeight: '800', color: colors.onAccent }}>{label}</Text>
+      {detail ? <Text style={{ fontSize: 14, color: colors.onAccent }}>{detail}</Text> : null}
+    </Pressable>
+  );
+}
