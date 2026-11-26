@@ -30,6 +30,13 @@ export type Step =
       date: string;
       /** The payment journal (Cash, Bank...) the bill was paid from, or null for "not paid yet". */
       journalId: number | null;
+    }
+  | {
+      /** Mark a bill or invoice that already exists as paid (Invoices and Purchase history). */
+      kind: 'pay';
+      moveId: number;
+      date: string;
+      journalId: number;
     };
 
 async function orderByToken(c: Client, token: string): Promise<{ id: number; state: string; pickings: number[]; bills: number[] } | null> {
@@ -78,7 +85,19 @@ async function bill(c: Client, step: Extract<Step, { kind: 'bill' }>): Promise<v
   }
 }
 
+/** Registers a payment on an existing bill or invoice. Left alone if it is already paid. */
+async function pay(c: Client, step: Extract<Step, { kind: 'pay' }>): Promise<void> {
+  const [m] = (await c.call('account.move', 'read', [[step.moveId]], { fields: ['state', 'payment_state'] })) as { state?: string; payment_state?: string }[];
+  if (!m) throw new Error('That bill or invoice is no longer in Odoo.');
+  if (m.payment_state === 'paid' || m.payment_state === 'in_payment') return;
+  if (m.state !== 'posted') throw new Error('It is not confirmed in Odoo yet, so it cannot be marked paid. Confirm it in Odoo first.');
+  const ctx = { active_model: 'account.move', active_ids: [step.moveId] };
+  const wiz = (await c.call('account.payment.register', 'create', [{ journal_id: step.journalId, payment_date: step.date }], { context: ctx })) as number;
+  await c.call('account.payment.register', 'action_create_payments', [[wiz]], { context: ctx });
+}
+
 export async function runStep(c: Client, step: Step): Promise<void> {
+  if (step.kind === 'pay') return pay(c, step);
   if (step.kind === 'receive') return receive(c, step);
   return bill(c, step);
 }

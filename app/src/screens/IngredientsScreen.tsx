@@ -9,6 +9,7 @@ import { loadPurchaseOrders, poStateLabel, PurchaseRow, Arrived, checkInChanges,
 import { fmtQty, isDate } from '../lib/production';
 import { searchProducts } from '../lib/stock';
 import { IngredientListScreen } from './IngredientListScreen';
+import { MoneyScreen } from './MoneyScreen';
 import { BoughtScreen } from './BoughtScreen';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
@@ -16,7 +17,7 @@ import { useQueue } from '../lib/useQueue';
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const toNum = (t: string) => Number(t.replace(',', '.'));
 
-type Page = { p: 'menu' } | { p: 'bought' } | { p: 'list' } | { p: 'low' } | { p: 'order'; item: LowItem } | { p: 'levels'; item?: LowItem } | { p: 'receipts' } | { p: 'checkin'; receipt: Receipt } | { p: 'rule'; id: number } | { p: 'pos' } | { p: 'po'; id?: number; lines?: boolean };
+type Page = { p: 'menu' } | { p: 'bought' } | { p: 'history' } | { p: 'list' } | { p: 'low' } | { p: 'order'; item: LowItem } | { p: 'levels'; item?: LowItem } | { p: 'receipts' } | { p: 'checkin'; receipt: Receipt } | { p: 'rule'; id: number } | { p: 'pos' } | { p: 'po'; id?: number; lines?: boolean };
 
 /** The page Back goes to from each page. */
 function upFrom(p: Page): Page {
@@ -42,6 +43,8 @@ export function IngredientsScreen() {
   switch (page.p) {
     case 'bought':
       return <BoughtScreen onBack={menu} />;
+    case 'history':
+      return <MoneyScreen kind="in" onBack={menu} />;
     case 'list':
       return <IngredientListScreen onBack={menu} />;
     case 'low':
@@ -79,6 +82,7 @@ export function IngredientsScreen() {
   return (
     <Screen title="Ingredients" testID="ingredients-screen">
       <Row title="Bought ingredients" detail="Shopped? Write down what you bought and paid. It goes into stock" onPress={() => setPage({ p: 'bought' })} testID="ing-bought" />
+      <Row title="Purchase history" detail="Every purchase and bill: date, store, total, paid or not" onPress={() => setPage({ p: 'history' })} testID="ing-history" />
       <Row title="Ingredient list" detail="See, add and change ingredients, their cost and vendors" onPress={() => setPage({ p: 'list' })} testID="ing-list" />
       <Row title="Running low" detail="What to order, and the levels that mean low" onPress={() => setPage({ p: 'low' })} testID="ing-low" />
       <Body muted>Ordering ahead, then receiving later:</Body>

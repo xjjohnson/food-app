@@ -11,6 +11,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.18',
+    changes: [
+      'New Invoices on the home screen (Sales and Owner): who owes you and who has paid, newest first. Tap one to see what was on it, and mark it paid with Cash, Cash App or Venmo.',
+      'New Purchase history under Ingredients: every purchase and bill with date, store, total, paid or not. Tap one to see the lines.',
+      'New ingredients added in the app now have Track Inventory switched on, so their stock is counted.',
+    ],
+    test: [
+      'Home, Invoices. Not paid shows what customers owe. Paid and All switch the list. Search by a customer name or invoice number.',
+      'Open an unpaid invoice. Check the lines and total match Odoo. Tap Paid with Cash and check in Odoo that the invoice shows Paid and a payment was made once.',
+      'Turn on airplane mode, open Invoices (it shows the last list), open one and mark it paid. It says saved on the phone. Turn signal back on and check Odoo shows one payment.',
+      'Ingredients, Purchase history. Check a purchase from Bought ingredients is there with the right store, date, total and lines. Mark an unpaid one paid.',
+      'Ingredients, Ingredient list, Add an ingredient and save. In Odoo check its Track Inventory is on.',
+    ],
+  },
+  {
     release: '0.1.17',
     changes: ['Fixes the pickers that said “Couldn’t read the list from Odoo” (an unexpected keyword argument): units for Packagings and Change the unit, and other pickers in the product and contact forms. Odoo 19 renamed that option.'],
     test: [

@@ -124,7 +124,7 @@ export function newIngredientChange(v: IngredientValues, unitId: number | null):
     label: `New ingredient: ${v.name.trim()}`,
     model: 'product.template',
     method: 'create',
-    args: [{ name: v.name.trim(), purchase_ok: true, sale_ok: false, standard_price: v.cost, supplier_taxes_id: [[6, 0, v.taxIds]], ...(v.reference.trim() ? { default_code: v.reference.trim() } : {}), ...(v.barcode.trim() ? { barcode: v.barcode.trim() } : {}), ...(v.categoryId ? { categ_id: v.categoryId } : {}), ...(unitId ? { uom_id: unitId } : {}) }],
+    args: [{ name: v.name.trim(), purchase_ok: true, sale_ok: false, is_storable: true, standard_price: v.cost, supplier_taxes_id: [[6, 0, v.taxIds]], ...(v.reference.trim() ? { default_code: v.reference.trim() } : {}), ...(v.barcode.trim() ? { barcode: v.barcode.trim() } : {}), ...(v.categoryId ? { categ_id: v.categoryId } : {}), ...(unitId ? { uom_id: unitId } : {}) }],
     already: { model: 'product.template', domain: [['name', '=', v.name.trim()]] },
   };
 }
