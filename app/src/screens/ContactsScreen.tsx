@@ -5,6 +5,7 @@ import { Contact, searchContacts } from '../lib/edit';
 import { CONTACT_SECTIONS } from '../lib/forms';
 import { useOdoo } from '../lib/useOdoo';
 import { MoneyScreen } from './MoneyScreen';
+import { RepeatLastButton } from './SellScreen';
 import { GenericForm } from './GenericForm';
 
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -46,6 +47,7 @@ export function ContactsScreen() {
           <>
             <Button label="Invoices to this contact" onPress={() => setHist({ id: form.id!, name: list.find((c) => c.id === form.id)?.name ?? 'Contact', kind: 'out' })} testID="contact-invoices" />
             <Button label="Purchases from this contact" kind="plain" onPress={() => setHist({ id: form.id!, name: list.find((c) => c.id === form.id)?.name ?? 'Contact', kind: 'in' })} testID="contact-purchases" />
+            <RepeatLastButton partnerId={form.id!} name={list.find((c) => c.id === form.id)?.name ?? 'this customer'} />
           </>
         ) }] : undefined}
         onBack={() => {

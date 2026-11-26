@@ -11,6 +11,22 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.27',
+    changes: [
+      'New area Quotes and orders (Sales). New quote: customer, addresses, dates, price list, payment terms, terms and notes, and lines. Prices, discounts, tax and totals are Odoo’s; leave Price blank to use Odoo’s price for that customer.',
+      'New wholesale order: the same form with a case (a unit set on the product) per line and payment terms like Net 30. After you confirm it, Make the invoice sends it to Odoo as an invoice.',
+      'Share a quote as text from the Send tab, or tap Email it from Odoo (Odoo’s own email). Nothing is sent unless you tap. A PDF comes in a later app build.',
+      'Repeat orders: who usually orders, how many days between orders, who is due. Tap a customer, or use Repeat the last order on the customer’s History tab, to make a new quote like their last order. Nothing is sent to them.',
+    ],
+    test: [
+      'Quotes and orders, New quote: pick a customer, save, then Edit the lines and add two products with quantities. Check the prices and total match what Odoo shows on the same quote.',
+      'On the quote’s Send tab, tap Share as text and check the text reads right. Tap Confirm the order and check Odoo made a delivery.',
+      'New wholesale order: pick a wholesale customer, payment terms Net 30, a line in cases. Confirm, then Make the invoice and check the invoice in Odoo.',
+      'Repeat orders: check the usual gap and days since match their orders. Tap one and check a new draft quote appears in Quotes and open orders.',
+      'Try Email it from Odoo on a quote sent to yourself. If Odoo refuses, tell me the message.',
+    ],
+  },
+  {
     release: '0.1.26',
     changes: [
       'Market: a new Market day card. Market day sheet (what sold at the last three markets beside what is in stock, with a pack list to tick), Check out and check in (type what you took and what came back, shown beside what Odoo says sold), Price sheet (big list to share), Cash drawer (count bills and coins, compared with the opening and closing cash Odoo has), Day totals (type the Cash App and Venmo totals and see if they match Odoo), and Results (sales after closing, by way to pay, best sellers, what is left).',

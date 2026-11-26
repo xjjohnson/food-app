@@ -226,7 +226,34 @@ export class FakeOdoo {
         if (model === 'mrp.bom.byproduct') for (const b of this.tables['mrp.bom']!) b.byproduct_ids = ((b.byproduct_ids as number[]) ?? []).filter((x) => !ids.includes(x));
         return true;
       }
+      case 'copy': {
+        const [ids, defaults] = args as [number[], Record<string, unknown>?];
+        const src = table.find((x) => x.id === ids[0]);
+        if (!src) throw { message: 'Odoo Server Error', data: { name: 'odoo.exceptions.MissingError', message: 'Record does not exist' } };
+        const { id: _id, ...rest } = src;
+        void _id;
+        return this.create(model, { ...rest, state: 'draft', ...(defaults ?? {}) });
+      }
+      case 'create_invoices': {
+        const ctx = (kw.context ?? {}) as { active_ids?: number[] };
+        for (const oid of ctx.active_ids ?? []) {
+          const o = (this.tables['sale.order'] ??= []).find((x) => x.id === oid);
+          if (!o) continue;
+          const inv = this.create('account.move', { move_type: 'out_invoice', state: 'draft', payment_state: 'not_paid', partner_id: o.partner_id, invoice_origin: o.name, amount_total: o.amount_total ?? 0 });
+          o.invoice_ids = [...((o.invoice_ids as number[]) ?? []), inv];
+        }
+        return true;
+      }
+      case 'action_send_mail':
+        return true;
       case 'action_confirm':
+        if (model === 'sale.order') {
+          for (const r of table.filter((x) => (args[0] as number[]).includes(x.id))) {
+            if (r.state !== 'draft' && r.state !== 'sent') throw { message: 'Odoo Server Error', data: { name: 'odoo.exceptions.UserError', message: `${r.name} is already confirmed.` } };
+            r.state = 'sale';
+          }
+          return true;
+        }
         for (const r of table.filter((x) => (args[0] as number[]).includes(x.id))) {
           if (r.state !== 'draft') throw { message: 'Odoo Server Error', data: { name: 'odoo.exceptions.UserError', message: `${r.name} is already confirmed.` } };
           r.state = 'confirmed';
