@@ -36,10 +36,22 @@ describe('website orders lib', () => {
         { lotId: 3, lot: 'NONE', useBy: '', qty: 50 },
       ],
       6,
+      '2026-11-26',
     );
     expect(r.picks.map((p) => [p.lot, p.qty])).toEqual([['OLD', 4], ['NEW', 2]]);
     expect(r.short).toBe(0);
     expect(oldestFirst([{ lotId: 1, lot: 'A', useBy: '', qty: 2 }], 5).short).toBe(3);
+  });
+
+  test('a batch past its use-by date is used last and marked expired', () => {
+    const stock = [
+      { lotId: 1, lot: 'EXPIRED', useBy: '2026-03-18', qty: 6 },
+      { lotId: 2, lot: 'GOOD', useBy: '2027-03-18', qty: 4 },
+    ];
+    const enough = oldestFirst(stock, 3, '2026-11-26');
+    expect(enough.picks.map((p) => [p.lot, p.expired])).toEqual([['GOOD', undefined]]);
+    const more = oldestFirst(stock, 8, '2026-11-26');
+    expect(more.picks.map((p) => [p.lot, p.qty, p.expired])).toEqual([['GOOD', 4, undefined], ['EXPIRED', 4, true]]);
   });
 
   test('packs the oldest batch first and hands the order over', async () => {

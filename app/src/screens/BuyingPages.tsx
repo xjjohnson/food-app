@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Linking, Modal, View } from 'react-native';
 import { Body, Button, Card, ErrorText, Field, Row, Screen } from '../components/ui';
+import { partnerFields } from '../lib/partnerFields';
 import { CodeMatch, findByCode, loadReadings, loadScorecard, loadVehicles, Reading, readingChange, readingProblems, Scorecard, Vehicle } from '../lib/buying';
 import { useInnerBack } from '../lib/innerBack';
 import { mapLink } from '../lib/deliveryBoard';
@@ -19,7 +20,7 @@ export function SupplierBox({ partnerId, name }: { partnerId: number; name: stri
   useEffect(() => {
     if (!client || offline) return;
     (async () => {
-      const [p] = (await client.call('res.partner', 'read', [[partnerId]], { fields: ['phone', 'mobile', 'street', 'city', 'zip'] })) as Record<string, unknown>[];
+      const [p] = (await client.call('res.partner', 'read', [[partnerId]], { fields: await partnerFields(client, ['phone', 'mobile', 'street', 'city', 'zip']) })) as Record<string, unknown>[];
       const s = (k: string) => (typeof p?.[k] === 'string' ? (p![k] as string) : '');
       setInfo({ phone: s('mobile') || s('phone'), address: [s('street'), s('city'), s('zip')].filter(Boolean).join(', ') });
     })().catch(() => undefined);

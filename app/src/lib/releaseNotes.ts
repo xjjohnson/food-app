@@ -11,6 +11,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.41',
+    changes: [
+      'The Delivery board works again. Odoo 19 has no Mobile field on contacts, and the board (and the supplier call page) asked for it. They now ask only for fields Odoo has.',
+      'Packing: a batch past its use-by date is used last, marked EXPIRED in the list, and a red warning shows above it.',
+    ],
+    test: [
+      'Sell, Orders, Delivery board: the deliveries for today should show (no "Invalid field mobile" message).',
+      'Open order S00002 to pack: batch 261126-13 should say EXPIRED, and the warning should show. Fix its date in Odoo, Inventory, Lots if it was a typing mistake.',
+      'Buy, a supplier: the call and map buttons should work.',
+    ],
+  },
+  {
     release: '0.1.40',
     changes: [
       'The batch page shows three steps (Planned, Cooking, Finish) with a tick on what is done. A started batch says "Ready to cook" and has a Start cooking button. A planned batch has a Confirm this batch button.',
