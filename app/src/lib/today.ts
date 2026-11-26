@@ -39,6 +39,7 @@ export async function loadToday(c: Client, roles: Roles): Promise<TodayItem[]> {
   await add({ id: 'expiring', title: 'Batches close to their use-by date', area: 'stock', role: 'inventory' }, async () => (await loadExpiring(c, useByDays(await loadSettings(c)))).length);
   await add({ id: 'low', title: 'Ingredients running low', area: 'ingredients', role: 'inventory' }, async () => (await loadRules(c, true)).length);
   await add({ id: 'deliveries', title: 'Deliveries to check in', area: 'ingredients', role: 'inventory' }, () => count(c, 'stock.picking', [['picking_type_code', '=', 'incoming'], ['state', '=', 'assigned']]));
+  await add({ id: 'web-new', title: 'New website orders (last 3 days)', area: 'orders', role: 'shipping' }, () => count(c, 'sale.order', [['website_id', '!=', false], ['state', '=', 'sale'], ['date_order', '>=', `${new Date(Date.now() - 3 * 86400000).toISOString().slice(0, 10)} 00:00:00`]]));
   await add({ id: 'owed', title: 'Invoices not paid yet', area: 'invoices', role: 'sales' }, () => count(c, 'account.move', [['move_type', '=', 'out_invoice'], ['state', '=', 'posted'], ['payment_state', 'in', ['not_paid', 'partial']]]));
   await add({ id: 'out-today', title: 'Deliveries and pickups due today', area: 'orders', role: 'shipping' }, () => count(c, 'stock.picking', [['picking_type_code', '=', 'outgoing'], ['state', 'in', ['assigned', 'confirmed', 'waiting']], ['scheduled_date', '<=', `${new Date().toISOString().slice(0, 10)} 23:59:59`]]));
   return out;
