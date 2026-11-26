@@ -50,6 +50,8 @@ export interface LotPick {
   lot: string;
   useBy: string;
   qty: number;
+  /** True when the use-by date has already passed. */
+  expired?: boolean;
 }
 
 const nameOf = (v: unknown): string => (Array.isArray(v) && typeof v[1] === 'string' ? v[1] : '');
@@ -97,16 +99,19 @@ export async function loadLotStock(c: Client, productId: number | number[]): Pro
 
 /**
  * Takes the amount needed from the batches that expire first. Batches with no
- * use-by date come last. Returns what it could cover and how much is still short.
+ * use-by date come after those, and batches already past their use-by come
+ * last, so they are only used when nothing else can fill the order (and are
+ * marked expired). Returns what it could cover and how much is still short.
  */
-export function oldestFirst(stock: LotStock[], qty: number): { picks: LotPick[]; short: number } {
-  const order = [...stock].sort((a, b) => (a.useBy || '9999-99-99').localeCompare(b.useBy || '9999-99-99') || a.lot.localeCompare(b.lot));
+export function oldestFirst(stock: LotStock[], qty: number, today = new Date().toISOString().slice(0, 10)): { picks: LotPick[]; short: number } {
+  const past = (s: LotStock) => !!s.useBy && s.useBy < today;
+  const order = [...stock].sort((a, b) => Number(past(a)) - Number(past(b)) || (a.useBy || '9999-99-99').localeCompare(b.useBy || '9999-99-99') || a.lot.localeCompare(b.lot));
   const picks: LotPick[] = [];
   let left = qty;
   for (const s of order) {
     if (left <= 0) break;
     const take = Math.min(left, s.qty);
-    if (take > 0) picks.push({ lotId: s.lotId, lot: s.lot, useBy: s.useBy, qty: take });
+    if (take > 0) picks.push({ lotId: s.lotId, lot: s.lot, useBy: s.useBy, qty: take, ...(past(s) ? { expired: true } : {}) });
     left -= take;
   }
   return { picks, short: Math.max(0, Math.round(left * 1000) / 1000) };

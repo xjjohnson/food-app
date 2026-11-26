@@ -5,6 +5,7 @@
  * from the app, because Odoo has no step for it). Read only except that note.
  */
 import { m2oId, type OdooClient } from './odoo';
+import { partnerFields } from './partnerFields';
 import type { NewChange } from './queue';
 
 type Client = Pick<OdooClient, 'call'>;
@@ -43,7 +44,7 @@ export async function loadBoard(c: Client, now = new Date()): Promise<BoardOrder
   const rows = [...open, ...recent].sort((a, b) => String(a.scheduled_date).localeCompare(String(b.scheduled_date)));
   if (!rows.length) return [];
   const partnerIds = [...new Set(rows.map((r) => m2oId(r.partner_id)).filter(Boolean))];
-  const partners = partnerIds.length ? ((await c.call('res.partner', 'read', [partnerIds], { fields: ['phone', 'mobile', 'street', 'street2', 'city', 'zip', 'comment'] })) as Record<string, unknown>[]) : [];
+  const partners = partnerIds.length ? ((await c.call('res.partner', 'read', [partnerIds], { fields: await partnerFields(c, ['phone', 'mobile', 'street', 'street2', 'city', 'zip', 'comment']) })) as Record<string, unknown>[]) : [];
   const saleIds = rows.map((r) => m2oId(r.sale_id)).filter(Boolean);
   const done = saleIds.length ? ((await c.call('mail.message', 'search_read', [[['model', '=', 'sale.order'], ['res_id', 'in', saleIds], ['body', 'ilike', DELIVERED_TAG]]], { fields: ['res_id'] })) as { res_id: number }[]) : [];
   const delivered = new Set(done.map((m) => m.res_id));

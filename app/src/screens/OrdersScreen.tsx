@@ -125,6 +125,7 @@ function PackOrder({ order, onBack }: { order: Order; onBack: () => void }) {
       {offline ? <Body muted>No signal. Packing needs the batch list from Odoo, so open this order again with signal.</Body> : null}
       {!readyToPack(order) ? <Body muted>Odoo is still waiting for stock for this order, so it can’t be packed yet.</Body> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
+      {plan?.some((x) => x.picks.some((p) => p.expired)) ? <ErrorText>One of these batches is past its use-by date. Check it before you pack it, and fix the date in Odoo if it was a typing mistake.</ErrorText> : null}
       <Card title="Pack these">
         {!plan ? <Body muted>{offline ? '' : 'Loading…'}</Body> : null}
         {plan?.map(({ line, picks, short }) => (
@@ -133,7 +134,7 @@ function PackOrder({ order, onBack }: { order: Order; onBack: () => void }) {
             title={`${fmtQty(line.qty)} ${line.name}`}
             detail={
               picks.length
-                ? `Take: ${picks.map((p) => `${fmtQty(p.qty)} from batch ${p.lot}${p.useBy ? ` (use by ${p.useBy})` : ''}`).join(', ')}${short ? `. Short by ${fmtQty(short)}.` : ''}`
+                ? `Take: ${picks.map((p) => `${fmtQty(p.qty)} from batch ${p.lot}${p.useBy ? ` (use by ${p.useBy}${p.expired ? ', EXPIRED' : ''})` : ''}`).join(', ')}${short ? `. Short by ${fmtQty(short)}.` : ''}`
                 : 'No batch numbers on this product.'
             }
             testID={`line-${line.moveId}`}
