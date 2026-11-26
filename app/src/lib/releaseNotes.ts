@@ -11,6 +11,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.20',
+    changes: [
+      'Production: new Plan batches. Pick recipes and how many; it adds up what they need and shows what you have, what is on order, and what is short. Jars, lids and labels are marked as packaging. Save as planned batches (draft batches in Odoo) or start them all now.',
+      'Ingredients: new Shopping list. What planned batches are short of, plus what is running low, grouped by each ingredient’s usual supplier, with ticks that stay on the phone.',
+      'Start a batch: Half, Recipe and Double buttons. The owner also sees Odoo’s price and cost for the product.',
+      'A finished batch shows its yield (made compared with the plan).',
+      'New Batch checklist on a batch: tick each step; Odoo gets a note with who and when. Steps come from a survey called “Batch checklist” if you make one in Odoo Surveys (its questions are the steps); otherwise a default list.',
+    ],
+    test: [
+      'Production, Plan batches. Add 2 recipes with amounts. Check what it needs, what you have, what is on order and what is short match Odoo. Save as planned batches and check draft batches in Odoo.',
+      'Ingredients, Shopping list. Check the short items from planned batches and the running-low items are there under their supplier. Tick some, close the app, reopen: ticks stay.',
+      'Start a batch, tap Double and Half and check the ingredients follow. As the owner check the price and cost line shows; as another role it is hidden.',
+      'Open a batch that is started: the Batch checklist shows. Tick a step and check a note appears on the batch in Odoo. Tick one with airplane mode on and check it arrives once.',
+      'Optional: in Odoo Surveys make a survey titled Batch checklist with a question per step, then reopen a batch and check those steps show.',
+      'Open a finished batch and check the Yield line.',
+    ],
+  },
+  {
     release: '0.1.19',
     changes: [
       'New Delivery board (button at the top of Website orders): today’s deliveries and pickups with the address (tap for the map), phone, the customer’s notes, and the step: To pack, Packed, Delivered. Tap Delivered once it is handed over; it is saved as a note on the order in Odoo.',
