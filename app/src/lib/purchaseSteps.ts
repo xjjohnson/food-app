@@ -39,6 +39,8 @@ export type Step =
     }
   | ExpenseStep
   | { kind: 'saleinvoice'; orderId: number }
+  /** Invoice an order, post it, and optionally mark it paid (pay on delivery). */
+  | { kind: 'salepay'; orderId: number; date: string; journalId: number | null }
   | { kind: 'setting'; key: string; value: string }
   /** A picture on a record. `uri` is the file waiting on the phone. */
   | { kind: 'photo'; model: string; resId: number; name: string; uri: string }
@@ -118,6 +120,20 @@ async function pay(c: Client, step: Extract<Step, { kind: 'pay' }>): Promise<voi
   await c.call('account.payment.register', 'action_create_payments', [[wiz]], { context: ctx });
 }
 
+/** Pay on delivery: makes the order's invoice if missing, posts it, and registers the payment if a journal was chosen. */
+async function runSalePay(c: Client, step: Extract<Step, { kind: 'salepay' }>): Promise<void> {
+  await runSaleInvoice(c, step.orderId);
+  const [o] = (await c.call('sale.order', 'read', [[step.orderId]], { fields: ['invoice_ids'] })) as { invoice_ids?: number[] }[];
+  const ids = o?.invoice_ids ?? [];
+  if (!ids.length) throw new Error('Odoo made no invoice for this order.');
+  const moves = (await c.call('account.move', 'read', [ids], { fields: ['state', 'payment_state', 'move_type'] })) as { id: number; state: string; payment_state?: string; move_type?: string }[];
+  for (const m of moves) {
+    if (m.state === 'cancel' || (m.move_type && m.move_type !== 'out_invoice')) continue;
+    if (m.state === 'draft') await c.call('account.move', 'action_post', [[m.id]]);
+    if (step.journalId) await pay(c, { kind: 'pay', moveId: m.id, date: step.date, journalId: step.journalId });
+  }
+}
+
 /** Posts a note on the record unless a note with the same tag is already there. */
 async function note(c: Client, step: Extract<Step, { kind: 'note' }>): Promise<void> {
   const found = (await c.call('mail.message', 'search', [[['model', '=', step.model], ['res_id', '=', step.resId], ['body', 'ilike', step.tag]]], { limit: 1 })) as number[];
@@ -130,6 +146,7 @@ export async function runStep(c: Client, step: Step): Promise<void> {
   if (step.kind === 'move') return runMove(c, step);
   if (step.kind === 'count') return runCount(c, step);
   if (step.kind === 'saleinvoice') return runSaleInvoice(c, step.orderId);
+  if (step.kind === 'salepay') return runSalePay(c, step);
   if (step.kind === 'expense') return runExpense(c, step);
   if (step.kind === 'photo') return runPhoto(c, step);
   if (step.kind === 'note') return note(c, step);

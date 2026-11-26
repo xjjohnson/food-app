@@ -16,6 +16,7 @@ const STEP_WORDS: Record<string, string> = {
   move: 'Move the stock',
   count: 'Save the count',
   pay: 'Record the payment',
+  salepay: 'Make the invoice and record the payment',
 };
 
 /** The steps a waiting change will take, in order. */
