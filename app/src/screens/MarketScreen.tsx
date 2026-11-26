@@ -3,7 +3,7 @@ import { Linking } from 'react-native';
 import { Body, Button, Card, ErrorText, Row, Screen } from '../components/ui';
 import { loadMarket, MarketInfo, openFor, posUrl } from '../lib/market';
 import { useOdoo } from '../lib/useOdoo';
-import { useInnerBack } from '../lib/innerBack';
+import { useInnerBack, useLeaveAtBase } from '../lib/innerBack';
 import { DaySheetPage, DrawerPage, PricePage, ResultsPage, TakePage, TotalsPage } from './MarketDay';
 
 /** Market: opens Odoo's Point of Sale to ring up sales. */
@@ -14,6 +14,7 @@ export function MarketScreen({ go }: { go?: string } = {}) {
   const [info, setInfo] = useState<MarketInfo | null>(null);
   const [error, setError] = useState('');
   const [page, setPage] = useState<'main' | (typeof MARKET_PAGES)[number]>(MARKET_PAGES.find((p) => p === go) ?? 'main');
+  useLeaveAtBase(!!go, page === 'main');
   useInnerBack(page !== 'main' ? () => setPage('main') : null);
 
   useEffect(() => {

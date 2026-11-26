@@ -7,6 +7,7 @@
  * Components register in the order a person goes deeper, so the last one in
  * the list is the page on top.
  */
+import { router } from 'expo-router';
 import { useEffect, useRef } from 'react';
 
 interface Entry {
@@ -42,4 +43,27 @@ export function useInnerBack(handler: (() => void) | null) {
       stack = stack.filter((e) => e.id !== id);
     };
   }, [active, id]);
+}
+
+/**
+ * A screen opened straight onto one of its pages (from a tab, or the plus
+ * button) should go back to where the person came from, not stop on its own
+ * menu. Pass whether the screen is now showing its first page (`atBase`) and
+ * whether it was opened onto a page (`entered`). The first time it returns to
+ * its first page after starting on another, this leaves the screen.
+ */
+export function useLeaveAtBase(entered: boolean, atBase: boolean) {
+  const seenPage = useRef(false);
+  useEffect(() => {
+    if (!entered) return;
+    if (!atBase) {
+      seenPage.current = true;
+      return;
+    }
+    if (seenPage.current) {
+      seenPage.current = false;
+      if (router.canGoBack()) router.back();
+      else router.replace('/');
+    }
+  }, [entered, atBase]);
 }

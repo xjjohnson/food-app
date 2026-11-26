@@ -11,6 +11,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.37',
+    changes: [
+      'Back now returns to the tab you came from. Open I bought something, a recipe, the delivery board or a market button, tap Back, and you are on the same tab again.',
+      'No more doubles: each thing lives in one place. Buy and Sell lost their Everything-in rows. Search is on Today only, Customers and suppliers is in Sell only (Suppliers stays in Buy), Tasks is on Today only.',
+      'Sell: Delivery board is a row at the top of Orders (no extra Delivery tab). Make, Batches: Plan batches and This week are rows there, and Finished is a stage.',
+    ],
+    test: [
+      'Open pages from each tab and tap Back, on the screen and with the phone back gesture. You should always land on the tab you started from.',
+      'Look through Make, Buy, Sell and More for anything that still shows up twice, and tell me where.',
+    ],
+  },
+  {
     release: '0.1.36',
     changes: [
       'A recipe and its product are now one page. From a recipe, tap Product page for price, photos, stock and shop switches. A product with a recipe has a Recipe tab with its ingredients and Edit the recipe. Both have the cookbook look.',

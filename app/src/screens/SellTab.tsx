@@ -1,11 +1,11 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
-import { BigTile, Body, Card, Row, Screen, Segments } from '../components/ui';
+import { BigTile, Card, Row, Screen, Segments } from '../components/ui';
 import { tabAreas } from '../lib/tabs';
 import { useRoles } from '../lib/useRoles';
 
-type Seg = 'orders' | 'delivery' | 'customers' | 'market';
+type Seg = 'orders' | 'customers' | 'market';
 
 /** The Sell tab: Orders, Delivery, Customers and Market (market day is big buttons, for standing up). */
 export function SellTab() {
@@ -13,7 +13,6 @@ export function SellTab() {
   const has = (id: string) => tabAreas('sell', roles).some((a) => a.id === id);
   const options: { id: Seg; label: string }[] = [];
   if (has('orders') || has('sell') || has('invoices')) options.push({ id: 'orders', label: 'Orders' });
-  if (has('orders')) options.push({ id: 'delivery', label: 'Delivery' });
   options.push({ id: 'customers', label: 'Customers' });
   if (has('market')) options.push({ id: 'market', label: 'Market' });
   const [seg, setSeg] = useState<Seg>(options[0]!.id);
@@ -23,25 +22,18 @@ export function SellTab() {
       {options.length > 1 ? <Segments<Seg> options={options} value={seg} onChange={setSeg} testID="sell-seg" /> : null}
       {seg === 'orders' ? (
         <Card title="Orders">
+          {has('orders') ? <Row title="Delivery board" detail="To pack, packed and delivered, with the route" onPress={() => open('orders', 'board')} testID="sell-board" /> : null}
           {has('orders') ? <Row title="Website orders" detail="Pack orders, oldest batch first, delivered or picked up" onPress={() => open('orders')} testID="area-orders" /> : null}
           {has('sell') ? <Row title="New quote" detail="Customer, products, delivery date and terms" onPress={() => open('sell', 'quote')} testID="sell-quote" /> : null}
           {has('sell') ? <Row title="Wholesale order" detail="Cases and payment terms like Net 30" onPress={() => open('sell', 'wholesale')} testID="sell-wholesale-tab" /> : null}
           {has('sell') ? <Row title="Quotes and open orders" detail="Open, confirm, share, invoice" onPress={() => open('sell', 'list')} testID="sell-list-tab" /> : null}
           {has('sell') ? <Row title="Repeat orders" detail="Who usually orders, and who is due" onPress={() => open('sell', 'repeat')} testID="sell-repeat-tab" /> : null}
-          {has('sell') ? <Row title="Everything in Quotes and orders" onPress={() => open('sell')} testID="area-sell" /> : null}
           {has('invoices') ? <Row title="Invoices" detail="Who owes you, who has paid" onPress={() => open('invoices')} testID="area-invoices" /> : null}
-        </Card>
-      ) : null}
-      {seg === 'delivery' ? (
-        <Card title="Delivery">
-          <Body muted>Packed, out for delivery and delivered, one card per stop. Sort by zip and open the route in Maps.</Body>
-          <Row title="Delivery board" onPress={() => open('orders', 'board')} testID="sell-board" />
         </Card>
       ) : null}
       {seg === 'customers' ? (
         <Card title="Customers">
           <Row title="Customers and suppliers" detail="Find, add or change a contact" onPress={() => router.push('/contacts')} testID="open-contacts" />
-          <Row title="Tasks and special dates" detail="Jobs to do, birthdays and anniversaries" onPress={() => router.push('/tasks')} testID="sell-tasks" />
         </Card>
       ) : null}
       {seg === 'market' && has('market') ? (

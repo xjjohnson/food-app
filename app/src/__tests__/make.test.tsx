@@ -78,6 +78,11 @@ describe('the Buy and Sell tabs', () => {
     await fireEvent.press(screen.getByTestId('buy-bought'));
     await settle();
     expect(screen.getByTestId('bought-screen')).toBeTruthy();
+    // Back goes to the Buy tab, not to the Ingredients menu.
+    await fireEvent.press(screen.getByTestId('back'));
+    await settle();
+    expect(screen.getByTestId('tab-screen-buy')).toBeTruthy();
+    expect(screen.queryByTestId('ingredients-screen')).toBeNull();
   });
 
   test('Sell has market day as big buttons, and a day sheet tile opens that page', async () => {
@@ -85,7 +90,7 @@ describe('the Buy and Sell tabs', () => {
     await open(odoo, '/', 'Owner');
     await fireEvent.press(screen.getByTestId('tab-sell'));
     await settle();
-    expect(screen.getByTestId('sell-seg-delivery')).toBeTruthy();
+    expect(screen.getByTestId('sell-board')).toBeTruthy();
     await fireEvent.press(screen.getByTestId('sell-seg-market'));
     expect(screen.getByTestId('market-tiles')).toBeTruthy();
     await fireEvent.press(screen.getByTestId('market-tile-price'));
@@ -127,5 +132,35 @@ describe('boards with stages', () => {
     expect(screen.queryByText(/MO\/1/)).toBeNull();
     await fireEvent.press(screen.getByTestId('make-stages-cooking'));
     expect(screen.getByText(/MO\/1/)).toBeTruthy();
+    expect(screen.getByTestId('make-stages-done')).toBeTruthy();
+  });
+});
+
+describe('no doubles', () => {
+  test('one place for each thing: no Everything-in rows, no Search or Contacts in More', async () => {
+    const { odoo } = bakery();
+    await open(odoo, '/', 'Owner');
+    await fireEvent.press(screen.getByTestId('tab-buy'));
+    await settle();
+    expect(screen.queryByTestId('area-ingredients')).toBeNull();
+    await fireEvent.press(screen.getByTestId('tab-more'));
+    await settle();
+    expect(screen.queryByTestId('open-search')).toBeNull();
+    expect(screen.queryByTestId('open-contacts-more')).toBeNull();
+    expect(screen.getByTestId('open-management')).toBeTruthy();
+  });
+
+  test('the delivery board opens from Sell and Back returns to Sell', async () => {
+    const { odoo } = bakery();
+    await open(odoo, '/', 'Owner');
+    await fireEvent.press(screen.getByTestId('tab-sell'));
+    await settle();
+    await fireEvent.press(screen.getByTestId('sell-board'));
+    await settle();
+    expect(screen.getByTestId('board-screen')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('back'));
+    await settle();
+    expect(screen.getByTestId('tab-screen-sell')).toBeTruthy();
+    expect(screen.queryByTestId('board-screen')).toBeNull();
   });
 });

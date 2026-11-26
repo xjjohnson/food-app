@@ -7,11 +7,12 @@ import { useOdoo } from '../lib/useOdoo';
 import { useRoles } from '../lib/useRoles';
 
 type Seg = 'recipes' | 'batches' | 'jars';
-type Stage = 'planned' | 'cooking' | 'ready';
+type Stage = 'planned' | 'cooking' | 'ready' | 'done';
 const STAGES: { id: Stage; label: string; states: string[] }[] = [
   { id: 'planned', label: 'Planned', states: ['draft'] },
   { id: 'cooking', label: 'Cooking', states: ['confirmed', 'progress'] },
   { id: 'ready', label: 'Ready to finish', states: ['to_close'] },
+  { id: 'done', label: 'Finished', states: ['done'] },
 ];
 
 /** The Make tab: the recipe box (cookbook look), the batches, and the jars in stock. */
@@ -28,7 +29,7 @@ export function MakeScreen() {
   useEffect(() => {
     if (!client || offline || !has('production')) return;
     loadRecipes(client).then(setRecipes).catch(() => setRecipes([]));
-    loadBatches(client).then((b) => setBatches(b.open)).catch(() => setBatches([]));
+    loadBatches(client).then((b) => setBatches([...b.open, ...b.done])).catch(() => setBatches([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [client, offline, roles]);
 
@@ -63,7 +64,8 @@ export function MakeScreen() {
           ))}
           {batches && !inStage(activeStage).length ? <Body muted>{batches.length ? 'Nothing in this stage.' : 'Nothing cooking right now.'}</Body> : null}
           <Button label="Start a batch" onPress={() => router.push('/area/production?go=start')} testID="make-start-batch" />
-          <Row title="Plan, week and more" detail="Planner, this week, finished batches" onPress={() => router.push('/area/production')} testID="area-production" />
+          <Row title="Plan batches and shopping list" detail="What the next batches need, what you have, what to buy" onPress={() => router.push('/area/production?go=plan')} testID="make-plan" />
+          <Row title="This week" detail="Planned batches by day. Move one to another day" onPress={() => router.push('/area/production?go=week')} testID="make-week" />
         </Card>
       ) : null}
       {seg === 'jars' && has('stock') ? (

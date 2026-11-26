@@ -1,4 +1,4 @@
-import { useInnerBack } from '../lib/innerBack';
+import { useInnerBack, useLeaveAtBase } from '../lib/innerBack';
 import { TestsPage, VersionBox } from './MakingPages';
 import { View } from 'react-native';
 import { useCallback, useEffect, useState } from 'react';
@@ -109,6 +109,7 @@ function RecipesInner({ onBack, openId }: { onBack: () => void; openId?: number 
   useEffect(() => {
     load();
   }, [load]);
+  useLeaveAtBase(openId !== undefined, open === null && product === null && !tests);
   useInnerBack(product !== null ? () => setProduct(null) : tests ? () => setTests(false) : open !== null ? () => { setOpen(null); load(); } : null);
 
   if (product !== null) return <ProductForm templateId={product} onBack={() => setProduct(null)} onRecipe={() => setProduct(null)} />;
