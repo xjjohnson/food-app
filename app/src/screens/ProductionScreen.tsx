@@ -2,7 +2,7 @@ import { useInnerBack } from '../lib/innerBack';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 import { View } from 'react-native';
-import { Body, Button, Card, Chip, ErrorText, Field, Row, Screen } from '../components/ui';
+import { Body, Button, Card, Chip, ErrorText, Field, Row, Screen, Segments } from '../components/ui';
 import { PRODUCTION_SECTIONS } from '../lib/forms';
 import { GenericForm } from './GenericForm';
 import { LinesScreen, unitAfterProduct } from './SubRecordsEditor';
@@ -33,7 +33,11 @@ import {
   stateLabel,
   suggestBatchNumber,
 } from '../lib/production';
+import { PlanScreen } from './PlanScreen';
+import { ChecklistCard } from './ChecklistCard';
 import { RecipesScreen } from './RecipesScreen';
+import { loadPriceCost, PriceCost } from '../lib/plan';
+import { useRoles } from '../lib/useRoles';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 
@@ -47,7 +51,7 @@ interface Copy {
 
 const copyKey = (db: string) => `production/v1/${db}`;
 
-type View_ = { page: 'list' } | { page: 'recipes' } | { page: 'start' } | { page: 'batch'; id: number };
+type View_ = { page: 'list' } | { page: 'plan'; tab: 'plan' | 'shop' } | { page: 'recipes' } | { page: 'start' } | { page: 'batch'; id: number };
 
 /** Production: today's batches, start a batch, finish it with a batch number and use-by date. */
 export function ProductionScreen() {
@@ -93,6 +97,7 @@ export function ProductionScreen() {
   }, [load]);
   useInnerBack(view.page === 'list' ? null : () => { setView({ page: 'list' }); load(); });
 
+  if (view.page === 'plan') return <PlanScreen recipes={data?.recipes ?? []} start={view.tab} onBack={() => setView({ page: 'list' })} />;
   if (view.page === 'recipes') return <RecipesScreen onBack={() => { setView({ page: 'list' }); load(); }} />;
   if (view.page === 'start')
     return <StartBatch recipes={data?.recipes ?? []} onBack={() => setView({ page: 'list' })} onSaved={() => { setView({ page: 'list' }); load(); }} />;
@@ -103,6 +108,7 @@ export function ProductionScreen() {
 
   return (
     <Screen title="Production" testID="production-screen">
+      <Row title="Plan batches and shopping list" detail="What the next batches need, what you have, what to buy" onPress={() => setView({ page: 'plan', tab: 'plan' })} testID="open-plan" />
       <Button label="Start a batch" onPress={() => setView({ page: 'start' })} disabled={!data?.recipes.length} testID="start-batch" />
       {fromPhone ? <Body muted>No signal. Showing what the phone saw last. Anything you save waits and goes to Odoo when signal is back.</Body> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
@@ -137,6 +143,8 @@ function StartBatch({ recipes, onBack, onSaved }: { recipes: Recipe[]; onBack: (
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
+  const { roles } = useRoles();
+  const [priceCost, setPriceCost] = useState<PriceCost | null>(null);
 
   const qty = Number(qtyText.replace(',', '.'));
   const okQty = Number.isFinite(qty) && qty > 0;
@@ -146,6 +154,9 @@ function StartBatch({ recipes, onBack, onSaved }: { recipes: Recipe[]; onBack: (
     setRecipe(r);
     setQtyText(fmtQty(r.makes));
     setFree(null);
+    setPriceCost(null);
+    // Price and cost are the owner's: shown side by side from Odoo, never worked out here.
+    if (client && !offline && roles.owner) loadPriceCost(client, r.productId).then(setPriceCost);
     if (client && !offline) {
       try {
         const ids = r.lines.map((l) => l.productId);
@@ -175,6 +186,8 @@ function StartBatch({ recipes, onBack, onSaved }: { recipes: Recipe[]; onBack: (
     <Screen title={recipe.name} testID="start-screen">
       <Field label={`How many ${recipe.unit || 'to make'}`} value={qtyText} onChangeText={setQtyText} keyboardType="decimal-pad" testID="batch-qty" />
       <Body muted>{`The recipe makes ${fmtQty(recipe.makes)} ${recipe.unit}`.trim()}</Body>
+      <Segments options={[{ id: 'half', label: 'Half' }, { id: 'one', label: 'Recipe' }, { id: 'double', label: 'Double' }]} value={qty === recipe.makes / 2 ? 'half' : qty === recipe.makes * 2 ? 'double' : qty === recipe.makes ? 'one' : ('' as never)} onChange={(v) => setQtyText(fmtQty(v === 'half' ? recipe.makes / 2 : v === 'double' ? recipe.makes * 2 : recipe.makes))} testID="batch-scale" />
+      {priceCost ? <Body muted>{`Odoo: price ${priceCost.price.toFixed(2)} · cost ${priceCost.cost.toFixed(2)} each`}</Body> : null}
       <Card title="Ingredients for this batch">
         {okQty
           ? needed(recipe, qty).map((l) => <Row key={l.productId} title={l.name} detail={qty === recipe.makes ? undefined : `Recipe: ${word(l.recipeQty ?? 0, l.unit)}`} value={word(l.qty, l.unit)} testID={`need-${l.productId}`} />)
@@ -314,9 +327,11 @@ function BatchPage({ id, known, onBack }: { id: number; known?: Batch; onBack: (
           {d.ingredients.length ? d.ingredients.map((i) => <Row key={i.id} title={i.name} value={fmtQty(i.needed)} />) : <Body muted>No ingredients on this batch.</Body>}
         </Card>
       ) : null}
+      {shown.state !== 'draft' && shown.state !== 'cancel' ? <ChecklistCard batchId={id} batchName={shown.name} /> : null}
       {finished ? <Body>Batch finished.</Body> : null}
       {shown.state === 'done' && cost ? (
         <Card title="What this batch cost (worked out by Odoo)" testID="batch-cost">
+          <Row title="Yield" detail="Made compared with the plan" value={`${fmtQty(cost.made)} of ${fmtQty(shown.qty)}${shown.qty > 0 ? ` (${Math.round((cost.made / shown.qty) * 100)}%)` : ''}`} testID="batch-yield" />
           <Row title="Whole batch" value={cost.total.toFixed(2)} />
           <Row title={`Each (${fmtQty(cost.made)} made)`} value={cost.perUnit.toFixed(2)} testID="batch-cost-each" />
         </Card>
