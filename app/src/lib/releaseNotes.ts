@@ -11,6 +11,15 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.38',
+    changes: [
+      'Developer, Connection check now lists every add-on the app uses, in groups (Core, Selling, Kitchen, Extras): Invoicing, Price lists, Discount codes, Delivery, Email Marketing, Events, Surveys, Storage places, Packagings, Discuss, Fleet. Each missing one says what to turn on in Odoo. It only reads.',
+    ],
+    test: [
+      'Open More, Developer, Run the check. Tell me which add-ons show missing and whether that matches your Odoo.',
+    ],
+  },
+  {
     release: '0.1.37',
     changes: [
       'Back now returns to the tab you came from. Open I bought something, a recipe, the delivery board or a market button, tap Back, and you are on the same tab again.',

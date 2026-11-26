@@ -164,9 +164,13 @@ function CheckCard() {
           <Row title="Odoo" value={report.server} />
           <Row title="You" value={report.user} />
           {mine ? <Row title="Roles read from" value={mine.hasEmployee ? 'Your Employee tags' : mine.admin ? 'Odoo administrator' : mine.employeesApp ? 'No Employee for this login' : 'Employees not readable'} /> : null}
-          {report.lines.map((l) => (
-            <Row key={l.label} title={`${l.ok ? '✓' : '✗'} ${l.label}`} detail={l.note} testID={`check-${l.label}`} />
+          {report.lines.map((l, i) => (
+            <View key={l.label}>
+              {l.group && l.group !== report.lines[i - 1]?.group ? <Text style={{ fontWeight: '700', marginTop: 8 }}>{l.group}</Text> : null}
+              <Row title={`${l.ok ? '✓' : '✗'} ${l.label}`} detail={l.note} testID={`check-${l.label}`} />
+            </View>
           ))}
+          {report.lines.some((l) => !l.ok) ? <Body muted>{`${report.lines.filter((l) => !l.ok).length} to look at in Odoo.`}</Body> : <Body>Everything the app uses is there.</Body>}
         </>
       ) : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
