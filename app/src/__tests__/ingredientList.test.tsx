@@ -52,14 +52,15 @@ describe('ingredient list lib', () => {
     expect((await loadIngredient(c, l.berries))!.vendors).toEqual([]);
   });
 
-  test('a new ingredient is buyable, not for sale, and made without Track Inventory', async () => {
+  test('a new ingredient is buyable, not for sale, and made with Track Inventory on', async () => {
     const { odoo } = bakery();
     const l = larder(odoo);
     const c = await client(odoo);
     await saveOrQueue(c, AsyncStorage, DB, 1, newIngredientChange({ name: 'Butter', categoryId: l.raw, cost: 3, taxIds: [l.tax], reference: '', barcode: '' }, l.lb));
     const made = odoo.tables['product.template']!.find((t) => t.name === 'Butter')!;
     expect(made).toMatchObject({ purchase_ok: true, sale_ok: false, standard_price: 3, uom_id: l.lb, categ_id: l.raw });
-    expect(JSON.stringify(made)).not.toMatch(/storable|tracking/);
+    expect(made.is_storable).toBe(true);
+    expect(JSON.stringify(made)).not.toMatch(/tracking/);
   });
 });
 
