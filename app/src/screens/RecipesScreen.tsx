@@ -5,6 +5,7 @@ import { Body, Button, Card, ErrorText, Field, Row, Screen, Segments, SwitchRow 
 import { IngredientForm } from './IngredientListScreen';
 import { loadUnits } from '../lib/ingredientList';
 import { fmtQty, loadRecipes, Recipe as RecipeRow } from '../lib/production';
+import { KitRow, loadKits } from '../lib/recipe';
 import { blankRecipe, BomType, loadRecipe, loadVariants, moveLine, newKey, newRecipeChange, productInfo, Recipe, recipeChanges, RecipeLine, recipeProblems, Unit } from '../lib/recipe';
 import { ProductRow, searchProducts } from '../lib/stock';
 import { useOdoo } from '../lib/useOdoo';
@@ -76,13 +77,16 @@ function ProductPicker({ title, onPick, onBack, markRecipes, raw }: { title: str
 export function RecipesScreen({ onBack }: { onBack: () => void }) {
   const { client, offline } = useOdoo();
   const [list, setList] = useState<RecipeRow[] | null>(null);
-  const [open, setOpen] = useState<number | 'new' | null>(null);
+  const [open, setOpen] = useState<number | 'new' | 'newkit' | null>(null);
+  const [view, setView] = useState<'recipes' | 'kits'>('recipes');
+  const [kits, setKits] = useState<KitRow[] | null>(null);
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
     if (!client || offline) return;
     try {
       setList(await loadRecipes(client));
+      setKits(await loadKits(client).catch(() => []));
     } catch (e) {
       setError(`Couldn’t read recipes from Odoo. ${why(e)}`);
     }
@@ -95,7 +99,8 @@ export function RecipesScreen({ onBack }: { onBack: () => void }) {
   if (open !== null)
     return (
       <RecipeForm
-        id={open === 'new' ? null : open}
+        id={open === 'new' || open === 'newkit' ? null : open}
+        kit={open === 'newkit'}
         onBack={() => {
           setOpen(null);
           load();
@@ -106,10 +111,24 @@ export function RecipesScreen({ onBack }: { onBack: () => void }) {
     <Screen title="Recipes" testID="recipes-screen">
       {offline ? <Body muted>No signal. Recipes come from Odoo, so they show when the phone is back online.</Body> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
+      <Segments<'recipes' | 'kits'> options={[{ id: 'recipes', label: 'Recipes' }, { id: 'kits', label: 'Gift boxes' }]} value={view} onChange={setView} testID="recipes-view" />
+      {view === 'kits' ? (
+        <>
+          <Body muted>A gift box is a kit: selling one uses up its parts, so nothing is stocked ahead.</Body>
+          <Button label="New gift box" onPress={() => setOpen('newkit')} disabled={offline} testID="new-kit" />
+          {kits?.map((k) => (
+            <Row key={k.id} title={k.name} detail={k.parts.join(', ') || 'Empty'} onPress={() => setOpen(k.id)} testID={`kit-edit-${k.id}`} />
+          ))}
+          {kits && !kits.length ? <Body muted>No gift boxes yet.</Body> : null}
+        </>
+      ) : (
+        <>
       <Button label="New recipe" onPress={() => setOpen('new')} disabled={offline} testID="new-recipe" />
       {list?.map((r) => (
         <Row key={r.id} title={r.name} detail={`Makes ${fmtQty(r.makes)} ${r.unit} · ${r.lines.length} ingredients`.replace('  ', ' ')} onPress={() => setOpen(r.id)} testID={`recipe-edit-${r.id}`} />
       ))}
+        </>
+      )}
       <Button label="Back" kind="plain" onPress={onBack} />
     </Screen>
   );
@@ -118,11 +137,11 @@ export function RecipesScreen({ onBack }: { onBack: () => void }) {
 type Section = 'lines' | 'byproducts';
 type Picking = null | { k: 'product' } | { k: 'variant' } | { k: 'unit' } | { k: 'lineUnit'; section: Section; key: string } | { k: 'add'; section: Section };
 
-function RecipeForm({ id, onBack }: { id: number | null; onBack: () => void }) {
+function RecipeForm({ id, kit, onBack }: { id: number | null; kit?: boolean; onBack: () => void }) {
   const { client, offline } = useOdoo();
   const { save } = useQueue();
   const [before, setBefore] = useState<Recipe | null>(null);
-  const [draft, setDraft] = useState<Recipe>(blankRecipe());
+  const [draft, setDraft] = useState<Recipe>(kit ? { ...blankRecipe(), type: 'phantom' } : blankRecipe());
   const [units, setUnits] = useState<Unit[]>([]);
   const [variants, setVariants] = useState<Unit[]>([]);
   const [picking, setPicking] = useState<Picking>(id ? null : { k: 'product' });
