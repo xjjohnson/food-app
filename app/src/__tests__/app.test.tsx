@@ -49,6 +49,7 @@ describe('the whole app', () => {
       await settle();
       for (const a of areas) {
         if (tab === 'make') await fireEvent.press(screen.getByTestId(a === 'stock' ? 'make-seg-jars' : 'make-seg-batches'));
+        if (tab === 'sell' && a === 'market') await fireEvent.press(screen.getByTestId('sell-seg-market'));
         expect(screen.getByTestId(`area-${a}`)).toBeTruthy();
       }
     }

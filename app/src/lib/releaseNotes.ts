@@ -11,6 +11,20 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.35',
+    changes: [
+      'Buy tab: a big I bought something button, then Running low, Shopping list, Ingredient list, Purchase orders, Check in a delivery and Purchase history, each one tap away.',
+      'Sell tab: Orders, Delivery, Customers and Market. Quotes, wholesale, repeat orders and the delivery board open directly.',
+      'Market day is big buttons: Open register, Day sheet, Check out and in, Price sheet, Cash drawer, Day totals, Results.',
+      'Money and reports (owner only) opens on this month: what sold, units out, and the best sellers as bars. These are Odoo’s own totals.',
+    ],
+    test: [
+      'Buy tab: tap I bought something, then back, then each row. Each should open the right page.',
+      'Sell tab, Delivery: open the delivery board. Sell tab, Market: tap each big button.',
+      'More, Money and reports, as the owner: check This month matches your sales in Odoo.',
+    ],
+  },
+  {
     release: '0.1.34',
     changes: [
       'Make tab: Recipes, Batches and Jars in stock sit at the top. Recipes is a recipe box; tap a recipe to open it.',

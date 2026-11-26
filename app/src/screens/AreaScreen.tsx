@@ -22,13 +22,13 @@ export function AreaScreen({ id, go }: { id: string; go?: string }) {
       </Screen>
     );
   if (area.id === 'production') return <ProductionScreen go={go} />;
-  if (area.id === 'orders') return <OrdersScreen />;
+  if (area.id === 'orders') return <OrdersScreen go={go} />;
   if (area.id === 'stock') return <StockScreen />;
   if (area.id === 'ingredients') return <IngredientsScreen go={go} />;
   if (area.id === 'invoices') return <MoneyScreen kind="out" />;
   if (area.id === 'sell') return <SellScreen go={go} />;
   if (area.id === 'safety') return <SafetyScreen />;
-  if (area.id === 'market') return <MarketScreen />;
+  if (area.id === 'market') return <MarketScreen go={go} />;
   return (
     <Screen title={area.title} testID={`area-screen-${area.id}`}>
       <Card title="Coming next">

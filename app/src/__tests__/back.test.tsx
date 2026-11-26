@@ -57,6 +57,7 @@ describe('Back goes one screen back', () => {
     await open(odoo, '/', 'Sales');
     await fireEvent.press(screen.getByTestId('tab-sell'));
     await settle();
+    await fireEvent.press(screen.getByTestId('sell-seg-customers'));
     await fireEvent.press(screen.getByTestId('open-contacts'));
     await settle();
     await fireEvent.press(screen.getByTestId('new-contact'));
