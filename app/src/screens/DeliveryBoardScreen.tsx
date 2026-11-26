@@ -1,4 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { applyRoute, moveStop, routeKey, routeLink, sortByZip } from '../lib/buying';
+import { useTyped } from './MarketDay';
 import { useCallback, useEffect, useState } from 'react';
 import { Linking } from 'react-native';
 import { Body, Button, Card, Chip, ErrorText, Screen, Row } from '../components/ui';
@@ -59,6 +61,9 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
     if (client && !offline) loadSettings(client).then((s) => setClosedToday(isClosed(s, new Date().toISOString().slice(0, 10)))).catch(() => undefined);
   }, [client, offline]);
 
+  const route = useTyped(routeKey(new Date().toISOString().slice(0, 10)));
+  const ordered = list ? applyRoute(list, route.value) : list;
+  const routeUrl = ordered ? routeLink(ordered) : '';
   const waiting = new Set(items.filter((i) => i.step?.kind === 'note').map((i) => (i.step as { resId: number }).resId));
 
   const delivered = async (o: BoardOrder) => {
@@ -79,13 +84,27 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
       {error ? <ErrorText>{error}</ErrorText> : null}
       {!list ? <Body muted>{busy ? 'Loading…' : 'Nothing to show yet. Connect to Odoo to load the board.'}</Body> : null}
       {list && !list.length ? <Body muted>No deliveries or pickups for today.</Body> : null}
-      {list?.map((o) => {
+      {list && list.length > 1 ? (
+        <Card title="Route" testID="route-card">
+          <Body muted>The app doesn’t plan the route. Sort by zip to start, then move stops up or down.</Body>
+          <Button label="Sort by zip" kind="plain" onPress={() => route.put(sortByZip(list.map((o) => ({ id: o.id, address: o.address, zip: o.zip ?? '' }))).map((x) => x.id).join(','))} testID="route-sort" />
+          {routeUrl ? <Button label="Open the whole route in Maps" onPress={() => Linking.openURL(routeUrl)} testID="route-open" /> : null}
+        </Card>
+      ) : null}
+      {ordered?.map((o, n) => {
         const isWaiting = waiting.has(o.saleId);
         const step = isWaiting ? 'delivered' : o.step;
         return (
           <Card key={o.id} title={o.customer || o.origin || o.name} testID={`board-${o.id}`}>
             <Chip label={isWaiting ? 'Delivered (waiting to send)' : STEP_WORDS[step]} testID={`board-step-${o.id}`} />
             <Body muted>{`${o.origin || o.name}${o.date ? ` · ${o.date.slice(0, 10)}` : ''}`}</Body>
+            {ordered && ordered.length > 1 ? (
+              <>
+                <Chip label={`Stop ${n + 1}`} testID={`stop-${o.id}`} />
+                <Button label="Move up" kind="plain" disabled={n === 0} onPress={() => route.put(moveStop(ordered, n, -1).map((x) => x.id).join(','))} testID={`stop-up-${o.id}`} />
+                <Button label="Move down" kind="plain" disabled={n === ordered.length - 1} onPress={() => route.put(moveStop(ordered, n, 1).map((x) => x.id).join(','))} testID={`stop-down-${o.id}`} />
+              </>
+            ) : null}
             {o.address ? <Row title="Address" detail={o.address} onPress={() => Linking.openURL(mapLink(o.address))} testID={`board-map-${o.id}`} /> : <Body muted>No address on the contact.</Body>}
             {o.phone ? <Row title="Phone" detail={o.phone} onPress={() => Linking.openURL(`tel:${o.phone}`)} /> : null}
             {o.notes ? <Body>{`Notes: ${o.notes}`}</Body> : null}

@@ -92,6 +92,7 @@ export interface ShopRow {
   buy: number;
   why: string;
   supplier: string;
+  supplierId?: number;
 }
 
 /**
@@ -113,7 +114,9 @@ export async function loadShoppingList(c: Client, planned: NeedRow[]): Promise<S
   }
   for (const row of out.values()) {
     try {
-      row.supplier = (await usualSuppliers(c, row.productId))[0]?.name ?? '';
+      const first = (await usualSuppliers(c, row.productId))[0];
+      row.supplier = first?.name ?? '';
+      row.supplierId = first?.id;
     } catch {
       // No vendor list readable: left under "No usual supplier".
     }

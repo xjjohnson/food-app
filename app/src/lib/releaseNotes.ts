@@ -11,6 +11,25 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.32',
+    changes: [
+      'Contacts, History tab: Call and Open map for a supplier, plus a scorecard (orders, on time or late, last 5 deliveries, price changes).',
+      'Shopping list: Make draft orders per supplier. One draft purchase order per usual supplier, once a day, never confirmed by the app. Items with no usual supplier are left out.',
+      'Delivery board: Route card. Sort by zip, move stops up or down, and open the whole route in Maps. The app does not plan the route.',
+      'Management: Mileage with Odoo’s free Fleet app (odometer readings, miles since the last one). It says so if Fleet is not installed.',
+      'Scan a code: Find a product and Find a batch can scan a product barcode or a batch number with the camera.',
+      'Find a batch: Share label text (product, batch, use-by, ingredients, allergens) as plain text to any app.',
+    ],
+    test: [
+      'Open a supplier in Customers and suppliers, History tab: tap Call, Open map and Show scorecard.',
+      'Plan a batch that is short of an ingredient, open Shopping list, tap Make draft orders per supplier, and check the drafts in Odoo Purchase.',
+      'Delivery board with two or more stops: Sort by zip, move one, open the route in Maps.',
+      'Install Fleet in Odoo, add a vehicle, then Management, Mileage, save a reading.',
+      'Find a product, Scan a code on a jar with a barcode. Find a batch, scan a batch code.',
+      'Find a batch, open one, Share label text, and send it to your label printer app. Tell me if it needs a picture or PDF instead.',
+    ],
+  },
+  {
     release: '0.1.31',
     changes: [
       'Production: new This week page. Planned batches by day; tap one to move it to another day.',

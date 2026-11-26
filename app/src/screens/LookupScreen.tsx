@@ -1,4 +1,5 @@
 import { useInnerBack } from '../lib/innerBack';
+import { ScanButton } from './BuyingPages';
 import { useEffect, useState } from 'react';
 import { Image } from 'react-native';
 import { Body, Button, Card, ErrorText, Field, Row, Screen } from '../components/ui';
@@ -57,6 +58,7 @@ export function LookupScreen() {
     <Screen title="Find a product" testID="lookup-screen">
       {offline ? <Body muted>No signal. Product details come from Odoo, so they show when the phone is back online.</Body> : <Field label="Product" value={text} onChangeText={setText} testID="lookup-text" />}
       {error ? <ErrorText>{error}</ErrorText> : null}
+      {!offline ? <ScanButton onMatch={(m) => setText(m.kind === 'product' ? m.name : m.product)} /> : null}
       <Button label="Add a product" kind="plain" onPress={() => setForm({})} testID="add-product" />
       {items.map((p) => (
         <Card key={p.id} testID={`product-${p.id}`}>
