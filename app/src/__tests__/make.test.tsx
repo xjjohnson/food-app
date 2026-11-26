@@ -110,3 +110,22 @@ describe('Money and reports', () => {
     expect(screen.getByTestId('numbers-units')).toHaveTextContent('5');
   });
 });
+
+describe('boards with stages', () => {
+  test('Make, Batches shows a stage strip and opens on the first stage with a batch', async () => {
+    const { odoo } = bakery();
+    const jam = odoo.create('product.product', { name: 'Jam', free_qty: 0 });
+    odoo.create('mrp.production', { name: 'MO/1', state: 'confirmed', product_id: [jam, 'Jam'], product_qty: 12 });
+    odoo.create('mrp.production', { name: 'MO/2', state: 'draft', product_id: [jam, 'Jam'], product_qty: 6 });
+    await open(odoo, '/', 'Production');
+    await fireEvent.press(screen.getByTestId('tab-make'));
+    await settle();
+    await fireEvent.press(screen.getByTestId('make-seg-batches'));
+    expect(screen.getByTestId('make-stages-planned')).toHaveTextContent('Planned (1)');
+    expect(screen.getByTestId('make-stages-cooking')).toHaveTextContent('Cooking (1)');
+    // Opens on Planned (the first stage with a batch); Cooking shows the other batch.
+    expect(screen.queryByText(/MO\/1/)).toBeNull();
+    await fireEvent.press(screen.getByTestId('make-stages-cooking'));
+    expect(screen.getByText(/MO\/1/)).toBeTruthy();
+  });
+});

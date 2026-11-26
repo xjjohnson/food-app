@@ -4,6 +4,7 @@ import { View } from 'react-native';
 import { useCallback, useEffect, useState } from 'react';
 import { Body, Button, Card, ErrorText, Field, LookScope, Row, Screen, Segments, SwitchRow } from '../components/ui';
 import { IngredientForm } from './IngredientListScreen';
+import { ProductForm } from './ProductForm';
 import { loadUnits } from '../lib/ingredientList';
 import { fmtQty, loadRecipes, Recipe as RecipeRow } from '../lib/production';
 import { KitRow, loadKits } from '../lib/recipe';
@@ -89,6 +90,7 @@ function RecipesInner({ onBack, openId }: { onBack: () => void; openId?: number 
   const { client, offline } = useOdoo();
   const [list, setList] = useState<RecipeRow[] | null>(null);
   const [open, setOpen] = useState<number | 'new' | 'newkit' | null>(openId ?? null);
+  const [product, setProduct] = useState<number | null>(null);
   const [view, setView] = useState<'recipes' | 'kits'>('recipes');
   const [tests, setTests] = useState(false);
   const { roles } = useRoles();
@@ -107,14 +109,16 @@ function RecipesInner({ onBack, openId }: { onBack: () => void; openId?: number 
   useEffect(() => {
     load();
   }, [load]);
-  useInnerBack(tests ? () => setTests(false) : open !== null ? () => { setOpen(null); load(); } : null);
+  useInnerBack(product !== null ? () => setProduct(null) : tests ? () => setTests(false) : open !== null ? () => { setOpen(null); load(); } : null);
 
+  if (product !== null) return <ProductForm templateId={product} onBack={() => setProduct(null)} onRecipe={() => setProduct(null)} />;
   if (tests) return <TestsPage onBack={() => setTests(false)} />;
   if (open !== null)
     return (
       <RecipeForm
         id={open === 'new' || open === 'newkit' ? null : open}
         kit={open === 'newkit'}
+        onProduct={setProduct}
         onBack={() => {
           setOpen(null);
           load();
@@ -152,7 +156,7 @@ function RecipesInner({ onBack, openId }: { onBack: () => void; openId?: number 
 type Section = 'lines' | 'byproducts';
 type Picking = null | { k: 'product' } | { k: 'variant' } | { k: 'unit' } | { k: 'lineUnit'; section: Section; key: string } | { k: 'add'; section: Section };
 
-function RecipeForm({ id, kit, onBack }: { id: number | null; kit?: boolean; onBack: () => void }) {
+function RecipeForm({ id, kit, onBack, onProduct }: { id: number | null; kit?: boolean; onBack: () => void; onProduct?: (templateId: number) => void }) {
   const { client, offline } = useOdoo();
   const { save } = useQueue();
   const [before, setBefore] = useState<Recipe | null>(null);
@@ -279,6 +283,7 @@ function RecipeForm({ id, kit, onBack }: { id: number | null; kit?: boolean; onB
   const canSave = !problems.length && !note && (id ? changes.length > 0 : true);
   return (
     <Screen title={draft.variantName || draft.templateName || 'New recipe'} testID="recipe-editor">
+      {id && draft.templateId && onProduct ? <Row title="Product page" detail="Price, photos, stock and shop switches" onPress={() => onProduct(draft.templateId)} testID="recipe-product-page" /> : null}
       <Row title="Product" value={draft.templateName || 'Choose'} onPress={id ? undefined : () => setPicking({ k: 'product' })} testID="recipe-product" />
       {variants.length > 1 || draft.variantId ? <Row title="Product variant" value={draft.variantName || 'Any variant'} onPress={() => setPicking({ k: 'variant' })} testID="recipe-variant" /> : null}
       <Field label="Makes" value={draft.makes} onChangeText={(v) => set({ makes: v })} keyboardType="decimal-pad" testID="recipe-makes" />
