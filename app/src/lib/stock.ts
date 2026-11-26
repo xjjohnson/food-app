@@ -53,6 +53,7 @@ export async function searchProducts(c: Client, text: string, markRecipes = fals
 
 export interface CountLine {
   quantId: number;
+  lotId?: number;
   lot: string;
   place: string;
   /** What Odoo says is there. */
@@ -62,7 +63,7 @@ export interface CountLine {
 /** What Odoo says is on the shelves for one product, by batch and place. */
 export async function loadCountLines(c: Client, productId: number): Promise<CountLine[]> {
   const rows = (await c.call('stock.quant', 'search_read', [[['product_id', '=', productId], ['location_id.usage', '=', 'internal']]], { fields: ['lot_id', 'location_id', 'quantity'] })) as Record<string, unknown>[];
-  return rows.map((r) => ({ quantId: r.id as number, lot: nameOf(r.lot_id), place: nameOf(r.location_id), onHand: Number(r.quantity ?? 0) }));
+  return rows.map((r) => ({ quantId: r.id as number, lotId: m2oId(r.lot_id), lot: nameOf(r.lot_id), place: nameOf(r.location_id), onHand: Number(r.quantity ?? 0) }));
 }
 
 /**
@@ -73,9 +74,52 @@ export function countChange(productName: string, line: CountLine, counted: numbe
   return {
     label: `Count ${productName}${line.lot ? ` batch ${line.lot}` : ''}: ${counted}`,
     model: 'stock.quant',
-    method: 'write',
-    args: [[line.quantId], { inventory_quantity: counted, inventory_quantity_set: true }],
-    then: { method: 'action_apply_inventory', onlyWhen: [['inventory_quantity_set', '=', true]] },
+    method: 'count',
+    args: [],
+    step: { kind: 'count', quantId: line.quantId, counted, expected: line.onHand },
+  };
+}
+
+/**
+ * Applies a count, unless stock moved since the person looked: a count made
+ * with no signal is applied later, and stock may have been sold or used in
+ * between. Then it stops with a plain reason and the person counts again.
+ */
+export async function runCount(c: Client, s: { quantId: number; counted: number; expected: number }): Promise<void> {
+  const [q] = (await c.call('stock.quant', 'read', [[s.quantId]], { fields: ['quantity'] })) as { quantity?: number }[];
+  if (!q) throw new Error('That stock line is no longer in Odoo. Count it again.');
+  if (Math.abs(Number(q.quantity ?? 0) - s.expected) > 1e-9 && Math.abs(Number(q.quantity ?? 0) - s.counted) > 1e-9)
+    throw new Error(`Stock changed since you counted: you saw ${s.expected}, Odoo now has ${Number(q.quantity ?? 0)}. Count it again.`);
+  await c.call('stock.quant', 'write', [[s.quantId], { inventory_quantity: s.counted, inventory_quantity_set: true }], {});
+  const todo = (await c.call('stock.quant', 'search', [[['id', '=', s.quantId], ['inventory_quantity_set', '=', true]]])) as number[];
+  if (todo.length) await c.call('stock.quant', 'action_apply_inventory', [todo], {});
+}
+
+export interface WasteReason {
+  id: number;
+  name: string;
+}
+
+/** The reasons Odoo has for scrapping stock. Empty if this Odoo has none to read. */
+export async function loadWasteReasons(c: Client): Promise<WasteReason[]> {
+  try {
+    const rows = (await c.call('stock.scrap.reason.tag', 'search_read', [[]], { fields: ['name'], order: 'sequence asc, id asc', limit: 30 })) as { id: number; name: string }[];
+    return rows.map((r) => ({ id: r.id, name: String(r.name) }));
+  } catch {
+    return [];
+  }
+}
+
+/** Waste or spoilage: some of a product (and batch) taken off the stock, with a reason. */
+export function wasteChange(productName: string, productId: number, lotId: number, qty: number, reasonIds: number[], now = Date.now()): NewChange {
+  const token = `food-app-${now.toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+  return {
+    label: `Waste: ${qty} ${productName}`,
+    model: 'stock.scrap',
+    method: 'create',
+    args: [{ product_id: productId, ...(lotId ? { lot_id: lotId } : {}), scrap_qty: qty, origin: token, ...(reasonIds.length ? { scrap_reason_tag_ids: [[6, 0, reasonIds]] } : {}) }],
+    already: { model: 'stock.scrap', domain: [['origin', '=', token]] },
+    then: { method: 'action_validate', onlyWhen: [['state', '=', 'draft']] },
   };
 }
 
