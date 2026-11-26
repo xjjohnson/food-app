@@ -11,6 +11,22 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.26',
+    changes: [
+      'Market: a new Market day card. Market day sheet (what sold at the last three markets beside what is in stock, with a pack list to tick), Check out and check in (type what you took and what came back, shown beside what Odoo says sold), Price sheet (big list to share), Cash drawer (count bills and coins, compared with the opening and closing cash Odoo has), Day totals (type the Cash App and Venmo totals and see if they match Odoo), and Results (sales after closing, by way to pay, best sellers, what is left).',
+      'What you type here is saved in Odoo’s Food app settings contact and also kept on the phone, so a count made with no signal is not lost. Nothing is written into the Point of Sale and stock is not changed.',
+    ],
+    test: [
+      'Market, Results: pick yesterday’s or last market. Compare the sales total, ways to pay and best sellers with Odoo’s Point of Sale report.',
+      'Market day sheet: check it shows the last markets’ quantities and today’s stock. Tick a few items.',
+      'Check out and check in: add two jellies, type took 12 and came back 3. After the market, check Odoo’s sold number shows beside it.',
+      'Price sheet: check the prices match Odoo, then Share the price list.',
+      'Cash drawer: count some bills and coins at open and close and check the total and the line comparing with Odoo.',
+      'Day totals: type your Cash App total and check it says Matches when equal to Odoo’s.',
+      'Do one count with airplane mode on, turn signal on, and check it appears in the Food app settings contact in Odoo.',
+    ],
+  },
+  {
     release: '0.1.25',
     changes: [
       'Management: Reports became Money and reports (owner only), now a menu. New: Bills due (unpaid bills, late ones marked), Cash in and out (by cash, Cash App, Venmo and bank), Sales tax as Odoo booked it by month, Month goal with a progress bar, Budget against spent by category, Add an expense, and Accountant packet.',

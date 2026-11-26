@@ -3,12 +3,16 @@ import { Linking } from 'react-native';
 import { Body, Button, Card, ErrorText, Row, Screen } from '../components/ui';
 import { loadMarket, MarketInfo, openFor, posUrl } from '../lib/market';
 import { useOdoo } from '../lib/useOdoo';
+import { useInnerBack } from '../lib/innerBack';
+import { DaySheetPage, DrawerPage, PricePage, ResultsPage, TakePage, TotalsPage } from './MarketDay';
 
 /** Market: opens Odoo's Point of Sale to ring up sales. */
 export function MarketScreen() {
   const { client, offline } = useOdoo();
   const [info, setInfo] = useState<MarketInfo | null>(null);
   const [error, setError] = useState('');
+  const [page, setPage] = useState<'main' | 'results' | 'sheet' | 'take' | 'price' | 'drawer' | 'totals'>('main');
+  useInnerBack(page !== 'main' ? () => setPage('main') : null);
 
   useEffect(() => {
     if (!client || offline) return;
@@ -27,6 +31,13 @@ export function MarketScreen() {
     }
   };
 
+  const back = () => setPage('main');
+  if (page === 'results') return <ResultsPage onBack={back} />;
+  if (page === 'sheet') return <DaySheetPage onBack={back} />;
+  if (page === 'take') return <TakePage onBack={back} />;
+  if (page === 'price') return <PricePage onBack={back} />;
+  if (page === 'drawer') return <DrawerPage onBack={back} />;
+  if (page === 'totals') return <TotalsPage onBack={back} />;
   return (
     <Screen title="Market" testID="market-screen">
       <Body>Sales are rung up in Odoo’s Point of Sale. It opens in your browser, and sales go to Odoo and take stock off the right batch.</Body>
@@ -44,6 +55,14 @@ export function MarketScreen() {
           ))}
         </Card>
       ) : null}
+      <Card title="Market day">
+        <Row title="Market day sheet" detail="What sold last time and what is in stock" onPress={() => setPage('sheet')} testID="market-sheet" />
+        <Row title="Check out and check in" detail="What you took and what came back" onPress={() => setPage('take')} testID="market-take" />
+        <Row title="Price sheet" detail="Big list of prices to share" onPress={() => setPage('price')} testID="market-price" />
+        <Row title="Cash drawer" detail="Count bills and coins" onPress={() => setPage('drawer')} testID="market-drawer" />
+        <Row title="Day totals" detail="Cash App and Venmo against Odoo" onPress={() => setPage('totals')} testID="market-totals" />
+        <Row title="Results" detail="Sales after closing" onPress={() => setPage('results')} testID="market-results" />
+      </Card>
       {info ? (
         <Card title="Ways to pay (set in Odoo)">
           {info.payments.length ? info.payments.map((p) => <Row key={p} title={p} />) : <Body muted>No payment methods yet. Add Cash, Cash App and Venmo in Odoo’s Point of Sale settings.</Body>}
