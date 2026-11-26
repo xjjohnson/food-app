@@ -102,7 +102,9 @@ describe('edit screens', () => {
     };
     await renderRouter('src/app', { initialUrl: '/' });
     await settle();
-    await fireEvent.press(screen.getByTestId('open-contacts'));
+    await fireEvent.press(screen.getByTestId('tab-more'));
+    await settle();
+    await fireEvent.press(screen.getByTestId('open-contacts-more'));
     await settle();
     await fireEvent.press(screen.getByTestId('new-contact'));
     await fireEvent.changeText(await screen.findByTestId('f-name'), 'Lee Market');

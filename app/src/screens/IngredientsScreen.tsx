@@ -38,8 +38,8 @@ function upFrom(p: Page): Page {
 }
 
 /** Ingredients: what is running low, ordering, and checking deliveries in. */
-export function IngredientsScreen() {
-  const [page, setPage] = useState<Page>({ p: 'menu' });
+export function IngredientsScreen({ go }: { go?: string } = {}) {
+  const [page, setPage] = useState<Page>(go === 'bought' ? { p: 'bought' } : { p: 'menu' });
   const menu = () => setPage({ p: 'menu' });
   useInnerBack(page.p === 'menu' ? null : () => setPage(upFrom(page)));
   switch (page.p) {

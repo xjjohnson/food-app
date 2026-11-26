@@ -57,9 +57,9 @@ const copyKey = (db: string) => `production/v1/${db}`;
 type View_ = { page: 'list' } | { page: 'plan'; tab: 'plan' | 'shop' } | { page: 'recipes' } | { page: 'week' } | { page: 'start' } | { page: 'batch'; id: number };
 
 /** Production: today's batches, start a batch, finish it with a batch number and use-by date. */
-export function ProductionScreen() {
+export function ProductionScreen({ go }: { go?: string } = {}) {
   const { client, db, offline } = useOdoo();
-  const [view, setView] = useState<View_>({ page: 'list' });
+  const [view, setView] = useState<View_>(go === 'start' ? { page: 'start' } : { page: 'list' });
   const [data, setData] = useState<Copy | null>(null);
   const [fromPhone, setFromPhone] = useState(false);
   const [error, setError] = useState('');

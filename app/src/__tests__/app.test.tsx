@@ -44,7 +44,13 @@ describe('the whole app', () => {
     expect(screen.getAllByText('Hivemind Bakery').length).toBeGreaterThan(0);
     expect(screen.getByTestId('brand-logo')).toBeTruthy();
     expect(screen.getByTestId('my-roles')).toHaveTextContent('Owner');
-    for (const a of ['production', 'orders', 'stock', 'ingredients', 'market']) expect(screen.getByTestId(`area-${a}`)).toBeTruthy();
+    for (const [tab, areas] of [['make', ['production', 'stock']], ['buy', ['ingredients']], ['sell', ['orders', 'market']]] as const) {
+      await fireEvent.press(screen.getByTestId(`tab-${tab}`));
+      await settle();
+      for (const a of areas) expect(screen.getByTestId(`area-${a}`)).toBeTruthy();
+    }
+    await fireEvent.press(screen.getByTestId('tab-more'));
+    await settle();
     expect(screen.getByTestId('open-management')).toBeTruthy();
     // The key is in the keystore, never in the app's storage.
     expect(JSON.stringify(await AsyncStorage.multiGet(await AsyncStorage.getAllKeys()))).not.toContain('"key"');
@@ -55,9 +61,16 @@ describe('the whole app', () => {
     await renderRouter('src/app', { initialUrl: '/' });
     await settle();
     expect(screen.getByTestId('home-screen')).toBeTruthy();
+    expect(screen.queryByTestId('tab-buy')).toBeNull();
+    expect(screen.queryByTestId('tab-sell')).toBeNull();
+    await fireEvent.press(screen.getByTestId('tab-make'));
+    await settle();
     expect(screen.getByTestId('area-production')).toBeTruthy();
     expect(screen.queryByTestId('area-market')).toBeNull();
+    await fireEvent.press(screen.getByTestId('tab-more'));
+    await settle();
     expect(screen.queryByTestId('open-management')).toBeNull();
+    expect(screen.queryByTestId('open-reports')).toBeNull();
   });
 
   test('someone with no role is told how to get one', async () => {
@@ -116,6 +129,8 @@ describe('the whole app', () => {
     await renderRouter('src/app', { initialUrl: '/' });
     await settle();
     expect(screen.getByTestId('home-screen')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('tab-make'));
+    await settle();
     expect(screen.getByTestId('area-production')).toBeTruthy();
     expect(screen.getByTestId('queue-band')).toHaveTextContent(/No signal: working offline/);
   });
@@ -132,5 +147,27 @@ describe('the whole app', () => {
     await settle();
     expect(screen.getByTestId('test-db-band')).toBeTruthy();
     expect(await AsyncStorage.getItem('dbswitch/owner')).toBe(dbId({ url: URL, db: 'food-test' }));
+  });
+});
+
+describe('the plus button', () => {
+  test('offers a batch to a baker, and a quote and a purchase to the owner', async () => {
+    await signedInAs('baker@example.com');
+    await renderRouter('src/app', { initialUrl: '/' });
+    await settle();
+    await fireEvent.press(screen.getByTestId('plus-button'));
+    expect(screen.getByTestId('plus-batch')).toBeTruthy();
+    expect(screen.queryByTestId('plus-quote')).toBeNull();
+    expect(screen.queryByTestId('plus-bought')).toBeNull();
+  });
+  test('Start a batch opens the new batch page', async () => {
+    await signedInAs('baker@example.com');
+    await renderRouter('src/app', { initialUrl: '/' });
+    await settle();
+    await fireEvent.press(screen.getByTestId('plus-button'));
+    await fireEvent.press(screen.getByTestId('plus-batch'));
+    await settle();
+    expect(screen.queryByTestId('production-screen')).toBeNull();
+    expect(screen.queryByTestId('tab-bar')).toBeNull();
   });
 });

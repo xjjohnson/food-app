@@ -14,8 +14,8 @@ const money = (n: number) => n.toFixed(2);
 type Page = { p: 'menu' } | { p: 'list' } | { p: 'repeat' } | { p: 'quote'; id?: number; wholesale?: boolean; lines?: boolean };
 
 /** Quotes and orders for customers: new quote, wholesale order, repeat orders. */
-export function SellScreen() {
-  const [page, setPage] = useState<Page>({ p: 'menu' });
+export function SellScreen({ go }: { go?: string } = {}) {
+  const [page, setPage] = useState<Page>(go === 'quote' ? { p: 'quote' } : { p: 'menu' });
   const menu = () => setPage({ p: 'menu' });
   useInnerBack(page.p === 'menu' ? null : page.p === 'quote' && page.lines ? () => setPage({ p: 'quote', id: page.id }) : page.p === 'quote' && page.id ? () => setPage({ p: 'list' }) : menu);
   if (page.p === 'list') return <QuoteList onBack={menu} onOpen={(id) => setPage({ p: 'quote', id })} />;
