@@ -11,6 +11,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.24',
+    changes: [
+      'Management: new Reports (owner only). Sales shows best and slowest sellers for today, 7 days, this month, last month or this year, counting website orders and market sales. Profit shows sold total, units and Odoo’s cost beside each product. Stock value shows what is on the shelves, as Odoo values it. Year compares each month with the same month last year. Break-even says how many units cover a cost you type.',
+      'Every number is Odoo’s own. The app only adds up lists and counts units for the break-even; it works out no prices or taxes.',
+    ],
+    test: [
+      'As owner, Management, Reports, Sales: check the best sellers match what you know sold this month. Try the other time buttons.',
+      'Profit: check sold totals and cost each against Odoo (Sales, Reporting, and the product Cost).',
+      'Stock value: compare the total with Odoo Inventory, Reporting, Stock valuation. If it says Odoo gives no value, tell me.',
+      'Year: check a month you know the total for.',
+      'Break-even: pick a jelly, type a market fee of 50, and check the count is 50 divided by (price minus cost), rounded up.',
+      'Sign in as a helper and check Management and Reports are not offered.',
+    ],
+  },
+  {
     release: '0.1.23',
     changes: [
       'New area Safety and records. Kitchen checks (fridge and freezer temperature, cleaning), Tasting log and Shelf-life check are Odoo Surveys. The owner taps once to make each survey in Odoo (the Surveys app must be on); after that anyone adds entries, with or without signal, and sees the latest ones.',

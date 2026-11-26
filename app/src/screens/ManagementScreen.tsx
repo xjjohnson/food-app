@@ -149,6 +149,10 @@ export function ManagementScreen() {
         <Button label="Read the brand again" kind="plain" disabled={offline} onPress={() => refresh()} testID="refresh-brand" />
       </Card>
 
+      <Card title="Reports">
+        <Row title="Reports" detail="Sales, profit, stock value, year against year, break-even" onPress={() => router.push('/reports')} testID="open-reports" />
+      </Card>
+
       <StockAlerts />
 
       <Card title="Setup">
