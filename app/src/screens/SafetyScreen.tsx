@@ -19,14 +19,18 @@ const SAVED = (queued: boolean) => (queued ? 'Saved on the phone. It goes to Odo
 type Page = 'menu' | 'rules' | 'nutrition' | LogKind['id'];
 
 /** Safety and records: kitchen checks, tasting, shelf-life, cottage-food rules, nutrition notes. */
-export function SafetyScreen() {
-  const [page, setPage] = useState<Page>('menu');
+export function SafetyScreen({ go }: { go?: string } = {}) {
+  // From a finished batch: go=tasting:<text> or go=shelf:<batch number> opens that log with the name filled in.
+  const [kindGo, ...rest] = (go ?? '').split(':');
+  const prefill = rest.join(':');
+  const start: Page = (kindGo === 'tasting' || kindGo === 'shelf') && prefill ? kindGo : 'menu';
+  const [page, setPage] = useState<Page>(start);
   const back = () => setPage('menu');
   useInnerBack(page !== 'menu' ? back : null);
   if (page === 'rules') return <RulesPage onBack={back} />;
   if (page === 'nutrition') return <NutritionPage onBack={back} />;
   const kind = LOG_KINDS.find((k) => k.id === page);
-  if (kind) return <LogPage kind={kind} onBack={back} />;
+  if (kind) return <LogPage kind={kind} onBack={back} prefill={kind.id === start ? prefill : ''} />;
   return (
     <Screen title="Safety and records" testID="safety-screen">
       {LOG_KINDS.map((k) => (
@@ -38,7 +42,7 @@ export function SafetyScreen() {
   );
 }
 
-function LogPage({ kind, onBack }: { kind: LogKind; onBack: () => void }) {
+function LogPage({ kind, onBack, prefill = '' }: { kind: LogKind; onBack: () => void; prefill?: string }) {
   const { client, db, offline } = useOdoo();
   const { save } = useQueue();
   const { roles } = useRoles();
@@ -100,9 +104,11 @@ function LogPage({ kind, onBack }: { kind: LogKind; onBack: () => void }) {
   // A fresh entry starts with today's date, who is signed in, and Good on each Good / Off choice.
   useEffect(() => {
     if (!form || started) return;
-    setValues(logDefaults(form, today, who));
+    const v = logDefaults(form, today, who);
+    if (prefill) for (const q of form.questions) if (askKind(q) === 'product' || askKind(q) === 'batch') v[q.id] = prefill;
+    setValues(v);
     setStarted(true);
-  }, [form, started, today, who]);
+  }, [form, started, today, who, prefill]);
   // The name can arrive after the form: fill "Who" in if it is still empty.
   useEffect(() => {
     if (!form || !who) return;

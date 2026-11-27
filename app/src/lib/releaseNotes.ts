@@ -11,6 +11,19 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.47',
+    changes: [
+      'Packing an order now reads the delivery method chosen at checkout: it shows "Chosen at checkout: Local delivery" and starts the Delivery / Pickup choice on what the order says. You can still change it.',
+      'An order Odoo is waiting on says how short each line is, for example "Short by 2: need 3, 1 free. Finish a batch or count stock."',
+      'A finished batch has Add a tasting for this batch and Shelf-life check for this batch, which open those logs with the batch filled in.',
+    ],
+    test: [
+      'Sell, Orders, open a website order: it should say what was chosen at checkout, and Delivery or Pickup should start on that.',
+      'Open an order that says Waiting for stock: each line says how short it is.',
+      'Make, open a finished batch: tap Add a tasting for this batch. The product and batch should already be filled in.',
+    ],
+  },
+  {
     release: '0.1.46',
     changes: [
       'Purchase orders: after you save a new order it opens straight on its lines, the Lines tab lists the lines, and a Confirm order button makes the delivery so Check in a delivery finds it. Check in says what to do when nothing is expected.',

@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 import { Body, Button, Card, Chip, ErrorText, Row, Screen, Segments } from '../components/ui';
 import { fmtQty } from '../lib/production';
-import { handOverChanges, Handover, loadLotStock, loadOrders, loadPackLines, LotPick, oldestFirst, Order, PackLine, readyToPack, stateWords } from '../lib/orders';
+import { Checkout, handOverChanges, Handover, loadCheckout, loadFree, loadLotStock, loadOrders, loadPackLines, LotPick, oldestFirst, Order, PackLine, readyToPack, shortWords, stateWords } from '../lib/orders';
 import { DeliveryBoardScreen } from './DeliveryBoardScreen';
 import { useLeaveAtBase } from '../lib/innerBack';
 import { useOdoo } from '../lib/useOdoo';
@@ -98,12 +98,20 @@ function PackOrder({ order, onBack }: { order: Order; onBack: () => void }) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
+  const [checkout, setCheckout] = useState<Checkout | null>(null);
+  const [free, setFree] = useState<Map<number, number>>(new Map());
 
   useEffect(() => {
     if (!client || offline) return;
+    // The delivery method chosen at checkout starts the Delivery / Pickup choice.
+    loadCheckout(client, order.id).then((c) => {
+      setCheckout(c);
+      if (c) setHow(c.how);
+    });
     (async () => {
       try {
         const lines = await loadPackLines(client, order.id);
+        setFree(await loadFree(client, lines.map((l) => l.productId)));
         const out: Planned[] = [];
         for (const line of lines) {
           const stock = await loadLotStock(client, line.productId);
@@ -135,12 +143,15 @@ function PackOrder({ order, onBack }: { order: Order; onBack: () => void }) {
             detail={
               picks.length
                 ? `Take: ${picks.map((p) => `${fmtQty(p.qty)} from batch ${p.lot}${p.useBy ? ` (use by ${p.useBy}${p.expired ? ', EXPIRED' : ''})` : ''}`).join(', ')}${short ? `. Short by ${fmtQty(short)}.` : ''}`
-                : 'No batch numbers on this product.'
+                : readyToPack(order)
+                  ? 'No batch numbers on this product.'
+                  : shortWords(line.qty, free.get(line.productId)) || 'No batch numbers on this product.'
             }
             testID={`line-${line.moveId}`}
           />
         ))}
       </Card>
+      {checkout ? <Body>{`Chosen at checkout: ${checkout.label}`}</Body> : null}
       <Body>How does it go to the customer?</Body>
       <Segoptions how={how} setHow={setHow} />
       {note ? <Body>{note}</Body> : null}
