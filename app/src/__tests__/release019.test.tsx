@@ -115,7 +115,7 @@ describe('screens', () => {
     };
     await renderRouter('src/app', { initialUrl: '/area/orders?go=board' });
     await settle();
-    await fireEvent.press(await screen.findByText(/Drive \(1\)/));
+    await fireEvent.press(await screen.findByText(/Ready \(1\)/));
     await fireEvent.press(await screen.findByTestId(`board-delivered-${p}`));
     await settle();
     expect(odoo.tables['mail.message']!.filter((m) => m.model === 'sale.order')).toHaveLength(1);
