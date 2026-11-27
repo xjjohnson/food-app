@@ -99,8 +99,43 @@ describe('pack, then delivered or picked up, as Odoo says', () => {
     const pickup = mk('S0001', 'onsite', 'Pick up');
     const ship = mk('S0002', 'fixed', 'Local delivery');
     await open(odoo, '/area/orders?go=board', 'Shipping & Packaging');
-    await fireEvent.press(await screen.findByText(/Packed \(2\)/));
+    await fireEvent.press(await screen.findByText(/Packed \(1\)/));
+    expect(await screen.findByTestId(`board-delivered-${ship}`)).toHaveTextContent('Delivered ›');
+    await fireEvent.press(screen.getByText('Pickups (1)'));
+    await settle();
+    await fireEvent.press(await screen.findByText(/Packed \(1\)/));
     expect(await screen.findByTestId(`board-delivered-${pickup}`)).toHaveTextContent('Picked up ›');
-    expect(screen.getByTestId(`board-delivered-${ship}`)).toHaveTextContent('Delivered ›');
+  });
+});
+
+describe('pickups and deliveries are kept apart on the board', () => {
+  test('two lists with counts; only deliveries have the route, stops and address', async () => {
+    const { odoo } = bakery();
+    const today = new Date().toISOString().slice(0, 10);
+    odoo.create('res.partner', { name: 'Pat', street: '1 Main St', zip: '78640', phone: '555-0100' });
+    const mk = (name: string, type: string, label: string) => {
+      const car = odoo.create('delivery.carrier', { name: label, delivery_type: type });
+      const sale = odoo.create('sale.order', { name, carrier_id: [car, label] });
+      return odoo.create('stock.picking', { name: `WH/${name}`, origin: name, partner_id: [odoo.tables['res.partner']!.at(-1)!.id as number, 'Pat'], state: 'done', picking_type_code: 'outgoing', sale_id: [sale, name], scheduled_date: `${today} 08:00:00`, date_done: `${today} 09:00:00` });
+    };
+    const d1 = mk('S0001', 'fixed', 'Local delivery');
+    const d2 = mk('S0002', 'fixed', 'Local delivery');
+    const pk = mk('S0003', 'onsite', 'Pick up');
+    await open(odoo, '/area/orders?go=board', 'Shipping & Packaging');
+    await fireEvent.press(await screen.findByText(/Packed \(3\)|Packed \(2\)/));
+    expect(await screen.findByText('Deliveries (2)')).toBeTruthy();
+    expect(screen.getByText('Pickups (1)')).toBeTruthy();
+    expect(screen.getByTestId('route-card')).toBeTruthy();
+    expect(screen.getByTestId(`stop-${d1}`)).toBeTruthy();
+    expect(screen.getByTestId(`stop-${d2}`)).toBeTruthy();
+    expect(screen.queryByTestId(`board-${pk}`)).toBeNull();
+    await fireEvent.press(screen.getByText('Pickups (1)'));
+    await settle();
+    await fireEvent.press(await screen.findByText(/Packed \(1\)/));
+    expect(await screen.findByTestId(`board-${pk}`)).toBeTruthy();
+    expect(screen.queryByTestId('route-card')).toBeNull();
+    expect(screen.queryByTestId(`stop-${pk}`)).toBeNull();
+    expect(screen.queryByTestId(`board-map-${pk}`)).toBeNull();
+    expect(screen.getByTestId(`board-delivered-${pk}`)).toHaveTextContent('Picked up ›');
   });
 });

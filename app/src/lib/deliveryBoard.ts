@@ -5,7 +5,7 @@
  * from the app, because Odoo has no step for it). Read only except that note.
  */
 import { m2oId, type OdooClient } from './odoo';
-import { carrierIsPickup } from './orders';
+import { pickupSales } from './orders';
 import { partnerFields } from './partnerFields';
 import type { NewChange } from './queue';
 
@@ -74,23 +74,6 @@ export async function loadBoard(c: Client, now = new Date()): Promise<BoardOrder
         ...(pickups.has(saleId) ? { pickup: true } : {}),
       };
     });
-}
-
-/** Sale orders whose delivery method in Odoo is a pickup. Empty if Odoo has no delivery methods. */
-async function pickupSales(c: Client, saleIds: number[]): Promise<Set<number>> {
-  const out = new Set<number>();
-  if (!saleIds.length) return out;
-  try {
-    const sales = (await c.call('sale.order', 'read', [saleIds], { fields: ['carrier_id'] })) as Record<string, unknown>[];
-    const carrierIds = [...new Set(sales.map((s) => m2oId(s.carrier_id)).filter(Boolean))];
-    if (!carrierIds.length) return out;
-    const cars = (await c.call('delivery.carrier', 'read', [carrierIds], { fields: ['name', 'delivery_type'] })) as Record<string, unknown>[];
-    const isPickup = new Set(cars.filter((x) => carrierIsPickup(String(x.name ?? ''), x.delivery_type)).map((x) => x.id as number));
-    for (const s of sales) if (isPickup.has(m2oId(s.carrier_id))) out.add(s.id as number);
-  } catch {
-    // No delivery methods: everything is a delivery.
-  }
-  return out;
 }
 
 export const mapLink = (address: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;

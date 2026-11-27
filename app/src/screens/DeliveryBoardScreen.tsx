@@ -28,6 +28,7 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
   const [busy, setBusy] = useState(false);
   const [closedToday, setClosedToday] = useState(false);
   const [stage, setStage] = useState<Step | null>(null);
+  const [kind, setKind] = useState<'deliveries' | 'pickups' | null>(null);
 
   const load = useCallback(async () => {
     if (!db) return;
@@ -65,8 +66,12 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
   }, [client, offline]);
 
   const route = useTyped(routeKey(new Date().toISOString().slice(0, 10)));
-  const ordered = list ? applyRoute(list, route.value) : list;
-  const routeUrl = ordered ? routeLink(ordered) : '';
+  // Deliveries and pickups are kept apart: only deliveries have a route and stops.
+  const deliveries = list ? applyRoute(list.filter((o) => !o.pickup), route.value) : [];
+  const pickups = list ? list.filter((o) => o.pickup) : [];
+  const activeKind = kind ?? (deliveries.length || !pickups.length ? 'deliveries' : 'pickups');
+  const ordered = list ? (activeKind === 'pickups' ? pickups : deliveries) : list;
+  const routeUrl = deliveries.length ? routeLink(deliveries) : '';
   const waiting = new Set(items.filter((i) => i.step?.kind === 'note').map((i) => (i.step as { resId: number }).resId));
 
   const stepOf = (o: BoardOrder): Step => (waiting.has(o.saleId) ? 'delivered' : o.step);
@@ -95,10 +100,22 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
       {error ? <ErrorText>{error}</ErrorText> : null}
       {!list ? <Body muted>{busy ? 'Loading…' : 'Nothing to show yet. Connect to Odoo to load the board.'}</Body> : null}
       {list && !list.length ? <Body muted>No deliveries or pickups for today.</Body> : null}
-      {list && list.length > 1 ? (
+      {list && list.length && ordered && !ordered.length ? <Body muted>{activeKind === 'pickups' ? 'No pickups for today.' : 'No deliveries for today.'}</Body> : null}
+      {list && list.length ? (
+        <Segments<'deliveries' | 'pickups'>
+          options={[{ id: 'deliveries', label: `Deliveries (${deliveries.length})` }, { id: 'pickups', label: `Pickups (${pickups.length})` }]}
+          value={activeKind}
+          onChange={(k) => {
+            setKind(k);
+            setStage(null);
+          }}
+          testID="board-kind"
+        />
+      ) : null}
+      {activeKind === 'deliveries' && deliveries.length > 1 ? (
         <Card title="Route" testID="route-card">
           <Body muted>The app doesn’t plan the route. Sort by zip to start, then move stops up or down.</Body>
-          <Button label="Sort by zip" kind="plain" onPress={() => route.put(sortByZip(list.map((o) => ({ id: o.id, address: o.address, zip: o.zip ?? '' }))).map((x) => x.id).join(','))} testID="route-sort" />
+          <Button label="Sort by zip" kind="plain" onPress={() => route.put(sortByZip(deliveries.map((o) => ({ id: o.id, address: o.address, zip: o.zip ?? '' }))).map((x) => x.id).join(','))} testID="route-sort" />
           {routeUrl ? <Button label="Open the whole route in Maps" onPress={() => Linking.openURL(routeUrl)} testID="route-open" /> : null}
         </Card>
       ) : null}
@@ -113,20 +130,20 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
           <Card key={o.id} title={o.customer || o.origin || o.name} testID={`board-${o.id}`}>
             <Chip label={isWaiting ? `${o.pickup ? 'Picked up' : 'Delivered'} (waiting to send)` : o.pickup && step === 'delivered' ? 'Picked up' : STEP_WORDS[step]} testID={`board-step-${o.id}`} />
             <Body muted>{`${o.origin || o.name}${o.date ? ` · ${o.date.slice(0, 10)}` : ''}`}</Body>
-            {ordered && ordered.length > 1 ? (
+            {!o.pickup && ordered && ordered.length > 1 ? (
               <>
                 <Chip label={`Stop ${n + 1}`} testID={`stop-${o.id}`} />
                 <Button label="Move up" kind="plain" disabled={n === 0} onPress={() => route.put(moveStop(ordered, n, -1).map((x) => x.id).join(','))} testID={`stop-up-${o.id}`} />
                 <Button label="Move down" kind="plain" disabled={n === ordered.length - 1} onPress={() => route.put(moveStop(ordered, n, 1).map((x) => x.id).join(','))} testID={`stop-down-${o.id}`} />
               </>
             ) : null}
-            {o.address ? <Row title="Address" detail={o.address} onPress={() => Linking.openURL(mapLink(o.address))} testID={`board-map-${o.id}`} /> : <Body muted>No address on the contact.</Body>}
+            {o.pickup ? null : o.address ? <Row title="Address" detail={o.address} onPress={() => Linking.openURL(mapLink(o.address))} testID={`board-map-${o.id}`} /> : <Body muted>No address on the contact.</Body>}
             {o.phone ? <Row title="Phone" detail={o.phone} onPress={() => Linking.openURL(`tel:${o.phone}`)} /> : null}
             {o.notes ? <Body>{`Notes: ${o.notes}`}</Body> : null}
             {step === 'delivered' && o.saleId ? <PaymentCard order={o} /> : null}
             {step === 'delivered' && o.saleId && !isWaiting ? <FeedbackBox orderId={o.saleId} orderName={o.origin || o.name} /> : null}
             {step === 'pack' ? <Button label="Pack it" kind="plain" onPress={onPack} testID={`board-pack-${o.id}`} /> : null}
-            {o.saleId ? <PhotosCard model="sale.order" resId={o.saleId} recordName={o.origin || o.name} title="Delivery proof" about="Delivery proof" button="Take a proof photo" testID={`board-photos-${o.id}`} /> : null}
+            {o.saleId && !o.pickup ? <PhotosCard model="sale.order" resId={o.saleId} recordName={o.origin || o.name} title="Delivery proof" about="Delivery proof" button="Take a proof photo" testID={`board-photos-${o.id}`} /> : null}
             {step === 'packed' && o.saleId ? <Button label={o.pickup ? 'Picked up ›' : 'Delivered ›'} onPress={() => delivered(o)} testID={`board-delivered-${o.id}`} /> : null}
           </Card>
         );

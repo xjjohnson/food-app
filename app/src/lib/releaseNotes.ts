@@ -11,6 +11,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.52',
+    changes: [
+      'The delivery board keeps deliveries and pickups apart: a Deliveries / Pickups switch at the top, each with its count. Deliveries keep the route, stop numbers, address and proof photo. Pickups have no route, stops or address, only the customer, phone and the Picked up button.',
+      'Stop numbers count only deliveries.',
+      'The orders list says Delivery or Pickup on each order.',
+    ],
+    test: [
+      'Sell, Orders, Delivery board: tap Deliveries and Pickups. A pickup order should not have a stop number or address.',
+      'Sell, Orders: each order in the list says Delivery or Pickup.',
+    ],
+  },
+  {
     release: '0.1.51',
     changes: ['Paying a purchase bill and paying on delivery now list your Odoo payment accounts (Bank, Cash and so on, as named in Odoo), the same list Bought ingredients uses. Before, they only knew Cash, Cash App and Venmo by name.'],
     test: ['Ingredients, Purchase orders, an order that is checked in, Lines tab: the Bill and payment card lists every account, including Bank.', 'Sell, Orders, Delivery board, Delivered: the Payment card lists the same accounts.'],
