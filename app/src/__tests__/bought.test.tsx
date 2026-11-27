@@ -107,11 +107,19 @@ describe('bought ingredients screen', () => {
     await fireEvent.press(screen.getByTestId('bought-add'));
     await settle();
     await fireEvent.press(await screen.findByTestId(`bought-pick-${s.sugar}`));
+    await fireEvent.press(screen.getByTestId('bought-add-picked'));
     await settle();
-    const line = screen.getByTestId(/^bought-line-/).props.testID.replace('bought-line-', '');
+    // A compact receipt row; tap it to edit.
+    const row = screen.getByTestId(/^bought-line-/);
+    const line = row.props.testID.replace('bought-line-', '');
+    await fireEvent.press(row);
+    await settle();
     await fireEvent.changeText(screen.getByTestId(`bought-qty-${line}`), '5');
     await fireEvent.changeText(screen.getByTestId(`bought-total-${line}`), '4.5');
     expect(screen.getByTestId(`bought-price-${line}`).props.value).toBe('0.9');
+    await fireEvent.press(screen.getByTestId('bought-done'));
+    await settle();
+    expect(screen.getByTestId('bought-running-total')).toHaveTextContent(/4\.5/);
     await fireEvent.press(screen.getByTestId('bought-next'));
     await settle();
     expect(screen.getByTestId('bought-total')).toHaveTextContent(/4\.5/);

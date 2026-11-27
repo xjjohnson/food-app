@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.92',
+    changes: ['Bought ingredients is slimmer. From and Date share one card. What you bought shows as short receipt rows with a running total; tap a row to change how many, price, unit or batch, or to remove it. The item picker has slim rows, Ingredients / All products buttons, and lets you tick several items and add them together.'],
+    test: ['Buy, Bought ingredients: pick a supplier, add two items at once, see two short rows and a total. Tap a row, change the price, tap Done: the row total changes. Check and save, then save: it receives into stock as before.'],
+  },
+  {
     release: '0.1.91',
     changes: ['On Sell, the red Late button is now Waiting for stock. It shows how many orders need product first, and opens Waiting for stock.'],
     test: ['Sell: the third button on top says Waiting for stock with the same count as the Waiting for stock row. Tap it: the orders needing product and What to make open.'],
