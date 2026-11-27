@@ -273,6 +273,29 @@ export function Segments<T extends string>({ options, value, onChange, testID }:
   );
 }
 
+/** A row of colored status buttons: green is fine, orange needs a look, red is late. Each shows a count. */
+export function StatusButtons({ items, testID }: { items: { label: string; count: number | null; tone: 'good' | 'warn' | 'bad'; onPress: () => void; testID: string }[]; testID?: string }) {
+  const { colors } = useBrand();
+  const tones = { good: '#2F7D52', warn: '#C26A0E', bad: colors.stop };
+  return (
+    <View style={{ flexDirection: 'row', gap: 10 }} testID={testID}>
+      {items.map((i) => (
+        <Pressable
+          key={i.testID}
+          onPress={i.onPress}
+          accessibilityRole="button"
+          accessibilityLabel={`${i.label}: ${i.count ?? 'loading'}`}
+          testID={i.testID}
+          style={({ pressed }) => ({ flex: 1, minHeight: 84, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center', backgroundColor: tones[i.tone], opacity: pressed ? 0.75 : 1 })}
+        >
+          <Text style={{ fontSize: 30, fontWeight: '800', color: '#FFFFFF' }}>{i.count === null ? '·' : String(i.count)}</Text>
+          <Text style={{ fontSize: 14, fontWeight: '700', color: '#FFFFFF', textAlign: 'center' }}>{i.label}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 /** A big button tile for standing-up work (market day): large text, easy to hit. */
 export function BigTile({ label, detail, onPress, testID }: { label: string; detail?: string; onPress: () => void; testID?: string }) {
   const { colors } = useBrand();

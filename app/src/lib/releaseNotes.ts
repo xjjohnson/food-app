@@ -11,6 +11,19 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.56',
+    changes: [
+      'Sell tab redesign: three colored buttons on top of Orders (green Packed, orange To pack, red Late) with counts read from Odoo. Tap one to open the delivery board.',
+      'Customers has colored buttons too: Customers, Owe you (unpaid invoices) and Overdue.',
+      'Orders are grouped under Today, Sell and Money as cards with tiles. Market is quiet cards with one Open register button, instead of big purple blocks.',
+    ],
+    test: [
+      'Sell, Orders: check the three colored buttons. To pack should match the delivery board.',
+      'Sell, Customers: Owe you and Overdue should match the unpaid invoices.',
+      'Sell, Market: tap Open register, Day sheet, Price sheet.',
+    ],
+  },
+  {
     release: '0.1.55',
     changes: [
       'The pages inside More now match the More page: each menu item is its own rounded card with a small tile, instead of bare text on the page. This covers Online shop and its pages, Money and reports and its pages, Management, Settings and Developer.',
