@@ -11,6 +11,23 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.54',
+    changes: [
+      'More page redesign: your business name and logo with your role at the top, quick buttons for Settings, Money and Shop, and an Owner only box for Management and Developer.',
+      'Management is split into People, Setup and Odoo, and the repeated Money and Shop cards are gone.',
+      'The bottom bar is words only. The long labels no longer break letter by letter.',
+      'Money, This month: each product name has its own line with the amount under it, and the delivery charge is no longer listed as a product.',
+      'More room at the bottom of every page so the plus button does not cover the last row.',
+      'Settings, Look: choose Light, Dark or follow the phone.',
+    ],
+    test: [
+      'More: check the header, the quick buttons and the Owner only box. Sign in as a helper: the owner items should be gone.',
+      'More, Management: tap People, Setup and Odoo.',
+      'Settings, Look: try Dark, then Light, then Phone setting.',
+      'More, Money: This month should list each product on its own line, with no Delivery line.',
+    ],
+  },
+  {
     release: '0.1.53',
     changes: ['A finished batch always shows What was made: how many were made and the yield against the plan. The cost lines show only when Odoo has a cost; otherwise it says Odoo has no cost for this batch yet. Before, the whole card was missing without a cost.'],
     test: ['Make, open a finished batch that has no cost in Odoo (for example 12 Classic Strawberry Jam): What was made should show the amount and yield.'],

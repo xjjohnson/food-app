@@ -58,12 +58,20 @@ export async function loadSold(c: Client, from: string, to: string): Promise<Sol
     if (!r) by.set(id, (r = { productId: id, name, units: 0, sales: 0, margin: null, cost: 0 }));
     return r;
   };
+  // Delivery charges are not something that was made or sold from the kitchen; leave them out of the product lists.
+  let shipping = new Set<number>();
+  try {
+    const car = (await c.call('delivery.carrier', 'search_read', [[]], { fields: ['product_id'] })) as Record<string, unknown>[];
+    shipping = new Set(car.map((k) => m2o(k.product_id)[0]).filter(Boolean));
+  } catch {
+    // No delivery app in this Odoo.
+  }
   const fields = (await c.call('sale.report', 'fields_get', [], { attributes: ['string'] })) as Record<string, unknown>;
   const hasMargin = 'margin' in fields;
   const sales = (await c.call('sale.report', 'search_read', [[['date', '>=', `${from} 00:00:00`], ['date', '<=', `${to} 23:59:59`], ['state', 'in', ['sale', 'done']]]], { fields: ['product_id', 'product_uom_qty', 'price_subtotal', ...(hasMargin ? ['margin'] : [])] })) as Record<string, unknown>[];
   for (const s of sales) {
     const [id, name] = m2o(s.product_id);
-    if (!id) continue;
+    if (!id || shipping.has(id)) continue;
     const r = row(id, name);
     r.units += num(s.product_uom_qty);
     r.sales += num(s.price_subtotal);

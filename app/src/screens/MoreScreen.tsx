@@ -1,22 +1,48 @@
 import { router } from 'expo-router';
-import { Card, Row, Screen } from '../components/ui';
+import { Image, Pressable, Text, View } from 'react-native';
+import { Row, Screen, useUi } from '../components/ui';
+import { roleNames } from '../lib/roles';
+import { useBrand } from '../lib/useBrand';
 import { useRoles } from '../lib/useRoles';
 
-/** More: search, contacts and settings for everyone; the owner's money, shop and setup (hidden from other roles). */
+/** A big quick button under the header. */
+function Quick({ label, onPress, testID }: { label: string; onPress: () => void; testID: string }) {
+  const s = useUi();
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} testID={testID} style={({ pressed }) => [s.card, { flex: 1, minHeight: 56, alignItems: 'center', justifyContent: 'center', padding: 8 }, pressed && s.pressed]}>
+      <Text style={s.rowTitle}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** More: your business at the top, quick buttons, and the owner-only items in their own box (hidden from other roles). */
 export function MoreScreen() {
   const { roles } = useRoles();
+  const { brand, name, colors } = useBrand();
+  const s = useUi();
+  const who = roleNames(roles) || 'No role yet';
   return (
     <Screen title="More" back={false} testID="more-screen">
-      <Card>
-        <Row title="Settings" detail="Look, updates and sign out" onPress={() => router.push('/settings')} testID="open-settings" />
-      </Card>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.accent, borderRadius: 16, padding: 14 }} testID="more-header">
+        {brand.logo ? (
+          <Image source={{ uri: brand.logo }} style={{ width: 48, height: 48, borderRadius: 10, backgroundColor: '#FFFFFF' }} resizeMode="contain" accessibilityLabel={`${name} logo`} />
+        ) : null}
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 20, fontWeight: '800', color: colors.onAccent }} numberOfLines={2}>{name}</Text>
+          <Text style={{ fontSize: 15, color: colors.onAccent }}>{who}</Text>
+        </View>
+      </View>
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <Quick label="Settings" onPress={() => router.push('/settings')} testID="open-settings" />
+        {roles.owner ? <Quick label="Money" onPress={() => router.push('/reports')} testID="open-reports" /> : null}
+        {roles.owner ? <Quick label="Shop" onPress={() => router.push('/shop')} testID="open-shop" /> : null}
+      </View>
       {roles.owner ? (
-        <Card title="Owner">
-          <Row title="Money and reports" detail="Sales, profit, bills due, tax, expenses, accountant packet" onPress={() => router.push('/reports')} testID="open-reports" />
-          <Row title="Online shop" detail="Shop switches, new orders, specials, delivery, newsletter" onPress={() => router.push('/shop')} testID="open-shop" />
-          <Row title="Management" detail="People and roles, the company brand, setup" onPress={() => router.push('/management')} testID="open-management" />
-          <Row title="Developer" detail="Test database, connection check, testing tools" onPress={() => router.push('/developer')} testID="open-developer-home" />
-        </Card>
+        <View style={{ backgroundColor: colors.tint, borderRadius: 16, padding: 14, gap: 4 }} testID="owner-box">
+          <Text style={s.label}>OWNER ONLY</Text>
+          <Row title="Management" detail="People, brand, setup" onPress={() => router.push('/management')} testID="open-management" />
+          <Row title="Developer" detail="Test database and tools" onPress={() => router.push('/developer')} testID="open-developer-home" />
+        </View>
       ) : null}
     </Screen>
   );
