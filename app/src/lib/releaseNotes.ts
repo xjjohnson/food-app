@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.53',
+    changes: ['A finished batch always shows What was made: how many were made and the yield against the plan. The cost lines show only when Odoo has a cost; otherwise it says Odoo has no cost for this batch yet. Before, the whole card was missing without a cost.'],
+    test: ['Make, open a finished batch that has no cost in Odoo (for example 12 Classic Strawberry Jam): What was made should show the amount and yield.'],
+  },
+  {
     release: '0.1.52',
     changes: [
       'The delivery board keeps deliveries and pickups apart: a Deliveries / Pickups switch at the top, each with its count. Deliveries keep the route, stop numbers, address and proof photo. Pickups have no route, stops or address, only the customer, phone and the Picked up button.',

@@ -89,11 +89,14 @@ describe('finishing a batch with real amounts', () => {
     expect(changes.map((x) => x.model)).toEqual(['stock.move', 'mrp.production', 'mrp.production']);
     for (const ch of changes) await saveOrQueue(c, AsyncStorage, DB, 1, ch);
     expect(odoo.tables['stock.move']!.find((m) => m.id === move.id)).toMatchObject({ quantity: 3.5, picked: true });
-    // Nothing to read until Odoo has a figure.
+    // Nothing to read until something was made.
     expect(await loadBatchCost(c, mo.id)).toBeNull();
     const fin = odoo.create('stock.move', { product_id: [cookie, 'Cookies'], state: 'done', quantity: 10, value: 25 });
     mo.move_finished_ids = [fin];
     odoo.declared['stock.move'] = ['value'];
     expect(await loadBatchCost(c, mo.id)).toEqual({ total: 25, perUnit: 2.5, made: 10 });
+    // No cost figure: still say how many were made.
+    odoo.tables['stock.move']!.find((m) => m.id === fin)!.value = 0;
+    expect(await loadBatchCost(c, mo.id)).toEqual({ total: 0, perUnit: 0, made: 10 });
   });
 });
