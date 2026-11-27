@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.77',
+    changes: ['Sold board, Done: each order is a slim card with the name, order number, date and Paid or Not paid. The payment buttons only open when you tap Record payment, so the card no longer flips from asking how they paid to Paid. Offline it shows no tag instead of guessing.'],
+    test: ['Sell, Sold board, Done: check the slim cards and the Paid / Not paid words. Tap Record payment on an unpaid one and pick how they paid. Turn on airplane mode and check no tag is guessed.'],
+  },
+  {
     release: '0.1.76',
     changes: ['The How did it go? star rating is gone from the Sold board. Notes already saved on orders in Odoo are left alone.'],
     test: ['Sell, Sold board, Done: open a delivered order and check the star box is gone while Payment still shows.'],

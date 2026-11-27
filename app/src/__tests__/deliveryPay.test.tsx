@@ -63,6 +63,9 @@ describe('pay on delivery', () => {
     await settle();
     expect(odoo.tables['account.move']).toHaveLength(1);
     expect(odoo.tables['account.move']![0]!.payment_state).toBe('not_paid');
+    expect(await screen.findByTestId(`board-paid-${p}`)).toHaveTextContent('Not paid');
+    expect(screen.queryByTestId(`pay-${p}-j${cash}`)).toBeNull();
+    await fireEvent.press(await screen.findByTestId(`board-record-${p}`));
     await fireEvent.press(await screen.findByTestId(`pay-${p}-j${cash}`));
     await settle();
     expect(screen.getByText(/Paid with Cash/)).toBeTruthy();
