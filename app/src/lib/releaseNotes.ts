@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.83',
+    changes: ['Red count dot on Expiring soon inside Stock, so the dot on Jars in stock leads you to it.'],
+    test: ['Make, Jars in stock, Count, throw out, find a batch: Expiring soon shows the same red number as the dot on Jars in stock.'],
+  },
+  {
     release: '0.1.82',
     changes: ['Red count dots: on the Today, Buy, Make, Sell and More tabs, and on Running low, Batches, Jars in stock and Invoices. Zero shows nothing. New look everywhere: rounded header with a soft glow, bolder cards with shadows, colored icon tiles, and a floating bottom bar.'],
     test: ['Look at the bottom bar: tabs with work waiting show a red number. Open Buy, Make and Sell and check the rows (Running low, Batches, Invoices) show a dot. Check the header, cards and floating bottom bar look new.'],
