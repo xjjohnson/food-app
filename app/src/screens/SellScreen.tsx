@@ -33,6 +33,8 @@ export function SellScreen({ go }: { go?: string } = {}) {
         sections={SALE_SECTIONS}
         required={['partner_id']}
         uniqueField="client_order_ref"
+        saveLabel="Next: add products"
+        onCreated={(id) => setPage({ p: 'quote', id, lines: true })}
         testID="quote-form"
         onBack={() => (page.id ? setPage({ p: 'list' }) : menu())}
         extraTabs={
