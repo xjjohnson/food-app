@@ -11,6 +11,20 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.46',
+    changes: [
+      'Purchase orders: after you save a new order it opens straight on its lines, the Lines tab lists the lines, and a Confirm order button makes the delivery so Check in a delivery finds it. Check in says what to do when nothing is expected.',
+      'Dates on every Odoo form (order date, expected arrival, batch dates and more) are a calendar with a No date button, not typed text.',
+      'The Changes list no longer shows "Untaxed Amount: empty to empty"; empty changes are hidden and amounts show their numbers.',
+      'Cottage-food rules: the owner can tap Change the rules, then Fill in the Texas rules, to start from the Texas state health department list (read 2026-11-27, with sources). Edit it and save. The app does not decide what is allowed.',
+    ],
+    test: [
+      'Buy, Purchase orders, New order: pick a vendor, Save. It should open on the order lines. Add a line, then tap Confirm order. Then Check in a delivery should list it.',
+      'Open any order or batch form: dates open a calendar.',
+      'Safety and records, Cottage-food rules (owner): Change the rules, Fill in the Texas rules, read them, Save. Check the details against dshs.texas.gov.',
+    ],
+  },
+  {
     release: '0.1.45',
     changes: [
       'Make, Jars in stock: sizes are grouped under each product with a total, use-by soon first, then the most in stock. Out-of-stock jars are hidden behind a Show out of stock button, anything a recipe uses as an ingredient is left out, and a Find a jar box shows on a long list.',

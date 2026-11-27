@@ -11,7 +11,7 @@ const DAYS = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
  * A date picked from a calendar, drawn here (no native module, so it ships as
  * a normal update). The value is "YYYY-MM-DD", or "" when nothing is picked.
  */
-export function DatePicker({ label, value, onChange, testID }: { label: string; value: string; onChange: (v: string) => void; testID?: string }) {
+export function DatePicker({ label, value, onChange, testID, clearable }: { label: string; value: string; onChange: (v: string) => void; testID?: string; clearable?: boolean }) {
   const s = useUi();
   const { colors } = useBrand();
   const [open, setOpen] = useState(false);
@@ -77,6 +77,7 @@ export function DatePicker({ label, value, onChange, testID }: { label: string; 
                 );
               })}
             </View>
+            {clearable && value ? <Button label="No date" kind="plain" onPress={() => { onChange(''); setOpen(false); }} testID="date-clear" /> : null}
             <Button label="Cancel" kind="plain" onPress={() => setOpen(false)} testID="date-cancel" />
           </View>
         </View>

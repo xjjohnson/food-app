@@ -11,6 +11,7 @@ import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 import { useRoles } from '../lib/useRoles';
 import { useProductSearch } from './StockExtras';
+import { TEXAS_RULES, TEXAS_RULES_DATE } from '../lib/texasRules';
 
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const SAVED = (queued: boolean) => (queued ? 'Saved on the phone. It goes to Odoo when signal is back.' : 'Saved in Odoo.');
@@ -225,15 +226,17 @@ function RulesPage({ onBack }: { onBack: () => void }) {
   const rules = rulesList(settings);
   return (
     <Screen title="Cottage-food rules" testID="rules-screen">
-      <Body muted>These are your own rules, typed in by the owner. The app does not know the law; check your state’s rules yourself.</Body>
+      <Body muted>These are your own rules, saved by the owner (the Texas list is a starting point). The app does not know the law; check your state’s rules yourself at dshs.texas.gov.</Body>
       {error ? <ErrorText>{error}</ErrorText> : null}
       {!editing ? (
         <Card title="Read before selling">
-          {rules.length ? rules.map((r, i) => <SwitchRow key={i} title={r} value={!!ticked[i]} onChange={(v) => setTicked({ ...ticked, [i]: v })} testID={`rule-${i}`} />) : <Body muted>No rules typed in yet.</Body>}
+          {rules.length ? rules.map((r, i) => <SwitchRow key={i} title={r} value={!!ticked[i]} onChange={(v) => setTicked({ ...ticked, [i]: v })} testID={`rule-${i}`} />) : <Body muted>{roles.owner ? 'No rules yet. Tap Change the rules, then Fill in the Texas rules.' : 'No rules yet. Ask the owner to add them.'}</Body>}
           {rules.length && rules.every((_, i) => ticked[i]) ? <Body>All read. Good to sell.</Body> : null}
         </Card>
       ) : (
         <Card title="Your rules (one per line)">
+          <Button label="Fill in the Texas rules" kind="plain" onPress={() => setText(TEXAS_RULES.join('\n'))} testID="rules-texas" />
+          <Body muted>{`Texas rules from the state health department's page, read on ${TEXAS_RULES_DATE}. Read them, change anything that is wrong for you, then save.`}</Body>
           <Field label="Rules" value={text} onChangeText={setText} multiline testID="rules-text" />
           {note ? <Body>{note}</Body> : null}
           <Button
