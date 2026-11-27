@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { Pressable, Text } from 'react-native';
+import { Platform, Pressable, Text, ToastAndroid } from 'react-native';
 import { Body, Button, Card, Row, Screen, Segments, useUi } from '../components/ui';
 import { Appearance3, APPEARANCES, loadAppearance, saveAppearance } from '../lib/appearance';
 import { BUILD_INFO, SHORT_VERSION, UPDATE_CHANNEL } from '../lib/appVersion';
@@ -10,7 +10,7 @@ import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 import { useRoles } from '../lib/useRoles';
 
-/** Who is signed in, their roles, the version, and signing out. Seven taps on the version open the Developer screen. */
+/** Who is signed in, their roles, the version, and signing out. Seven taps on the version (owner only) open the Developer screen. */
 export function SettingsScreen() {
   const { client, signOut, offline } = useOdoo();
   const { roles, mine, reload, loading } = useRoles();
@@ -48,8 +48,9 @@ export function SettingsScreen() {
         <Pressable
           onPress={() => {
             taps.current += 1;
-            if (taps.current >= 7) {
+            if (taps.current >= 7 && roles.owner) {
               taps.current = 0;
+              if (Platform.OS === 'android') ToastAndroid.show('Developer options on', ToastAndroid.SHORT);
               router.push('/developer');
             }
           }}

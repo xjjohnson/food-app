@@ -59,7 +59,6 @@ export function MoreScreen() {
         <View style={{ backgroundColor: colors.tint, borderRadius: 16, padding: 14, gap: 4 }} testID="owner-box">
           <Text style={s.label}>OWNER ONLY</Text>
           <Row title="Management" detail="People, brand, setup" onPress={() => router.push('/management')} testID="open-management" />
-          <Row title="Developer" detail="Test database and tools" onPress={() => router.push('/developer')} testID="open-developer-home" />
         </View>
       ) : null}
     </Screen>
