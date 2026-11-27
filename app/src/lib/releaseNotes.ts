@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.81',
+    changes: ['Sold board: the Next stop card on Ready and the cards on Done now list what is in the order (amount and product). The delivery charge is left out.'],
+    test: ['Sell, Sold board: look at Ready and Done and check each order lists its products and amounts.'],
+  },
+  {
     release: '0.1.80',
     changes: ['The Sold board on the Sell page reads Odoo again each time you come back to it, so it no longer shows an order as To pack after you packed it.'],
     test: ['Sell: tap Pack it on an order and pack it, then go Back. The board should move it to Ready and match the Packed and To pack buttons at the top.'],
