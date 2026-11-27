@@ -34,7 +34,7 @@ const makeStyles = (c: Palette) =>
     headBack: { minHeight: TOUCH, minWidth: TOUCH, justifyContent: 'center' },
     headBackText: { color: c.onHead, fontSize: 18, fontWeight: '700' },
     logo: { width: 40, height: 40, borderRadius: 8, backgroundColor: '#FFFFFF' },
-    scroll: { padding: 16, gap: 16, paddingBottom: 48 },
+    scroll: { padding: 16, gap: 16, paddingBottom: 120 },
     card: { backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.line, padding: 16, gap: 12 },
     cardTitle: { fontSize: 20, fontWeight: '800', color: c.text },
     body: { fontSize: 17, color: c.text, lineHeight: 24 },
@@ -49,6 +49,7 @@ const makeStyles = (c: Palette) =>
     disabled: { opacity: 0.45 },
     row: { minHeight: TOUCH, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 },
     rowText: { flex: 1, gap: 2 },
+    rowTextWithValue: { flexGrow: 1, flexShrink: 0, flexBasis: '45%', gap: 2 },
     rowTitle: { fontSize: 18, fontWeight: '700', color: c.text },
     rowValue: { fontSize: 16, color: c.muted, flexShrink: 1, textAlign: 'right' },
     label: { fontSize: 15, fontWeight: '700', color: c.muted },
@@ -161,7 +162,7 @@ export function Row({ title, detail, value, onPress, right, testID }: { title: s
   const s = useUi();
   const inner = (
     <>
-      <View style={s.rowText}>
+      <View style={value !== undefined ? s.rowTextWithValue : s.rowText}>
         <Text style={s.rowTitle}>{title}</Text>
         {detail ? <Text style={s.muted}>{detail}</Text> : null}
       </View>

@@ -212,9 +212,10 @@ function NumbersFirst({ rows, range }: { rows: SoldRow[]; range: Range }) {
       </View>
       {top.map((r) => (
         <View key={r.productId} style={{ gap: 4 }}>
+          <Text style={[s.rowTitle, { fontSize: 16 }]}>{r.name}</Text>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-            <Text style={[s.rowTitle, { fontSize: 16 }]}>{r.name}</Text>
-            <Text style={s.rowValue}>{money(r.sales)}</Text>
+            <Text style={s.muted}>{`${fmtQty(r.units)} sold`}</Text>
+            <Text style={[s.rowTitle, { fontSize: 16 }]}>{money(r.sales)}</Text>
           </View>
           <View style={{ height: 10, borderRadius: 5, backgroundColor: colors.line }}>
             <View style={{ height: 10, borderRadius: 5, width: `${Math.max(4, (r.sales / biggest) * 100)}%`, backgroundColor: colors.accent }} />

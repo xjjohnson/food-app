@@ -49,8 +49,8 @@ export function TabBar({ state, navigateToTab }: TabBarProps) {
               testID={`tab-${t.id}`}
               style={styles.tab}
             >
-              <Text style={{ fontSize: 18, color: on ? colors.accent : colors.muted }}>{t.mark}</Text>
-              <Text style={{ fontSize: 13, fontWeight: '800', color: on ? colors.accent : colors.muted }}>{t.label}</Text>
+              <Text style={{ fontSize: 16, fontWeight: on ? '800' : '600', color: on ? colors.accent : colors.muted }}>{t.label}</Text>
+              <View style={{ height: 3, width: 24, borderRadius: 2, backgroundColor: on ? colors.accent : 'transparent' }} />
             </Pressable>
           );
         })}

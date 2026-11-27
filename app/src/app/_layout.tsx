@@ -6,6 +6,7 @@ import { BackHandler, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Bands } from '../components/Bands';
 import { Body, Button, Card, Screen } from '../components/ui';
+import { applyAppearance, loadAppearance } from '../lib/appearance';
 import { BUILD_INFO } from '../lib/appVersion';
 import { runInnerBack } from '../lib/innerBack';
 import { describeError, log } from '../lib/log';
@@ -53,6 +54,7 @@ function Shell() {
 export default function RootLayout() {
   useEffect(() => {
     log.load().then(() => log.info('app', `started · ${BUILD_INFO}`));
+    loadAppearance().then(applyAppearance);
     restoreBeta(Updates).catch(() => undefined);
   }, []);
   return (

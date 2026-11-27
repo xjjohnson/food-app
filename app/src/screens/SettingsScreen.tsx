@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Pressable, Text } from 'react-native';
-import { Body, Button, Card, Row, Screen, useUi } from '../components/ui';
+import { Body, Button, Card, Row, Screen, Segments, useUi } from '../components/ui';
+import { Appearance3, APPEARANCES, loadAppearance, saveAppearance } from '../lib/appearance';
 import { BUILD_INFO, SHORT_VERSION, UPDATE_CHANNEL } from '../lib/appVersion';
 import { dbLabel } from '../lib/dbSwitch';
 import { roleNames } from '../lib/roles';
@@ -16,6 +17,10 @@ export function SettingsScreen() {
   const { items } = useQueue();
   const s = useUi();
   const taps = useRef(0);
+  const [look, setLook] = useState<Appearance3>('phone');
+  useEffect(() => {
+    loadAppearance().then(setLook);
+  }, []);
 
   return (
     <Screen title="Settings" testID="settings-screen">
@@ -26,6 +31,18 @@ export function SettingsScreen() {
         <Row title="Roles" value={roleNames(roles) || 'None yet'} testID="settings-roles" />
         {mine?.admin ? <Body muted>You are an Odoo administrator, so you are always Owner.</Body> : null}
         <Button label="Read my roles again" kind="plain" busy={loading} disabled={offline} onPress={() => reload()} testID="reload-roles" />
+      </Card>
+      <Card title="Look" testID="look-card">
+        <Body muted>Light, dark, or follow your phone. This is kept on this phone only.</Body>
+        <Segments
+          options={APPEARANCES}
+          value={look}
+          onChange={(v) => {
+            setLook(v);
+            saveAppearance(v);
+          }}
+          testID="look-seg"
+        />
       </Card>
       <Card title="App">
         <Pressable

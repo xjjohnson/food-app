@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { loadSettings, settingChange, shelfLifeDefault, useByDays } from '../lib/appSettings';
 import { useQueue } from '../lib/useQueue';
 import { Image, View } from 'react-native';
-import { Body, Button, Card, ErrorText, Field, Row, Screen, SwitchRow } from '../components/ui';
+import { Body, Button, Card, ErrorText, Field, Row, Screen, Segments, SwitchRow } from '../components/ui';
 import { listPeople, Person, roleNames, ROLES, Roles, saveRoles } from '../lib/roles';
 import { useBrand } from '../lib/useBrand';
 import { useOdoo } from '../lib/useOdoo';
@@ -127,6 +127,7 @@ export function ManagementScreen() {
   const [open, setOpen] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [part, setPart] = useState<'people' | 'setup' | 'odoo'>('people');
 
   const load = useCallback(async () => {
     if (!client) return;
@@ -154,6 +155,13 @@ export function ManagementScreen() {
 
   return (
     <Screen title="Management" testID="management-screen">
+      <Segments
+        value={part}
+        onChange={setPart}
+        options={[{ id: 'people', label: 'People' }, { id: 'setup', label: 'Setup' }, { id: 'odoo', label: 'Odoo' }]}
+        testID="mgmt-part"
+      />
+      {part === 'people' ? (
       <Card title="People and roles">
         <Body muted>Roles decide which parts of the app each person sees. They are saved as Tags on each Employee in Odoo, so you can also change them there. What someone may change is still up to their Odoo access rights.</Body>
         {offline ? <Body muted>No signal: roles can be changed once the phone is back online.</Body> : null}
@@ -175,7 +183,10 @@ export function ManagementScreen() {
         {people && !people.length ? <Body>No employees in Odoo yet. Add them in Odoo’s Employees app.</Body> : null}
         <Button label="Read again from Odoo" kind="plain" busy={busy} disabled={offline} onPress={load} testID="reload-people" />
       </Card>
+      ) : null}
 
+      {part === 'setup' ? (
+      <>
       <Card title="Company brand" testID="brand-card">
         <Body muted>The app’s name, logo and colors come from your company in Odoo (Settings, Companies, and Configure Document Layout for the colors). Change them there; the app follows.</Body>
         <Row title="Name" value={name} />
@@ -183,10 +194,6 @@ export function ManagementScreen() {
         <Row title="Main color" value={brand.primary || 'None in Odoo'} right={<View style={{ width: 28, height: 28, borderRadius: 6, backgroundColor: colors.head }} />} />
         <Row title="Second color" value={brand.secondary || 'None in Odoo'} right={<View style={{ width: 28, height: 28, borderRadius: 6, backgroundColor: colors.second }} />} />
         <Button label="Read the brand again" kind="plain" disabled={offline} onPress={() => refresh()} testID="refresh-brand" />
-      </Card>
-
-      <Card title="Money and reports">
-        <Row title="Money and reports" detail="Sales, profit, bills due, tax, expenses, accountant packet" onPress={() => router.push('/reports')} testID="open-reports" />
       </Card>
 
       <Card title="Mileage">
@@ -199,16 +206,17 @@ export function ManagementScreen() {
         <Row title="Prices and seasons" detail="Customer groups (price lists) and when products are in season" onPress={() => router.push('/prices')} testID="open-prices" />
       </Card>
 
-      <Card title="Online shop">
-        <Row title="Online shop" detail="Shop switches, new orders, specials, delivery, newsletter" onPress={() => router.push('/shop')} testID="open-shop" />
-      </Card>
-
       <StockAlerts />
       <ShelfLifeDefault />
+      </>
+      ) : null}
 
-      <Card title="Setup">
-        <Row title="Connection check and test database" detail="Developer screen" onPress={() => router.push('/developer')} />
-      </Card>
+      {part === 'odoo' ? (
+        <Card title="Odoo connection" testID="odoo-card">
+          <Body muted>Check that Odoo is set up the way the app needs, and use the test database. The check only reads. It never changes Odoo.</Body>
+          <Row title="Connection check and test database" detail="Developer screen" onPress={() => router.push('/developer')} testID="open-developer" />
+        </Card>
+      ) : null}
     </Screen>
   );
 }
