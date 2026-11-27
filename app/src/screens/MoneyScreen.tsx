@@ -10,6 +10,7 @@ import { filterMoney, loadMoney, loadMoneyLines, MoneyKind, MoneyLine, MoneyRow,
 import { fmtQty, ymd } from '../lib/production';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
+import { PhotosCard } from './PhotosCard';
 import { loadBillPayments, type BillPayment } from '../lib/poBill';
 
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
@@ -172,6 +173,7 @@ function Detail({ row, money, waiting, kind, onBack }: { row: MoneyRow; money: (
           ))}
         </Card>
       ) : null}
+      {kind === 'in' ? <PhotosCard model="account.move" resId={row.id} recordName={`bill ${row.name}`} title="Photo of the bill" about="Bill photo" button="Take a photo of the bill" testID="bill-photos" /> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
       {note ? <Body>{note}</Body> : null}
       {row.state === 'draft' ? <Body muted>This is still a draft in Odoo. Confirm it there before marking it paid.</Body> : null}

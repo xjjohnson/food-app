@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.49',
+    changes: ['A Take a photo of the bill button on a purchase order (after the delivery is in) and on every bill in Purchase history. The picture is kept on the bill in Odoo and waits on the phone without signal.'],
+    test: ['Ingredients, Purchase orders, open an order, Lines tab, Bill and payment: tap Take a photo of the bill.', 'Ingredients, Purchase history, open a bill: the photo shows there too, and in Odoo on the bill.'],
+  },
+  {
     release: '0.1.48',
     changes: [
       'Purchase orders: the Lines tab now has the next step. Confirm order, then Check in the delivery, then Make the bill with Cash, Cash App or Venmo (or "not paid yet"). No more going to Odoo for the bill.',
