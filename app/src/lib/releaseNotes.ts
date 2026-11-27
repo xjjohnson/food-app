@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.73',
+    changes: ['Orders to pack on Today is the same number as To pack on Sell, and tapping it opens the Sold board on Pack.'],
+    test: ['Compare Today, Orders to pack with Sell, To pack: they should match. Tap the Today tile and check it opens the Pack side of the Sold board.'],
+  },
+  {
     release: '0.1.72',
     changes: ['Website orders and the Sold board are one now. Orders due after today show on the Sold board under Upcoming, and the Sell buttons count them too. The Website orders row is gone from Sell; orders that wait for stock, with what to make, are a row at the bottom of the Sold board.'],
     test: ['Sell: the To pack number should match the Sold board. Open the Sold board, Pack: an order due later sits under Upcoming. Tap Waiting for stock at the bottom and check it opens.'],

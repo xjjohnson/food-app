@@ -11,6 +11,7 @@ import { loadExpiring } from './stock';
 import type { RoleId, Roles } from './roles';
 import { countMyTasks, countSpecialSoon } from './activities';
 import { seasonCounts } from './season';
+import { loadOrderStatus } from './sellStatus';
 
 type Client = Pick<OdooClient, 'call' | 'session'>;
 
@@ -20,6 +21,8 @@ export interface TodayItem {
   count: number;
   /** The area this opens. */
   area: string;
+  /** Where in that area it opens (for example the Pack side of the Sold board). */
+  go?: string;
   role: RoleId | 'any';
 }
 
@@ -39,7 +42,8 @@ export async function loadToday(c: Client, roles: Roles): Promise<TodayItem[]> {
   await add({ id: 'tasks', title: 'Tasks due or late', area: 'tasks', role: 'any' }, () => countMyTasks(c));
   await add({ id: 'special-soon', title: 'Birthdays and anniversaries this week', area: 'tasks', role: 'sales' }, () => countSpecialSoon(c));
   await add({ id: 'batches', title: 'Batches to make or finish', area: 'production', role: 'production' }, () => count(c, 'mrp.production', [['state', 'in', ['confirmed', 'progress', 'to_close']]]));
-  await add({ id: 'orders', title: 'Website orders to pack', area: 'orders', role: 'shipping' }, () => count(c, 'stock.picking', [['picking_type_code', '=', 'outgoing'], ['state', '=', 'assigned'], ['sale_id.website_id', '!=', false]]));
+  // The same count as the To pack button on Sell: every delivery not packed yet, due today or later.
+  await add({ id: 'orders', title: 'Orders to pack', area: 'orders', go: 'board:pack', role: 'shipping' }, async () => (await loadOrderStatus(c)).toPack);
   await add({ id: 'expiring', title: 'Batches close to their use-by date', area: 'stock', role: 'inventory' }, async () => (await loadExpiring(c, useByDays(await loadSettings(c)))).length);
   await add({ id: 'low', title: 'Ingredients running low', area: 'ingredients', role: 'inventory' }, async () => (await loadRules(c, true)).length);
   await add({ id: 'deliveries', title: 'Deliveries to check in', area: 'ingredients', role: 'inventory' }, () => count(c, 'stock.picking', [['picking_type_code', '=', 'incoming'], ['state', '=', 'assigned']]));

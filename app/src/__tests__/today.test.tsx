@@ -33,6 +33,7 @@ describe('today and product lookup', () => {
     const owner = await loadToday(c, { ...NO_ROLES, owner: true });
     expect(owner.map((t) => t.id)).toEqual(['tasks', 'special-soon', 'batches', 'orders', 'expiring', 'low', 'deliveries', 'web-new', 'season-now', 'season-soon', 'owed', 'out-today']);
     expect(owner.find((t) => t.id === 'orders')!.count).toBe(1);
+    expect(owner.find((t) => t.id === 'orders')!.go).toBe('board:pack');
   });
 
   test('lookup gives the price as Odoo has it, the photo, and stock by batch, soonest use-by first', async () => {
