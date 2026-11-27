@@ -28,6 +28,8 @@ export interface BoardOrder {
   step: Step;
   /** The order's delivery method in Odoo is a pickup. */
   pickup?: boolean;
+  /** Still to pack, and due after today. */
+  later?: boolean;
 }
 
 export const STEP_WORDS: Record<Step, string> = { pack: 'To pack', packed: 'Packed', delivered: 'Delivered' };
@@ -36,13 +38,12 @@ const DELIVERED_TAG = 'food-app-delivered';
 
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
 
-/** Deliveries due by the end of today, plus ones done in the last 2 days (so Delivered can be ticked). */
+/** Deliveries still to do (due later ones are marked), plus ones done in the last 2 days (so Delivered can be ticked). */
 export async function loadBoard(c: Client, now = new Date()): Promise<BoardOrder[]> {
   const day = (d: Date) => d.toISOString().slice(0, 10);
-  const end = `${day(now)} 23:59:59`;
   const since = `${day(new Date(now.getTime() - 2 * 86400000))} 00:00:00`;
   const fields = ['name', 'origin', 'partner_id', 'state', 'scheduled_date', 'sale_id'];
-  const open = (await c.call('stock.picking', 'search_read', [[['picking_type_code', '=', 'outgoing'], ['state', 'in', ['assigned', 'confirmed', 'waiting']], ['scheduled_date', '<=', end]]], { fields, order: 'scheduled_date asc, id asc', limit: 80 })) as Record<string, unknown>[];
+  const open = (await c.call('stock.picking', 'search_read', [[['picking_type_code', '=', 'outgoing'], ['state', 'in', ['assigned', 'confirmed', 'waiting']]]], { fields, order: 'scheduled_date asc, id asc', limit: 80 })) as Record<string, unknown>[];
   const recent = (await c.call('stock.picking', 'search_read', [[['picking_type_code', '=', 'outgoing'], ['state', '=', 'done'], ['date_done', '>=', since]]], { fields, order: 'scheduled_date asc, id asc', limit: 80 })) as Record<string, unknown>[];
   const rows = [...open, ...recent].sort((a, b) => String(a.scheduled_date).localeCompare(String(b.scheduled_date)));
   if (!rows.length) return [];
@@ -72,6 +73,7 @@ export async function loadBoard(c: Client, now = new Date()): Promise<BoardOrder
         date: str(r.scheduled_date),
         step,
         ...(pickups.has(saleId) ? { pickup: true } : {}),
+        ...(!picked && str(r.scheduled_date).slice(0, 10) > day(now) ? { later: true } : {}),
       };
     });
 }

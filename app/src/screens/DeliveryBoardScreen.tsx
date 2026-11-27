@@ -20,7 +20,7 @@ const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const copyKey = (db: string) => `board/v1/${db}`;
 
 /** Today's deliveries and pickups: where each goes, its step, and a Delivered tick. */
-export function DeliveryBoardScreen({ onBack: _onBack, onPack, start }: { onBack: () => void; onPack: (o: BoardOrder) => void; start?: string }) {
+export function DeliveryBoardScreen({ onBack: _onBack, onPack, onWaiting, start }: { onBack: () => void; onPack: (o: BoardOrder) => void; onWaiting?: () => void; start?: string }) {
   const { colors } = useBrand();
   const { client, db, offline } = useOdoo();
   const { save, items } = useQueue();
@@ -88,8 +88,10 @@ export function DeliveryBoardScreen({ onBack: _onBack, onPack, start }: { onBack
   const mode: Step = stage ?? stage0;
   // Cards on this side: deliveries in route order first, then pickups.
   const ordered = [...deliveries, ...pickups].filter((o) => inMode(o, mode));
-  const stops = deliveries.filter((o) => inMode(o, mode));
-  const sidePickups = pickups.filter((o) => inMode(o, mode));
+  // Orders due after today wait in their own Upcoming space on the Pack side.
+  const stops = deliveries.filter((o) => inMode(o, mode) && !o.later);
+  const sidePickups = pickups.filter((o) => inMode(o, mode) && !o.later);
+  const upcoming = mode === 'pack' ? [...deliveries, ...pickups].filter((o) => inMode(o, 'pack') && o.later) : [];
   const routeUrl = mode === 'packed' && stops.length ? routeLink(stops) : '';
 
   const delivered = async (o: BoardOrder) => {
@@ -233,6 +235,8 @@ export function DeliveryBoardScreen({ onBack: _onBack, onPack, start }: { onBack
       {mode === 'pack' ? stops.map((o) => <PackCard key={o.id} o={o} late={isLate(o)} onPack={() => onPack(o)} />) : null}
       {mode === 'pack' && sidePickups.length ? <SectionLabel>Pickups</SectionLabel> : null}
       {mode === 'pack' ? sidePickups.map((o) => <PackCard key={o.id} o={o} late={isLate(o)} onPack={() => onPack(o)} />) : null}
+      {mode === 'pack' && upcoming.length ? <SectionLabel>Upcoming</SectionLabel> : null}
+      {mode === 'pack' ? upcoming.map((o) => <PackCard key={o.id} o={o} late={false} onPack={() => onPack(o)} />) : null}
       {mode === 'delivered' && stops.length ? <SectionLabel>Deliveries</SectionLabel> : null}
       {mode === 'delivered' && sidePickups.length && !stops.length ? <SectionLabel>Pickups</SectionLabel> : null}
       {mode === 'delivered' ? [...stops, ...sidePickups].map((o, idx) => {
@@ -250,6 +254,7 @@ export function DeliveryBoardScreen({ onBack: _onBack, onPack, start }: { onBack
           </View>
         );
       }) : null}
+      {onWaiting ? <Row title="Waiting for stock" detail="Orders that can’t be packed yet, and what to make" onPress={onWaiting} testID="board-waiting" /> : null}
       <Pressable onPress={load} accessibilityRole="button" accessibilityLabel="Refresh" style={{ alignItems: 'center', padding: 12 }}>
         <Text style={{ fontSize: 15, color: colors.muted }}>{busy ? 'Refreshing…' : 'Refresh'}</Text>
       </Pressable>

@@ -40,7 +40,6 @@ export function SellTab() {
           ) : null}
           <SectionLabel>Today</SectionLabel>
           {has('orders') ? <Row title="Sold board" detail={orders ? `${orders.toPack} to pack, ${orders.packed} packed` : 'To pack, packed and delivered, with the route'} onPress={() => open('orders', 'board')} testID="sell-board" /> : null}
-          {has('orders') ? <Row title="Website orders" detail="Pack orders, oldest batch first, delivered or picked up" onPress={() => open('orders')} testID="area-orders" /> : null}
           {has('market') ? <Row title="Market" detail="Before, selling and after: the register, cash and results" onPress={() => open('market')} testID="area-market" /> : null}
           {has('sell') ? (
             <>
