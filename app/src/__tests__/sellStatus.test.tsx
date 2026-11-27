@@ -63,7 +63,7 @@ describe('Sell status buttons', () => {
     expect(screen.getByTestId('open-contacts')).toBeTruthy();
   });
 
-  test('Packed opens the board on Drive and To pack on Pack', async () => {
+  test('Packed opens the board on Ready and To pack on To pack', async () => {
     const { odoo } = bakery();
     seed(odoo);
     odoo.addEmployee('Tester', odoo.addUser({ login: 'role@example.com' }).id, ['owner']);

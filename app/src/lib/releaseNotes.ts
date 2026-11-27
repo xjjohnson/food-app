@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.75',
+    changes: ['Sold board tabs are now To pack, Ready and Done. Ready holds packed orders waiting to go out, deliveries and pickups.'],
+    test: ['Sell, Sold board: check the three tabs. Pack an order and see it move to Ready, then mark it delivered or picked up.'],
+  },
+  {
     release: '0.1.74',
     changes: ['Today header is tidier: a plain Today title, the business name as a small line under it (no more cut-off name), and a small round search button instead of the big white one.'],
     test: ['Open Today: check the title, the full business name under it, and that the round search button opens Search.'],
