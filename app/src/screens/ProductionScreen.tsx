@@ -447,10 +447,16 @@ function BatchPage({ id, known, onBack, started }: { id: number; known?: Batch; 
       {shown.state !== 'draft' && shown.state !== 'cancel' ? <ChecklistCard batchId={id} batchName={shown.name} /> : null}
       {finished ? <Body>Batch finished.</Body> : null}
       {shown.state === 'done' && cost ? (
-        <Card title="What this batch cost (worked out by Odoo)" testID="batch-cost">
+        <Card title="What was made" testID="batch-cost">
           <Row title="Yield" detail="Made compared with the plan" value={`${fmtQty(cost.made)} of ${fmtQty(shown.qty)}${shown.qty > 0 ? ` (${Math.round((cost.made / shown.qty) * 100)}%)` : ''}`} testID="batch-yield" />
-          <Row title="Whole batch" value={cost.total.toFixed(2)} />
-          <Row title={`Each (${fmtQty(cost.made)} made)`} value={cost.perUnit.toFixed(2)} testID="batch-cost-each" />
+          {cost.total > 0 ? (
+            <>
+              <Row title="Cost of the whole batch (worked out by Odoo)" value={cost.total.toFixed(2)} />
+              <Row title={`Cost each (${fmtQty(cost.made)} made)`} value={cost.perUnit.toFixed(2)} testID="batch-cost-each" />
+            </>
+          ) : (
+            <Body muted>Odoo has no cost for this batch yet.</Body>
+          )}
         </Card>
       ) : null}
       {shown.state === 'done' && d && d.lots.length ? (

@@ -340,16 +340,17 @@ export interface BatchCost {
 export async function loadBatchCost(c: Client, id: number): Promise<BatchCost | null> {
   try {
     const mf = (await c.call('stock.move', 'fields_get', [], { attributes: ['string'] })) as Record<string, unknown>;
-    if (!('value' in mf)) return null;
+    const hasValue = 'value' in mf;
     const [mo] = (await c.call('mrp.production', 'read', [[id]], { fields: ['move_finished_ids'] })) as { move_finished_ids?: number[] }[];
     const ids = mo?.move_finished_ids ?? [];
     if (!ids.length) return null;
-    const moves = (await c.call('stock.move', 'read', [ids], { fields: ['value', 'quantity', 'state'] })) as { value?: number; quantity?: number; state?: string }[];
+    const moves = (await c.call('stock.move', 'read', [ids], { fields: hasValue ? ['value', 'quantity', 'state'] : ['quantity', 'state'] })) as { value?: number; quantity?: number; state?: string }[];
     const done = moves.filter((m) => m.state === 'done');
     const total = done.reduce((a, m) => a + Number(m.value ?? 0), 0);
     const made = done.reduce((a, m) => a + Number(m.quantity ?? 0), 0);
-    if (!(total > 0) || !(made > 0)) return null;
-    return { total, perUnit: total / made, made };
+    // How many were made is shown even when Odoo has no cost figure (total 0).
+    if (!(made > 0)) return null;
+    return { total: total > 0 ? total : 0, perUnit: total > 0 ? total / made : 0, made };
   } catch {
     return null;
   }
