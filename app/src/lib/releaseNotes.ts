@@ -16,6 +16,11 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     test: ['Sell: the To pack number should match the Sold board. Open the Sold board, Pack: an order due later sits under Upcoming. Tap Waiting for stock at the bottom and check it opens.'],
   },
   {
+    release: '0.1.71',
+    changes: ['Start a batch is a short list of products now. Tap a product to open its sizes, then tap a size. A product with one size goes straight to how many.'],
+    test: ['Make, Start a batch: open a product with several sizes, pick one and start or plan a batch. Then try a product with one size.'],
+  },
+  {
     release: '0.1.70',
     changes: ['Today numbers now update every time you open the Today tab, and when you pull the page down.'],
     test: ['Pack or add a website order, then open Today and check the tiles. Pull down on Today to refresh.'],
