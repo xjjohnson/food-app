@@ -133,3 +133,18 @@ describe('pickups and deliveries are kept apart on the board', () => {
     expect(screen.queryByTestId(`board-map-${pk}`)).toBeNull();
   });
 });
+
+describe('orders due later', () => {
+  test('an order due after today waits under Upcoming on the Sold board', async () => {
+    const { odoo } = bakery();
+    const day = (n: number) => new Date(Date.now() + n * 86400000).toISOString().slice(0, 10);
+    odoo.create('res.partner', { name: 'Pat', street: '1 Main St', zip: '78640' });
+    const car = odoo.create('delivery.carrier', { name: 'Local delivery', delivery_type: 'fixed' });
+    const sale = odoo.create('sale.order', { name: 'S0009', carrier_id: [car, 'Local delivery'] });
+    const later = odoo.create('stock.picking', { name: 'WH/S0009', origin: 'S0009', partner_id: [odoo.tables['res.partner']!.at(-1)!.id as number, 'Pat'], state: 'assigned', picking_type_code: 'outgoing', sale_id: [sale, 'S0009'], scheduled_date: `${day(3)} 08:00:00` });
+    await open(odoo, '/area/orders?go=board', 'Shipping & Packaging');
+    expect(await screen.findByText('Upcoming')).toBeTruthy();
+    expect(screen.getByTestId(`board-${later}`)).toBeTruthy();
+    expect(screen.getByTestId('board-waiting')).toBeTruthy();
+  });
+});

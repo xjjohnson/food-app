@@ -5,7 +5,7 @@ import { fmtQty } from '../lib/production';
 import { router } from 'expo-router';
 import { Checkout, handOverChanges, loadCheckout, loadFree, loadLotStock, loadOrders, loadPackLines, loadToMake, LotPick, makeLink, makeShort, oldestFirst, Order, PackLine, readyToPack, shortWords, stateWords, ToMake } from '../lib/orders';
 import { DeliveryBoardScreen } from './DeliveryBoardScreen';
-import { useLeaveAtBase } from '../lib/innerBack';
+import { useInnerBack, useLeaveAtBase } from '../lib/innerBack';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 
@@ -19,7 +19,9 @@ export function OrdersScreen({ go }: { go?: string } = {}) {
   const [open, setOpen] = useState<Order | null>(null);
   const [fromPhone, setFromPhone] = useState(false);
   const [board, setBoard] = useState(!!go && go.startsWith('board'));
+  const [waiting, setWaiting] = useState(false);
   useLeaveAtBase(!!go && go.startsWith('board'), !board);
+  useInnerBack(waiting ? () => setWaiting(false) : null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [toMake, setToMake] = useState<ToMake[]>([]);
@@ -57,7 +59,7 @@ export function OrdersScreen({ go }: { go?: string } = {}) {
     load();
   }, [load]);
 
-  if (board) return <DeliveryBoardScreen start={go?.split(':')[1]} onBack={() => setBoard(false)} onPack={(b) => { setBoard(false); const found = orders?.find((x) => x.id === b.id); if (found) setOpen(found); }} />;
+  if (board && !waiting) return <DeliveryBoardScreen start={go?.split(':')[1]} onWaiting={() => setWaiting(true)} onBack={() => setBoard(false)} onPack={(b) => { setBoard(false); const found = orders?.find((x) => x.id === b.id); if (found) setOpen(found); }} />;
 
   if (open)
     return (
