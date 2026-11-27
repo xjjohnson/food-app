@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { applyRoute, moveStop, routeKey, routeLink, sortByZip } from '../lib/buying';
 import { useTyped } from './MarketDay';
-import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
 import { Body, Button, Card, ErrorText, Screen, Row, SectionLabel, Segments } from '../components/ui';
 import { useBrand } from '../lib/useBrand';
@@ -63,6 +64,17 @@ export function DeliveryBoardScreen({ onBack: _onBack, onPack, onWaiting, start,
   useEffect(() => {
     load();
   }, [load]);
+  // On the Sell page the tab stays alive behind other screens, so read the board again each time it comes back into view (after packing, for one).
+  const first = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (first.current) {
+        first.current = false;
+        return;
+      }
+      if (inline) load();
+    }, [inline, load]),
+  );
   useEffect(() => {
     if (client && !offline) loadSettings(client).then((s) => setClosedToday(isClosed(s, new Date().toISOString().slice(0, 10)))).catch(() => undefined);
   }, [client, offline]);

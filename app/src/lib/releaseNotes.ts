@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.80',
+    changes: ['The Sold board on the Sell page reads Odoo again each time you come back to it, so it no longer shows an order as To pack after you packed it.'],
+    test: ['Sell: tap Pack it on an order and pack it, then go Back. The board should move it to Ready and match the Packed and To pack buttons at the top.'],
+  },
+  {
     release: '0.1.79',
     changes: ['Sell is one page: the Sold board (To pack, Ready, Done and its cards) sits right on the page under SOLD. Market, Quotes and open orders are under SELL. The Packed, To pack and Late buttons jump the board to that side.'],
     test: ['Sell: check the Sold board shows on the page with its three tabs. Tap Pack it on a card and Waiting for stock. Tap the Packed, To pack and Late buttons. Check Market is under SELL.'],
