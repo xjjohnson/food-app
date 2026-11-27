@@ -154,21 +154,20 @@ describe('the whole app', () => {
 });
 
 describe('the plus button', () => {
-  test('offers a batch to a baker, and a quote and a purchase to the owner', async () => {
+  test('shows a baker only the batch button on Today, and no plus button there', async () => {
     await signedInAs('baker@example.com');
     await renderRouter('src/app', { initialUrl: '/' });
     await settle();
-    await fireEvent.press(screen.getByTestId('plus-button'));
-    expect(screen.getByTestId('plus-batch')).toBeTruthy();
-    expect(screen.queryByTestId('plus-quote')).toBeNull();
-    expect(screen.queryByTestId('plus-bought')).toBeNull();
+    expect(screen.queryByTestId('plus-button')).toBeNull();
+    expect(screen.getByTestId('today-quick-batch')).toBeTruthy();
+    expect(screen.queryByTestId('today-quick-quote')).toBeNull();
+    expect(screen.queryByTestId('today-quick-bought')).toBeNull();
   });
   test('Start a batch opens the new batch page', async () => {
     await signedInAs('baker@example.com');
     await renderRouter('src/app', { initialUrl: '/' });
     await settle();
-    await fireEvent.press(screen.getByTestId('plus-button'));
-    await fireEvent.press(screen.getByTestId('plus-batch'));
+    await fireEvent.press(screen.getByTestId('today-quick-batch'));
     await settle();
     expect(screen.queryByTestId('production-screen')).toBeNull();
     expect(screen.queryByTestId('tab-bar')).toBeNull();
