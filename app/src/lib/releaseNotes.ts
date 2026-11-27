@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.82',
+    changes: ['Red count dots: on the Today, Buy, Make, Sell and More tabs, and on Running low, Batches, Jars in stock and Invoices. Zero shows nothing. New look everywhere: rounded header with a soft glow, bolder cards with shadows, colored icon tiles, and a floating bottom bar.'],
+    test: ['Look at the bottom bar: tabs with work waiting show a red number. Open Buy, Make and Sell and check the rows (Running low, Batches, Invoices) show a dot. Check the header, cards and floating bottom bar look new.'],
+  },
+  {
     release: '0.1.81',
     changes: ['Sold board: the Next stop card on Ready and the cards on Done now list what is in the order (amount and product). The delivery charge is left out.'],
     test: ['Sell, Sold board: look at Ready and Done and check each order lists its products and amounts.'],

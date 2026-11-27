@@ -11,6 +11,7 @@ import { BUILD_INFO } from '../lib/appVersion';
 import { runInnerBack } from '../lib/innerBack';
 import { describeError, log } from '../lib/log';
 import { restoreBeta } from '../lib/updateChannel';
+import { BadgeProvider } from '../lib/useBadges';
 import { BrandProvider, useBrand } from '../lib/useBrand';
 import { OdooProvider } from '../lib/useOdoo';
 import { QueueProvider } from '../lib/useQueue';
@@ -63,7 +64,9 @@ export default function RootLayout() {
         <BrandProvider>
           <RolesProvider>
             <QueueProvider>
-              <Shell />
+              <BadgeProvider>
+                <Shell />
+              </BadgeProvider>
             </QueueProvider>
           </RolesProvider>
         </BrandProvider>

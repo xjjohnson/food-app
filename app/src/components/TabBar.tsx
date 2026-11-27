@@ -8,6 +8,8 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { plusChoices, TABS, tabVisible, TabId } from '../lib/tabs';
+import { Badge } from './ui';
+import { useBadges } from '../lib/useBadges';
 import { useBrand } from '../lib/useBrand';
 import { useRoles } from '../lib/useRoles';
 
@@ -21,6 +23,7 @@ export function TabBar({ state, navigateToTab }: TabBarProps) {
   const { colors } = useBrand();
   const { roles } = useRoles();
   const [open, setOpen] = useState(false);
+  const badges = useBadges().tabs;
   const choices = plusChoices(roles);
   const current = state.routes[state.index]?.name as TabId | undefined;
   return (
@@ -36,7 +39,7 @@ export function TabBar({ state, navigateToTab }: TabBarProps) {
           <Text style={[styles.fabText, { color: colors.onAccent }]}>+</Text>
         </Pressable>
       ) : null}
-      <View style={[styles.bar, { backgroundColor: colors.card, borderTopColor: colors.line }]} testID="tab-bar">
+      <View style={[styles.bar, { backgroundColor: colors.card }]} testID="tab-bar">
         {TABS.filter((t) => tabVisible(t.id, roles)).map((t) => {
           const on = current === t.id;
           return (
@@ -47,10 +50,13 @@ export function TabBar({ state, navigateToTab }: TabBarProps) {
               accessibilityState={{ selected: on }}
               accessibilityLabel={t.label}
               testID={`tab-${t.id}`}
-              style={styles.tab}
+              style={[styles.tab, on && { backgroundColor: colors.tint }]}
             >
-              <Text style={{ fontSize: 16, fontWeight: on ? '800' : '600', color: on ? colors.accent : colors.muted }}>{t.label}</Text>
-              <View style={{ height: 3, width: 24, borderRadius: 2, backgroundColor: on ? colors.accent : 'transparent' }} />
+              <View>
+                <Text style={{ fontSize: 16, fontWeight: on ? '800' : '600', color: on ? colors.accent : colors.muted }}>{t.label}</Text>
+                <Badge count={badges[t.id]} testID={`tab-badge-${t.id}`} style={{ position: 'absolute', top: -8, right: -20 }} />
+              </View>
+              
             </Pressable>
           );
         })}
@@ -82,9 +88,9 @@ export function TabBar({ state, navigateToTab }: TabBarProps) {
 }
 
 const styles = StyleSheet.create({
-  bar: { flexDirection: 'row', borderTopWidth: 1, paddingTop: 6, paddingBottom: 6 },
-  tab: { flex: 1, minHeight: 52, alignItems: 'center', justifyContent: 'center', gap: 2 },
-  fab: { position: 'absolute', right: 16, top: -68, width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 4, zIndex: 5 },
+  bar: { flexDirection: 'row', marginHorizontal: 12, marginBottom: 8, marginTop: 4, borderRadius: 26, padding: 5, gap: 4, shadowColor: '#1E143C', shadowOpacity: 0.2, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 8 },
+  tab: { flex: 1, minHeight: 48, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  fab: { position: 'absolute', right: 16, top: -72, width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', elevation: 4, zIndex: 5 },
   fabText: { fontSize: 32, fontWeight: '700', lineHeight: 36 },
   shade: { flex: 1, backgroundColor: '#00000066', justifyContent: 'flex-end' },
   sheet: { padding: 16, gap: 10, borderTopLeftRadius: 20, borderTopRightRadius: 20 },
