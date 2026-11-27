@@ -59,15 +59,17 @@ describe('bill an order that already exists', () => {
 
   test('the order screen offers the bill after the delivery, and Cash pays it', async () => {
     const { odoo } = bakery();
-    const { po } = received(odoo);
+    const { po, cash } = received(odoo);
+    odoo.create('account.journal', { name: 'Bank', type: 'bank' });
     await open(odoo, '/area/ingredients?go=pos', 'Inventory');
     await fireEvent.press(await screen.findByTestId(`po-${po}`));
     await settle();
     await fireEvent.press(await screen.findByTestId('form-tabs-lines'));
     await settle();
     expect(screen.queryByTestId('po-confirm')).toBeNull();
+    expect(await screen.findByText('Bank')).toBeTruthy();
     expect(await screen.findByTestId('po-bill-photos')).toHaveTextContent(/Take a photo of the bill/);
-    await fireEvent.press(await screen.findByTestId('po-pay-cash'));
+    await fireEvent.press(await screen.findByTestId(`po-pay-j${cash}`));
     await settle();
     expect(await screen.findByText(/Bill made and paid with Cash/)).toBeTruthy();
     expect(odoo.tables['account.move']![0]).toMatchObject({ state: 'posted', payment_state: 'paid' });

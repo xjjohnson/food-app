@@ -95,7 +95,7 @@ export function PoActions({ id, onCheckIn }: { id: number; onCheckIn: () => void
               {methods.map((m) => (
                 <Button key={m.key} label={m.label} onPress={() => bill(m.label, m.journal.id)} testID={`po-pay-${m.key}`} />
               ))}
-              {!methods.length ? <Body muted>Odoo has no Cash, Cash App or Venmo payment method yet. Add them in Odoo, Accounting, Configuration, Journals.</Body> : null}
+              {!methods.length ? <Body muted>Odoo has no cash or bank account yet. Add them in Odoo, Accounting, Configuration, Journals.</Body> : null}
               {!po.bills.length ? <Button label="Make the bill, not paid yet" kind="plain" onPress={() => bill('', null)} testID="po-pay-none" /> : null}
             </>
           ) : null}
