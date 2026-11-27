@@ -22,6 +22,12 @@ export const SALE_SECTIONS: Section[] = [
     title: 'Quote',
     fields: [
       { name: 'partner_id', label: 'Customer', kind: 'one', relation: 'res.partner', createOnly: true },
+    ],
+  },
+  {
+    id: 'more',
+    title: 'More details',
+    fields: [
       { name: 'partner_invoice_id', label: 'Invoice address', kind: 'one', relation: 'res.partner' },
       { name: 'partner_shipping_id', label: 'Delivery address', kind: 'one', relation: 'res.partner' },
       { name: 'date_order', label: 'Quote date (year-month-day)', kind: 'date' },

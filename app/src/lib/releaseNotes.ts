@@ -11,6 +11,24 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.58',
+    changes: [
+      'Delivery board redone: Pack, Drive and Done at the top. Drive shows the stops in order with small up and down arrows, and Sort by zip and Open in Maps side by side.',
+      'The Packed, To pack and Late buttons on Sell open the board on that side.',
+      'Invoices, Quotes and open orders and Website orders share one look: name, number and date, a colored tag and the amount. Invoices show counts on Owed, Paid and All, and overdue ones are red.',
+      'New quote shows the customer first; addresses, price list, terms and dates are under More details (dates start as today and 30 days).',
+      'Customers moved from Sell to More, with how many customers and who owes you.',
+      'Wholesale order and Repeat orders are gone from Sell. Repeat the last order stays on a customer.',
+    ],
+    test: [
+      'Sell, tap Packed: the board opens on Drive. Tap To pack: it opens on Pack.',
+      'On Drive, move a stop with the arrows. Tap Delivered and pick how they paid.',
+      'Open Invoices and check the counts, red Overdue tag and search.',
+      'Start a New quote and open More details.',
+      'More, tap Customers: find, add or change one.',
+    ],
+  },
+  {
     release: '0.1.57',
     changes: [
       'Online shop now has just Specials and Delivery and pickup.',

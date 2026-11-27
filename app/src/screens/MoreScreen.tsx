@@ -1,7 +1,11 @@
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 import { Row, Screen, useUi } from '../components/ui';
 import { roleNames } from '../lib/roles';
+import { CustomerStatus, loadCustomerStatus } from '../lib/sellStatus';
+import { tabAreas } from '../lib/tabs';
+import { useOdoo } from '../lib/useOdoo';
 import { useBrand } from '../lib/useBrand';
 import { useRoles } from '../lib/useRoles';
 
@@ -21,6 +25,14 @@ export function MoreScreen() {
   const { brand, name, colors } = useBrand();
   const s = useUi();
   const who = roleNames(roles) || 'No role yet';
+  const { client, offline } = useOdoo();
+  const [people, setPeople] = useState<CustomerStatus | null>(null);
+  const money = tabAreas('sell', roles).some((a) => a.id === 'invoices');
+  useFocusEffect(
+    useCallback(() => {
+      if (client && !offline && money) loadCustomerStatus(client).then(setPeople).catch(() => undefined);
+    }, [client, offline, money]),
+  );
   return (
     <Screen title="More" back={false} testID="more-screen">
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: colors.accent, borderRadius: 16, padding: 14 }} testID="more-header">
@@ -37,6 +49,12 @@ export function MoreScreen() {
         {roles.owner ? <Quick label="Money" onPress={() => router.push('/reports')} testID="open-reports" /> : null}
         {roles.owner ? <Quick label="Shop" onPress={() => router.push('/shop')} testID="open-shop" /> : null}
       </View>
+      <Row
+        title="Customers"
+        detail={people ? `${people.customers} customers, ${people.owe} owe you${people.overdue ? `, ${people.overdue} overdue` : ''}` : 'Find, add or change a customer or supplier'}
+        onPress={() => router.push('/contacts')}
+        testID="open-contacts"
+      />
       {roles.owner ? (
         <View style={{ backgroundColor: colors.tint, borderRadius: 16, padding: 14, gap: 4 }} testID="owner-box">
           <Text style={s.label}>OWNER ONLY</Text>

@@ -55,7 +55,30 @@ describe('Sell status buttons', () => {
     await settle();
     expect(screen.getByTestId('status-topack')).toBeTruthy();
     expect(screen.getByTestId('sell-board')).toBeTruthy();
-    await fireEvent.press(screen.getByTestId('sell-seg-customers'));
-    expect(screen.getByTestId('status-owe')).toBeTruthy();
+    expect(screen.queryByTestId('sell-wholesale-tab')).toBeNull();
+    expect(screen.queryByTestId('sell-repeat-tab')).toBeNull();
+    expect(screen.queryByTestId('sell-seg-customers')).toBeNull();
+    await fireEvent.press(screen.getByTestId('tab-more'));
+    await settle();
+    expect(screen.getByTestId('open-contacts')).toBeTruthy();
+  });
+
+  test('Packed opens the board on Drive and To pack on Pack', async () => {
+    const { odoo } = bakery();
+    seed(odoo);
+    odoo.addEmployee('Tester', odoo.addUser({ login: 'role@example.com' }).id, ['owner']);
+    globalThis.fetch = ((u: string, i: never) => odoo.fetch(u, i)) as never;
+    const login = { url: URL, db: 'food-test', login: 'role@example.com' };
+    await AsyncStorage.clear();
+    await AsyncStorage.setItem(ODOO_STORAGE_KEY, JSON.stringify(login));
+    await deviceSecrets().set('odoo.secret', 'key');
+    await setDbKind(AsyncStorage, login, 'test');
+    await renderRouter('src/app', { initialUrl: '/' });
+    await settle();
+    await fireEvent.press(screen.getByTestId('tab-sell'));
+    await settle();
+    await fireEvent.press(screen.getByTestId('status-packed'));
+    await settle();
+    expect(screen.getByTestId('board-stages-packed').props.accessibilityState.selected).toBe(true);
   });
 });

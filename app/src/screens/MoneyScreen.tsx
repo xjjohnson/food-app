@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ShareCsv } from './MoneyPages';
 import { moneyCells } from '../lib/packet';
-import { Body, Button, Card, Chip, ErrorText, Field, Row, Screen, Segments } from '../components/ui';
+import { Body, Button, Card, Chip, ErrorText, Field, ListRow, Row, Screen, Segments } from '../components/ui';
 import { Journal, loadJournals } from '../lib/ingredients';
 import { useInnerBack } from '../lib/innerBack';
 import { currencySymbol } from '../lib/lookup';
@@ -21,6 +21,9 @@ const WORDS: Record<MoneyKind, { title: string; empty: string; who: string; owed
   out: { title: 'Invoices', empty: 'No invoices yet.', who: 'Customer', owed: 'Who owes you', paid: 'Paid' },
   in: { title: 'Purchase history', empty: 'No purchases yet.', who: 'Store', owed: 'Not paid yet', paid: 'Paid' },
 };
+
+/** Past its due date and still unpaid. */
+const isLate = (r: MoneyRow, today: string) => !r.paid && r.state === 'posted' && !!r.due && r.due < today;
 
 const SHOW: { id: Show; label: string }[] = [
   { id: 'owed', label: 'Not paid' },
@@ -80,6 +83,8 @@ export function MoneyScreen({ kind, onBack, partnerId, title }: { kind: MoneyKin
   /** Payments saved on this phone and not in Odoo yet, by invoice or bill. */
   const waiting = useMemo(() => new Set(items.filter((i) => i.step?.kind === 'pay').map((i) => (i.step as { moveId: number }).moveId)), [items]);
   const money = (n: number) => `${symbol}${n.toFixed(2)}`;
+  const today = ymd(new Date());
+  const counts = useMemo(() => (rows ? { owed: filterMoney(rows, 'owed', '').length, paid: filterMoney(rows, 'paid', '').length, all: rows.length } : null), [rows]);
   const shown = useMemo(() => filterMoney(rows ?? [], show, text), [rows, show, text]);
 
   if (open) return <Detail row={open} money={money} waiting={waiting.has(open.id)} kind={kind} onBack={() => { setOpen(null); load(); }} />;
@@ -88,20 +93,24 @@ export function MoneyScreen({ kind, onBack, partnerId, title }: { kind: MoneyKin
     <Screen title={title ?? w.title} testID={`money-${kind}`}>
       {fromPhone ? <Body muted>No signal. Showing what the phone saw last.</Body> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
-      <Segments options={SHOW.map((s) => (s.id === 'owed' && kind === 'out' ? { ...s, label: 'Owed' } : s))} value={show} onChange={setShow} testID="money-show" />
-      <Field label={`Search by ${w.who.toLowerCase()} or number`} value={text} onChangeText={setText} testID="money-search" />
+      <Segments options={SHOW.map((s) => ({ ...s, label: `${s.id === 'owed' && kind === 'out' ? 'Owed' : s.label}${counts ? ` ${counts[s.id]}` : ''}` }))} value={show} onChange={setShow} testID="money-show" />
+      <Field label="Search" placeholder={`${w.who} or number`} value={text} onChangeText={setText} testID="money-search" />
       {!rows ? <Body muted>{busy ? 'Loading…' : 'Nothing to show yet. Connect to Odoo to load this.'}</Body> : null}
-      {rows && !shown.length ? <Body muted>{rows.length ? 'Nothing matches.' : w.empty}</Body> : null}
-      {shown.map((r) => (
-        <Row
-          key={r.id}
-          title={`${r.who || 'No name'} · ${r.name}`}
-          detail={`${r.date || 'No date'}${waiting.has(r.id) ? ' · Payment waiting to send' : r.due && !r.paid ? ` · due ${r.due}` : ''}`}
-          value={`${money(r.paid ? r.total : r.left || r.total)}\n${stateWords(r)}`}
-          onPress={() => setOpen(r)}
-          testID={`money-${r.id}`}
-        />
-      ))}
+      {rows && !shown.length ? <Body muted>{text.trim() ? 'Nothing matches. Try fewer letters.' : rows.length && show === 'owed' && kind === 'out' ? 'Nothing owed. Everyone has paid.' : rows.length ? 'Nothing here.' : w.empty}</Body> : null}
+      {shown.map((r) => {
+        const late = isLate(r, today);
+        return (
+          <ListRow
+            key={r.id}
+            title={r.who || 'No name'}
+            detail={`${r.name} · ${r.date || 'No date'}${waiting.has(r.id) ? ' · Payment waiting to send' : r.due && !r.paid ? ` · due ${r.due}` : ''}`}
+            amount={money(r.paid ? r.total : r.left || r.total)}
+            tag={{ label: late ? 'Overdue' : stateWords(r), tone: late ? 'bad' : r.state === 'draft' ? 'plain' : r.paid ? 'good' : 'warn' }}
+            onPress={() => setOpen(r)}
+            testID={`money-${r.id}`}
+          />
+        );
+      })}
       {shown.length ? <ShareCsv name={kind === 'out' ? 'invoices' : 'purchase-history'} cells={moneyCells(shown)} /> : null}
       <Button label="Refresh" kind="plain" onPress={load} busy={busy} />
       {onBack ? <Button label="Back" kind="plain" onPress={onBack} /> : null}

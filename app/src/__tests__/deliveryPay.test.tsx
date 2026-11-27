@@ -56,10 +56,9 @@ describe('pay on delivery', () => {
     const settle = async () => {
       for (let i = 0; i < 30; i++) await act(async () => undefined);
     };
-    await renderRouter('src/app', { initialUrl: '/area/orders' });
+    await renderRouter('src/app', { initialUrl: '/area/orders?go=board' });
     await settle();
-    await fireEvent.press(await screen.findByTestId('open-board'));
-    await settle();
+    await fireEvent.press(await screen.findByText(/Drive \(1\)/));
     await fireEvent.press(await screen.findByTestId(`board-delivered-${p}`));
     await settle();
     expect(odoo.tables['account.move']).toHaveLength(1);

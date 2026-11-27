@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Share } from 'react-native';
-import { Body, Button, Card, ErrorText, Row, Screen } from '../components/ui';
+import { Body, Button, Card, ErrorText, Field, ListRow, Row, Screen } from '../components/ui';
 import { useInnerBack, useLeaveAtBase } from '../lib/innerBack';
-import { confirmChange, emailQuote, invoiceChange, loadQuotes, loadRepeatList, quoteText, quoteWords, QuoteRow, repeatChange, RepeatRow, SALE_SECTIONS, SO_LINES } from '../lib/sell';
+import { confirmChange, emailQuote, invoiceChange, loadQuotes, quoteText, quoteWords, QuoteRow, repeatChange, SALE_SECTIONS, SO_LINES } from '../lib/sell';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 import { GenericForm } from './GenericForm';
@@ -10,24 +10,25 @@ import { LinesScreen, unitAfterProduct } from './SubRecordsEditor';
 
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const money = (n: number) => n.toFixed(2);
+const ymd = (d: Date) => d.toISOString().slice(0, 10);
 
-type Page = { p: 'menu' } | { p: 'list' } | { p: 'repeat' } | { p: 'quote'; id?: number; wholesale?: boolean; lines?: boolean };
+type Page = { p: 'menu' } | { p: 'list' } | { p: 'quote'; id?: number; lines?: boolean };
 
-/** Quotes and orders for customers: new quote, wholesale order, repeat orders. */
+/** Quotes and orders for customers: new quote and the list of quotes. */
 export function SellScreen({ go }: { go?: string } = {}) {
-  const [page, setPage] = useState<Page>(go === 'quote' ? { p: 'quote' } : go === 'wholesale' ? { p: 'quote', wholesale: true } : go === 'list' ? { p: 'list' } : go === 'repeat' ? { p: 'repeat' } : { p: 'menu' });
+  const [page, setPage] = useState<Page>(go === 'quote' ? { p: 'quote' } : go === 'list' ? { p: 'list' } : { p: 'menu' });
   const menu = () => setPage({ p: 'menu' });
   useLeaveAtBase(!!go, page.p === 'menu');
   useInnerBack(page.p === 'menu' ? null : page.p === 'quote' && page.lines ? () => setPage({ p: 'quote', id: page.id }) : page.p === 'quote' && page.id ? () => setPage({ p: 'list' }) : menu);
   if (page.p === 'list') return <QuoteList onBack={menu} onOpen={(id) => setPage({ p: 'quote', id })} />;
-  if (page.p === 'repeat') return <RepeatPage onBack={menu} />;
   if (page.p === 'quote') {
     if (page.lines && page.id) return <QuoteLines id={page.id} onBack={() => setPage({ p: 'quote', id: page.id })} />;
     return (
       <GenericForm
         model="sale.order"
         recordId={page.id ?? null}
-        title={page.wholesale ? 'Wholesale order' : 'Quote'}
+        title="Quote"
+        defaults={page.id ? undefined : { date_order: ymd(new Date()), validity_date: ymd(new Date(Date.now() + 30 * 86400000)) }}
         noun="Quote"
         sections={SALE_SECTIONS}
         required={['partner_id']}
@@ -47,10 +48,8 @@ export function SellScreen({ go }: { go?: string } = {}) {
   }
   return (
     <Screen title="Quotes and orders" testID="sell-screen">
-      <Row title="New quote" detail="Customer, products, delivery date and terms" onPress={() => setPage({ p: 'quote' })} testID="sell-new" />
-      <Row title="New wholesale order" detail="Cases, payment terms like Net 30, then make the invoice" onPress={() => setPage({ p: 'quote', wholesale: true })} testID="sell-wholesale" />
+      <Row title="New quote" detail="Pick a customer, then add products" onPress={() => setPage({ p: 'quote' })} testID="sell-new" />
       <Row title="Quotes and open orders" detail="Open, confirm, share, invoice" onPress={() => setPage({ p: 'list' })} testID="sell-list" />
-      <Row title="Repeat orders" detail="Who usually orders, and who is due" onPress={() => setPage({ p: 'repeat' })} testID="sell-repeat" />
     </Screen>
   );
 }
@@ -116,60 +115,37 @@ function QuoteActions({ id }: { id: number }) {
   );
 }
 
-function QuoteList({ onBack, onOpen }: { onBack: () => void; onOpen: (id: number) => void }) {
+function QuoteList({ onOpen }: { onBack: () => void; onOpen: (id: number) => void }) {
   const { client, offline } = useOdoo();
   const [rows, setRows] = useState<QuoteRow[] | null>(null);
   const [error, setError] = useState('');
-  useEffect(() => {
+  const [text, setText] = useState('');
+  const load = () => {
     if (client && !offline) loadQuotes(client).then(setRows).catch((e) => setError(`Couldn’t read the quotes. ${why(e)}`));
-  }, [client, offline]);
+  };
+  useEffect(load, [client, offline]);
+  const shown = useMemo(() => {
+    const q = text.trim().toLowerCase();
+    return (rows ?? []).filter((r) => !q || `${r.customer} ${r.name}`.toLowerCase().includes(q));
+  }, [rows, text]);
   return (
     <Screen title="Quotes and open orders" testID="quote-list">
       {offline ? <Body muted>No signal. The list needs Odoo.</Body> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
-      {rows && !rows.length ? <Body muted>No open quotes.</Body> : null}
-      {rows?.map((r) => (
-        <Row key={r.id} title={`${r.customer || 'No customer'} · ${r.name}`} detail={`${quoteWords(r.state)}${r.date ? ` · ${r.date}` : ''}`} value={money(r.total)} onPress={() => onOpen(r.id)} testID={`quote-${r.id}`} />
-      ))}
-      <Button label="Back" kind="plain" onPress={onBack} />
-    </Screen>
-  );
-}
-
-function RepeatPage({ onBack }: { onBack: () => void }) {
-  const { client, offline } = useOdoo();
-  const { save } = useQueue();
-  const [rows, setRows] = useState<RepeatRow[] | null>(null);
-  const [note, setNote] = useState('');
-  const [error, setError] = useState('');
-  useEffect(() => {
-    if (client && !offline) loadRepeatList(client).then(setRows).catch((e) => setError(`Couldn’t read past orders. ${why(e)}`));
-  }, [client, offline]);
-  return (
-    <Screen title="Repeat orders" testID="repeat-page">
-      <Body muted>Tap a customer to make a new quote like their last order. Nothing is sent to them.</Body>
-      {error ? <ErrorText>{error}</ErrorText> : null}
-      {note ? <Body>{note}</Body> : null}
-      {rows && !rows.length ? <Body muted>No confirmed orders yet.</Body> : null}
-      {rows?.map((r) => (
-        <Row
-          key={r.partnerId}
-          title={r.customer}
-          detail={`${r.every ? `Usually every ${r.every} days` : 'Ordered once'} · last ${r.sinceDays} days ago`}
-          value={r.every && r.sinceDays > r.every ? 'DUE' : ''}
-          testID={`repeat-${r.partnerId}`}
-          onPress={async () => {
-            setError('');
-            try {
-              const out = await save(repeatChange(r.lastOrderId, r.customer));
-              setNote(out.status === 'queued' ? `Saved on the phone. A quote for ${r.customer} is made when signal is back.` : `A new quote for ${r.customer} is in Quotes and open orders.`);
-            } catch (e) {
-              setError(`Odoo would not do that. ${why(e)}`);
-            }
-          }}
+      <Field label="Search" placeholder="Customer or number" value={text} onChangeText={setText} testID="quote-search" />
+      {rows && !shown.length ? <Body muted>{text.trim() ? 'Nothing matches. Try fewer letters.' : 'No open quotes.'}</Body> : null}
+      {shown.map((r) => (
+        <ListRow
+          key={r.id}
+          title={r.customer || 'No customer'}
+          detail={`${r.name}${r.date ? ` · ${r.date}` : ''}`}
+          amount={`$${money(r.total)}`}
+          tag={{ label: quoteWords(r.state), tone: r.state === 'sale' || r.state === 'done' ? 'good' : r.state === 'sent' ? 'warn' : 'plain' }}
+          onPress={() => onOpen(r.id)}
+          testID={`quote-${r.id}`}
         />
       ))}
-      <Button label="Back" kind="plain" onPress={onBack} />
+      <Button label="Refresh" kind="plain" onPress={load} />
     </Screen>
   );
 }
