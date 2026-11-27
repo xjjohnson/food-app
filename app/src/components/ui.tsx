@@ -297,7 +297,7 @@ export function StatusButtons({ items, testID }: { items: { label: string; count
 }
 
 /** One list card for Sell lists: name first, number and date under it, a small colored tag, the amount big on the right. */
-export function ListRow({ title, detail, tag, amount, onPress, testID }: { title: string; detail?: string; tag?: { label: string; tone: 'good' | 'warn' | 'bad' | 'plain' }; amount?: string; onPress?: () => void; testID?: string }) {
+export function ListRow({ title, detail, lines, tag, amount, onPress, testID }: { title: string; detail?: string; lines?: string[]; tag?: { label: string; tone: 'good' | 'warn' | 'bad' | 'plain' }; amount?: string; onPress?: () => void; testID?: string }) {
   const s = useUi();
   const { colors } = useBrand();
   const bg = tag ? { good: '#2F7D52', warn: '#C26A0E', bad: colors.stop, plain: '#6B7280' }[tag.tone] : '';
@@ -306,6 +306,9 @@ export function ListRow({ title, detail, tag, amount, onPress, testID }: { title
       <View style={{ flex: 1, gap: 3 }}>
         <Text style={s.rowTitle}>{title}</Text>
         {detail ? <Text style={s.muted}>{detail}</Text> : null}
+        {lines?.map((l, i) => (
+          <Text key={i} style={s.muted}>{l}</Text>
+        ))}
       </View>
       <View style={{ alignItems: 'flex-end', gap: 4 }}>
         {amount ? <Text style={[s.rowTitle, { fontSize: 18 }]}>{amount}</Text> : null}

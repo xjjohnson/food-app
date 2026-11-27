@@ -83,6 +83,24 @@ export async function loadMoneyLines(c: Client, moveId: number): Promise<MoneyLi
   }));
 }
 
+/** The item lines for many bills at once (one read), keyed by bill id. */
+export async function loadBillItems(c: Client, ids: number[]): Promise<Record<number, MoneyLine[]>> {
+  const out: Record<number, MoneyLine[]> = {};
+  if (!ids.length) return out;
+  const rows = (await c.call('account.move.line', 'search_read', [[['move_id', 'in', ids], ['display_type', '=', 'product']]], { fields: ['move_id', 'name', 'product_id', 'quantity', 'price_unit', 'price_subtotal'], order: 'id asc' })) as Record<string, unknown>[];
+  for (const r of rows) {
+    const mid = Array.isArray(r.move_id) ? Number(r.move_id[0]) : Number(r.move_id);
+    (out[mid] ??= []).push({
+      id: r.id as number,
+      name: (Array.isArray(r.product_id) ? String(r.product_id[1] ?? '') : '') || String(r.name ?? ''),
+      qty: Number(r.quantity ?? 0),
+      price: Number(r.price_unit ?? 0),
+      subtotal: Number(r.price_subtotal ?? 0),
+    });
+  }
+  return out;
+}
+
 /** Owed, Paid or All. Drafts count as not paid. */
 export const filterMoney = (rows: MoneyRow[], show: Show, text: string): MoneyRow[] => {
   const t = text.trim().toLowerCase();

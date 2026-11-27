@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.69',
+    changes: ['Purchase history opens on All, grouped by day, and each bill lists what was bought (the first three items, then "+ more").', 'Tap a bill to see every line as before.'],
+    test: ['Buy, Purchase history: check it shows All, day headings and items on each bill. Turn airplane mode on and open it again; the items should still show.'],
+  },
+  {
     release: '0.1.68',
     changes: ['Today has four quick buttons on top: I bought something, Start a batch, New order and Add task. The round + button no longer shows on Today.', 'Big tiles show Tasks, New website orders, Close to use-by date and Orders to pack. Only rows that are not zero are listed; the rest are named in one All clear line, with Show all.'],
     test: ['Today: tap each quick button and go Back. Tap each tile. Tap Show all and then Hide the empty ones.'],

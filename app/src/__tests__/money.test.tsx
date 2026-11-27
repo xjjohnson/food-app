@@ -3,7 +3,7 @@ import { act, fireEvent, screen } from '@testing-library/react-native';
 import { renderRouter } from 'expo-router/testing-library';
 import { setDbKind } from '../lib/dbSwitch';
 import { deviceSecrets } from '../lib/secrets';
-import { filterMoney, loadMoney, loadMoneyLines, payChange, stateWords } from '../lib/money';
+import { filterMoney, loadBillItems, loadMoney, loadMoneyLines, payChange, stateWords } from '../lib/money';
 import { AREAS } from '../lib/areas';
 import { canSee } from '../lib/roles';
 import { newIngredientChange } from '../lib/ingredientList';
@@ -124,5 +124,30 @@ describe('screens', () => {
     await fireEvent.press(await screen.findByTestId(`pay-${b.cash}`));
     await settle();
     expect(odoo.tables['account.move']!.find((m) => m.id === b.owed)).toMatchObject({ payment_state: 'paid' });
+  });
+
+  test('Purchase history shows All by default, grouped by day, with what was bought on each bill', async () => {
+    await AsyncStorage.clear();
+    const { odoo } = bakery();
+    const b = books(odoo);
+    const flour = odoo.create('product.product', { name: 'Flour', display_name: 'Flour' });
+    odoo.create('account.move.line', { move_id: b.bill, display_type: 'product', name: 'Flour', product_id: [flour, 'Flour'], quantity: 2, price_unit: 14.98, price_subtotal: 29.96 });
+    const items = await loadBillItems(await client(odoo), [b.bill, b.owed]);
+    expect(items[b.bill]!.map((l) => `${l.qty} ${l.name}`)).toEqual(['2 Flour']);
+    odoo.addEmployee('Ivy Inventory', odoo.addUser({ login: 'inv@example.com' }).id, ['Inventory']);
+    globalThis.fetch = ((u: string, i: never) => odoo.fetch(u, i)) as never;
+    const login = { url: URL, db: 'food-test', login: 'inv@example.com' };
+    await AsyncStorage.setItem(ODOO_STORAGE_KEY, JSON.stringify(login));
+    await deviceSecrets().set('odoo.secret', 'key');
+    await setDbKind(AsyncStorage, login, 'test');
+    const settle = async () => {
+      for (let i = 0; i < 30; i++) await act(async () => undefined);
+    };
+    await renderRouter('src/app', { initialUrl: '/area/ingredients?go=history' });
+    await settle();
+    // The bill is unpaid, but All is the default so it shows without tapping a filter.
+    expect(await screen.findByTestId(`money-${b.bill}`)).toBeTruthy();
+    expect(screen.getByText('2 × Flour')).toBeTruthy();
+    expect(screen.getByText(/^Nov 22/)).toBeTruthy();
   });
 });
