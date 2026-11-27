@@ -251,3 +251,46 @@ export async function loadInStock(c: Client, text: string, kind: StockKind): Pro
   const rows = (await c.call('product.product', 'search_read', [domain], { fields: ['display_name', 'name', 'qty_available', 'free_qty', 'uom_id'], order: 'name asc, id asc', limit: 80 })) as Record<string, unknown>[];
   return rows.map((r) => ({ id: r.id as number, name: String(r.display_name || r.name), onHand: Number(r.qty_available ?? 0), free: Number(r.free_qty ?? 0), unit: Array.isArray(r.uom_id) ? String(r.uom_id[1]) : '' }));
 }
+
+export interface JarRow extends InStockRow {
+  /** Days to the soonest use-by of this jar, when it is within the alert window. */
+  soon?: number;
+}
+
+export interface JarGroup {
+  key: string;
+  name: string;
+  total: number;
+  /** Soonest use-by (days) of any size. */
+  soon?: number;
+  sizes: { id: number; size: string; onHand: number }[];
+}
+
+/** "Black Raspberry Jelly (4 oz)" is the product "Black Raspberry Jelly" in the size "4 oz". */
+export function splitSize(name: string): { base: string; size: string } {
+  const m = name.match(/^(.*?)\s*\(([^()]*)\)\s*$/);
+  return m && m[1] ? { base: m[1], size: m[2] ?? '' } : { base: name, size: '' };
+}
+
+/**
+ * The jars list for the Make tab: sizes grouped under their product, ingredients
+ * left out, out-of-stock hidden unless asked for, and ordered use-by soon first,
+ * then the most in stock, then the rest A to Z.
+ */
+export function groupJars(rows: JarRow[], opts: { ingredientIds?: Set<number>; showEmpty?: boolean; text?: string } = {}): JarGroup[] {
+  const map = new Map<string, JarGroup>();
+  const q = (opts.text ?? '').trim().toLowerCase();
+  for (const r of rows) {
+    if (opts.ingredientIds?.has(r.id)) continue;
+    const { base, size } = splitSize(r.name);
+    if (q && !r.name.toLowerCase().includes(q)) continue;
+    const g = map.get(base) ?? { key: base, name: base, total: 0, sizes: [] };
+    g.total += r.onHand;
+    if (r.soon !== undefined && (g.soon === undefined || r.soon < g.soon)) g.soon = r.soon;
+    g.sizes.push({ id: r.id, size, onHand: r.onHand });
+    map.set(base, g);
+  }
+  return [...map.values()]
+    .filter((g) => opts.showEmpty || g.total > 0)
+    .sort((a, b) => (a.soon === undefined ? 1 : 0) - (b.soon === undefined ? 1 : 0) || (a.soon ?? 0) - (b.soon ?? 0) || (b.total > 0 ? 1 : 0) - (a.total > 0 ? 1 : 0) || b.total - a.total || a.name.localeCompare(b.name));
+}

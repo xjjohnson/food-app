@@ -129,6 +129,10 @@ export function logProblems(form: LogForm, v: LogValues): string[] {
     if (q.type === 'numerical_box' && !Number.isFinite(Number(t.replace(',', '.')))) out.push(`${q.title}: type a number.`);
     if (q.type === 'date' && !/^\d{4}-\d{2}-\d{2}$/.test(t)) out.push(`${q.title}: use the form 2026-11-26.`);
   }
+  for (const q of form.questions) {
+    const k = askKind(q);
+    if ((k === 'product' || k === 'batch') && !(v[q.id] ?? '').trim()) out.push(`${q.title}: pick one or type it.`);
+  }
   if (!form.questions.some((q) => (v[q.id] ?? '').trim())) out.push('Fill in at least one answer.');
   return out;
 }
@@ -182,4 +186,60 @@ export async function loadLogEntries(c: Client, form: LogForm, limit = 20): Prom
         return { question: Array.isArray(l.question_id) ? String(l.question_id[1] ?? '') : '', value: String(value ?? '') };
       }),
   }));
+}
+
+export type AskKind = 'product' | 'batch' | 'who' | 'score' | 'date' | 'choice' | 'number' | 'text';
+
+/** How a question is asked on the form: picker, stars, calendar, two buttons, or typed. */
+export function askKind(q: LogQuestion): AskKind {
+  const t = q.title.toLowerCase();
+  if (q.type === 'simple_choice') return 'choice';
+  if (q.type === 'date') return 'date';
+  if (q.type === 'numerical_box') return /score/.test(t) ? 'score' : 'number';
+  if (q.type === 'char_box' && /batch number/.test(t)) return 'batch';
+  if (q.type === 'char_box' && /product|batch/.test(t)) return 'product';
+  if (q.type === 'char_box' && /who/.test(t)) return 'who';
+  return 'text';
+}
+
+/** What a fresh entry starts with: today's date, the person signed in, and Good on each Good / Off choice. */
+export function logDefaults(form: LogForm, today: string, who: string): LogValues {
+  const v: LogValues = {};
+  for (const q of form.questions) {
+    const k = askKind(q);
+    if (k === 'date') v[q.id] = today;
+    else if (k === 'who' && who) v[q.id] = who;
+    else if (k === 'choice' && q.choices[0]?.value === 'Good') v[q.id] = String(q.choices[0].id);
+  }
+  return v;
+}
+
+/** After "Save", the next entry keeps who and the date but forgets the rest. */
+export function keepForNext(form: LogForm, v: LogValues, today: string, who: string): LogValues {
+  const fresh = logDefaults(form, today, who);
+  for (const q of form.questions) {
+    const k = askKind(q);
+    if ((k === 'who' || k === 'date') && v[q.id]) fresh[q.id] = v[q.id]!;
+  }
+  return fresh;
+}
+
+/** Names to pick from for a product or batch question: recent batches first, then the finished products. */
+export async function loadLogSuggestions(c: Client, kind: AskKind): Promise<string[]> {
+  const out: string[] = [];
+  try {
+    const lots = (await c.call('stock.lot', 'search_read', [[]], { fields: ['name'], order: kind === 'batch' ? 'expiration_date asc, id desc' : 'id desc', limit: 20 })) as { name?: string }[];
+    for (const l of lots) if (l.name) out.push(String(l.name));
+  } catch {
+    // No lots in this Odoo.
+  }
+  if (kind === 'product') {
+    try {
+      const products = (await c.call('product.product', 'search_read', [[['sale_ok', '=', true]]], { fields: ['display_name'], order: 'name asc', limit: 30 })) as { display_name?: string }[];
+      for (const p of products) if (p.display_name) out.push(String(p.display_name));
+    } catch {
+      // Skip.
+    }
+  }
+  return [...new Set(out)];
 }
