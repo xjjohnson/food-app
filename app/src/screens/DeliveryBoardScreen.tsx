@@ -10,7 +10,6 @@ import { BoardOrder, deliveredChange, loadBoard, mapLink, STEP_WORDS, Step } fro
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 import { PhotosCard } from './PhotosCard';
-import { FeedbackBox } from './ShopScreen';
 import { isClosed } from '../lib/shop';
 import { loadSettings } from '../lib/appSettings';
 import { payMethods, salePayChange } from '../lib/deliveryPay';
@@ -80,7 +79,7 @@ export function DeliveryBoardScreen({ onBack: _onBack, onPack, onWaiting, start 
   const keep = (o: BoardOrder) => !lateOnly || isLate(o);
   const inMode = (o: BoardOrder, m: Step) => stepOf(o) === m && keep(o);
   const modes: Step[] = ['pack', 'packed', 'delivered'];
-  const MODE_WORDS: Record<Step, string> = { pack: 'Pack', packed: 'Drive', delivered: 'Done' };
+  const MODE_WORDS: Record<Step, string> = { pack: 'To pack', packed: 'Ready', delivered: 'Done' };
   const count = (m: Step) => (list ? list.filter((o) => inMode(o, m)).length : 0);
   // "Late" opens on whichever side has a late order; otherwise the first side with a card.
   const active: Step = stage ?? modes.find((m) => count(m) > 0) ?? (start === 'packed' ? 'packed' : 'pack');
@@ -108,7 +107,7 @@ export function DeliveryBoardScreen({ onBack: _onBack, onPack, onWaiting, start 
     }
   };
 
-  /** Drive: the next stop big on top, the rest as slim numbered stops. Tap a stop to make it the big one. */
+  /** Ready: the next stop big on top, the rest as slim numbered stops. Tap a stop to make it the big one. */
   const drive = (ordered: BoardOrder[], kind: 'delivery' | 'pickup') => {
     const first = ordered.find((o) => o.id === focus) ?? ordered[0]!;
     const rest = ordered.filter((o) => o.id !== first.id);
@@ -248,7 +247,6 @@ export function DeliveryBoardScreen({ onBack: _onBack, onPack, onWaiting, start 
             {isWaiting ? <Body muted>{`${o.pickup ? 'Picked up' : 'Delivered'} (waiting to send)`}</Body> : null}
             <Body muted>{`${o.origin || o.name}${o.date ? ` · ${o.date.slice(0, 10)}` : ''}`}</Body>
             {o.saleId ? <PaymentCard order={o} /> : null}
-            {o.saleId && !isWaiting ? <FeedbackBox orderId={o.saleId} orderName={o.origin || o.name} /> : null}
             {o.saleId && !o.pickup ? <ProofToggle o={o} /> : null}
           </Card>
           </View>

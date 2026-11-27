@@ -99,14 +99,14 @@ describe('pack, then delivered or picked up, as Odoo says', () => {
     const pickup = mk('S0001', 'onsite', 'Pick up');
     const ship = mk('S0002', 'fixed', 'Local delivery');
     await open(odoo, '/area/orders?go=board', 'Shipping & Packaging');
-    await fireEvent.press(await screen.findByText(/Drive \(2\)/));
+    await fireEvent.press(await screen.findByText(/Ready \(2\)/));
     expect(await screen.findByTestId(`board-delivered-${ship}`)).toHaveTextContent('Delivered ›');
     expect(await screen.findByTestId(`board-delivered-${pickup}`)).toHaveTextContent('Picked up ›');
   });
 });
 
 describe('pickups and deliveries are kept apart on the board', () => {
-  test('pickups sit on the Drive side with no stop number, route or address', async () => {
+  test('pickups sit on the Ready side with no stop number, route or address', async () => {
     const { odoo } = bakery();
     const today = new Date().toISOString().slice(0, 10);
     odoo.create('res.partner', { name: 'Pat', street: '1 Main St', zip: '78640', phone: '555-0100' });
@@ -119,7 +119,7 @@ describe('pickups and deliveries are kept apart on the board', () => {
     const d2 = mk('S0002', 'fixed', 'Local delivery');
     const pk = mk('S0003', 'onsite', 'Pick up');
     await open(odoo, '/area/orders?go=board', 'Shipping & Packaging');
-    await fireEvent.press(await screen.findByText(/Drive \(3\)/));
+    await fireEvent.press(await screen.findByText(/Ready \(3\)/));
     expect(screen.getByTestId('route-card')).toBeTruthy();
     expect(screen.getByTestId(`board-delivered-${d1}`)).toBeTruthy();
     expect(screen.getByText(/Next stop/)).toBeTruthy();
