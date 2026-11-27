@@ -43,7 +43,7 @@ interface Line {
   uom: Rel | null;
 }
 
-type Page = 'main' | 'supplier' | 'ingredient' | 'unit' | 'edit' | 'check';
+type Page = 'main' | 'supplier' | 'ingredient' | 'unit' | 'check';
 
 /**
  * Bought ingredients: one screen for a shopping trip. Who from, what was
@@ -71,7 +71,7 @@ export function BoughtScreen({ onBack }: { onBack: () => void }) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
-  useInnerBack(view !== 'main' ? () => setView(view === 'unit' ? 'edit' : 'main') : null);
+  useInnerBack(view !== 'main' ? () => setView('main') : null);
 
   // Ways to pay, and the last one used.
   useEffect(() => {
@@ -186,7 +186,7 @@ export function BoughtScreen({ onBack }: { onBack: () => void }) {
 
   if (view === 'unit' && editKey !== null) {
     const l = lines.find((x) => x.key === editKey);
-    return <RelationPicker def={{ name: 'uom', label: 'Unit', kind: 'one', relation: 'uom.uom' }} selected={l?.uom ?? null} onChange={(v) => change(editKey, { uom: v as Rel | null })} onBack={() => setView('edit')} />;
+    return <RelationPicker def={{ name: 'uom', label: 'Unit', kind: 'one', relation: 'uom.uom' }} selected={l?.uom ?? null} onChange={(v) => change(editKey, { uom: v as Rel | null })} onBack={() => setView('main')} />;
   }
 
   if (view === 'supplier')
@@ -241,31 +241,6 @@ export function BoughtScreen({ onBack }: { onBack: () => void }) {
         <Button label="Back" kind="plain" onPress={() => setView('main')} />
       </Screen>
     );
-
-  if (view === 'edit') {
-    const l = lines.find((x) => x.key === editKey);
-    if (!l) return null;
-    return (
-      <Screen title={l.choice.name} testID="bought-edit">
-        <Card>
-          <Field label={`How many (${l.uom?.name || l.choice.unit || 'units'})`} value={l.qty} onChangeText={(v) => setQty(l, v)} keyboardType="decimal-pad" testID={`bought-qty-${l.key}`} />
-          <Field label="Price each" value={l.price} onChangeText={(v) => setPrice(l, v)} keyboardType="decimal-pad" testID={`bought-price-${l.key}`} />
-          <Field label="Total paid for this line" value={l.total} onChangeText={(v) => setTotal(l, v)} keyboardType="decimal-pad" testID={`bought-total-${l.key}`} />
-          {l.choice.tracked ? (
-            <>
-              <Field label="Batch number" value={l.lot} onChangeText={(v) => change(l.key, { lot: v })} autoCapitalize="characters" testID={`bought-lot-${l.key}`} />
-              <Field label="Use by (year-month-day, optional)" value={l.useBy} onChangeText={(v) => change(l.key, { useBy: v })} placeholder="2027-01-31" testID={`bought-useby-${l.key}`} />
-            </>
-          ) : null}
-          {!offline ? <Row title="Unit" value={l.uom?.name || l.choice.unit || 'own'} onPress={() => setView('unit')} testID={`bought-unit-${l.key}`} /> : null}
-        </Card>
-        <Button label="Done" onPress={() => setView('main')} testID="bought-done" />
-        <Pressable onPress={() => { setLines((ls) => ls.filter((x) => x.key !== l.key)); setView('main'); }} accessibilityRole="button" accessibilityLabel="Remove" testID={`bought-remove-${l.key}`} style={{ alignItems: 'center', padding: 12 }}>
-          <Text style={{ color: colors.stop, fontSize: 16, fontWeight: '800' }}>Remove this item</Text>
-        </Pressable>
-      </Screen>
-    );
-  }
 
   const total = round(lines.reduce((a, l) => a + (toNum(l.qty) || 0) * (toNum(l.price) || 0), 0), 2);
 
@@ -348,14 +323,43 @@ export function BoughtScreen({ onBack }: { onBack: () => void }) {
         {lines.map((l, i) => (
           <View key={l.key}>
             {i > 0 ? <View style={hair} /> : null}
-            <Pressable onPress={() => { setEditKey(l.key); setView('edit'); }} accessibilityRole="button" accessibilityLabel={`Edit ${l.choice.name}`} testID={`bought-line-${l.key}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 }}>
+            <Pressable onPress={() => setEditKey(editKey === l.key ? null : l.key)} accessibilityRole="button" accessibilityLabel={`Edit ${l.choice.name}`} accessibilityState={{ expanded: editKey === l.key }} testID={`bought-line-${l.key}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 }}>
               <View style={{ flex: 1 }}>
                 <Text style={ui.rowTitle} numberOfLines={1}>{l.choice.name}</Text>
                 <Text style={ui.muted} numberOfLines={1}>{`${l.qty} × ${l.uom?.name || l.choice.unit || 'unit'}${l.price ? ` · ${l.price} each` : ''}`}</Text>
               </View>
               <Text style={[ui.rowTitle, { fontVariant: ['tabular-nums'] }]}>{l.price ? money(l) : '?'}</Text>
-              <Text style={ui.rowValue}>›</Text>
+              <Text style={ui.rowValue}>{editKey === l.key ? '⌄' : '›'}</Text>
             </Pressable>
+            {editKey === l.key ? (
+              <View style={{ gap: 10, paddingBottom: 12 }} testID={`bought-edit-${l.key}`}>
+                <View style={{ flexDirection: 'row', gap: 10 }}>
+                  <View style={{ flex: 1 }}>
+                    <Field label="How many" value={l.qty} onChangeText={(v) => setQty(l, v)} keyboardType="decimal-pad" selectTextOnFocus testID={`bought-qty-${l.key}`} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Field label="Price each" value={l.price} onChangeText={(v) => setPrice(l, v)} keyboardType="decimal-pad" selectTextOnFocus testID={`bought-price-${l.key}`} />
+                  </View>
+                </View>
+                <Field label="Total paid for this line" value={l.total} onChangeText={(v) => setTotal(l, v)} keyboardType="decimal-pad" selectTextOnFocus testID={`bought-total-${l.key}`} />
+                {l.choice.tracked ? (
+                  <>
+                    <Field label="Batch number" value={l.lot} onChangeText={(v) => change(l.key, { lot: v })} autoCapitalize="characters" testID={`bought-lot-${l.key}`} />
+                    <Field label="Use by (year-month-day, optional)" value={l.useBy} onChangeText={(v) => change(l.key, { useBy: v })} placeholder="2027-01-31" testID={`bought-useby-${l.key}`} />
+                  </>
+                ) : null}
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  {!offline ? (
+                    <Pressable onPress={() => setView('unit')} accessibilityRole="button" accessibilityLabel="Change the unit" testID={`bought-unit-${l.key}`} style={{ minHeight: 44, justifyContent: 'center' }}>
+                      <Text style={{ color: colors.accent, fontSize: 16, fontWeight: '800' }}>{`Unit: ${l.uom?.name || l.choice.unit || 'own'} ›`}</Text>
+                    </Pressable>
+                  ) : <View />}
+                  <Pressable onPress={() => { setLines((ls) => ls.filter((x) => x.key !== l.key)); setEditKey(null); }} accessibilityRole="button" accessibilityLabel="Remove" testID={`bought-remove-${l.key}`} style={{ minHeight: 44, justifyContent: 'center' }}>
+                    <Text style={{ color: colors.stop, fontSize: 16, fontWeight: '800' }}>Remove</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
           </View>
         ))}
         {lines.length ? <View style={hair} /> : null}

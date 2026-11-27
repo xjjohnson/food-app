@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.93',
+    changes: ['Bought ingredients: tap an item to open its details right under it (how many, price, total, batch, unit, remove) instead of a different page. Tap it again to fold it.'],
+    test: ['Buy, Bought ingredients: add an item and tap its row. The fields open under it. Change the price: the row total changes. Tap the row again: it folds. Remove takes it off the list.'],
+  },
+  {
     release: '0.1.92',
     changes: ['Bought ingredients is slimmer. From and Date share one card. What you bought shows as short receipt rows with a running total; tap a row to change how many, price, unit or batch, or to remove it. The item picker has slim rows, Ingredients / All products buttons, and lets you tick several items and add them together.'],
     test: ['Buy, Bought ingredients: pick a supplier, add two items at once, see two short rows and a total. Tap a row, change the price, tap Done: the row total changes. Check and save, then save: it receives into stock as before.'],

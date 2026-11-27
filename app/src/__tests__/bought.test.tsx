@@ -117,7 +117,8 @@ describe('bought ingredients screen', () => {
     await fireEvent.changeText(screen.getByTestId(`bought-qty-${line}`), '5');
     await fireEvent.changeText(screen.getByTestId(`bought-total-${line}`), '4.5');
     expect(screen.getByTestId(`bought-price-${line}`).props.value).toBe('0.9');
-    await fireEvent.press(screen.getByTestId('bought-done'));
+    // Tap the row again to fold it.
+    await fireEvent.press(row);
     await settle();
     expect(screen.getByTestId('bought-running-total')).toHaveTextContent(/4\.5/);
     await fireEvent.press(screen.getByTestId('bought-next'));
