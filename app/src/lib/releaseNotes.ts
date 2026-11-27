@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.63',
+    changes: ['Sell is one page now: no Orders and Market buttons. Market is a row on that page.', 'Market now matches the design: Before, Selling and After bar with numbered step cards.', 'Delivery board is now called Sold board.', 'Sold board keeps Deliveries and Pickups in separate spaces, with no Pickup tag bubbles.'],
+    test: ['Sell: open Market from its row and walk Before, Selling and After. Then Sold board: check Pack and Drive show Deliveries and Pickups apart.'],
+  },
+  {
     release: '0.1.62',
     changes: ['Delivery board now looks like the design: a flat Pack, Drive and Done bar instead of pill buttons, Pack cards with the name, a To pack or Late tag and the products to tick off, a Pickup tag on pickup stops, and no big Refresh and Back buttons at the bottom. Pack it opens the packing step for that order.'],
     test: ['Sell, Delivery board, Pack: see the products on each card, tick a few, tap Pack it and finish packing. Then check Drive and Done.'],

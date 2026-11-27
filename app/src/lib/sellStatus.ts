@@ -23,7 +23,7 @@ export interface CustomerStatus {
 
 const startOfDay = (now: Date) => now.toISOString().slice(0, 10);
 
-/** Counts from the delivery board: Odoo's own delivery steps. */
+/** Counts from the sold board: Odoo's own delivery steps. */
 export async function loadOrderStatus(c: Client, now = new Date()): Promise<OrderStatus> {
   const rows = await loadBoard(c, now);
   const today = startOfDay(now);

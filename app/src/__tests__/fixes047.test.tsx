@@ -101,7 +101,6 @@ describe('pack, then delivered or picked up, as Odoo says', () => {
     await open(odoo, '/area/orders?go=board', 'Shipping & Packaging');
     await fireEvent.press(await screen.findByText(/Drive \(2\)/));
     expect(await screen.findByTestId(`board-delivered-${ship}`)).toHaveTextContent('Delivered ›');
-    await fireEvent.press(await screen.findByTestId(`board-open-${pickup}`));
     expect(await screen.findByTestId(`board-delivered-${pickup}`)).toHaveTextContent('Picked up ›');
   });
 });
@@ -124,12 +123,12 @@ describe('pickups and deliveries are kept apart on the board', () => {
     expect(screen.getByTestId('route-card')).toBeTruthy();
     expect(screen.getByTestId(`board-delivered-${d1}`)).toBeTruthy();
     expect(screen.getByText(/Next stop/)).toBeTruthy();
+    expect(screen.getByText(/Next pickup/)).toBeTruthy();
     expect(screen.getByTestId(`stop-${d2}`)).toBeTruthy();
     expect(screen.getByTestId(`stop-up-${d2}`)).toBeTruthy();
     expect(await screen.findByTestId(`board-${pk}`)).toBeTruthy();
     expect(screen.queryByTestId(`stop-${pk}`)).toBeNull();
     expect(screen.queryByTestId(`board-map-${pk}`)).toBeNull();
-    await fireEvent.press(screen.getByTestId(`board-open-${pk}`));
     expect(await screen.findByTestId(`board-delivered-${pk}`)).toHaveTextContent('Picked up ›');
     expect(screen.queryByTestId(`board-map-${pk}`)).toBeNull();
   });
