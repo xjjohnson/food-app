@@ -10,7 +10,6 @@ import { BoardOrder, deliveredChange, loadBoard, mapLink, STEP_WORDS, Step } fro
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 import { PhotosCard } from './PhotosCard';
-import { FeedbackBox } from './ShopScreen';
 import { isClosed } from '../lib/shop';
 import { loadSettings } from '../lib/appSettings';
 import { payMethods, salePayChange } from '../lib/deliveryPay';
@@ -248,7 +247,6 @@ export function DeliveryBoardScreen({ onBack: _onBack, onPack, onWaiting, start 
             {isWaiting ? <Body muted>{`${o.pickup ? 'Picked up' : 'Delivered'} (waiting to send)`}</Body> : null}
             <Body muted>{`${o.origin || o.name}${o.date ? ` · ${o.date.slice(0, 10)}` : ''}`}</Body>
             {o.saleId ? <PaymentCard order={o} /> : null}
-            {o.saleId && !isWaiting ? <FeedbackBox orderId={o.saleId} orderName={o.origin || o.name} /> : null}
             {o.saleId && !o.pickup ? <ProofToggle o={o} /> : null}
           </Card>
           </View>

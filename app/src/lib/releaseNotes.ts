@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.76',
+    changes: ['The How did it go? star rating is gone from the Sold board. Notes already saved on orders in Odoo are left alone.'],
+    test: ['Sell, Sold board, Done: open a delivered order and check the star box is gone while Payment still shows.'],
+  },
+  {
     release: '0.1.74',
     changes: ['Today header is tidier: a plain Today title, the business name as a small line under it (no more cut-off name), and a small round search button instead of the big white one.'],
     test: ['Open Today: check the title, the full business name under it, and that the round search button opens Search.'],

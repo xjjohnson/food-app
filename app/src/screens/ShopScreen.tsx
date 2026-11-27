@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Body, Button, Card, ErrorText, Field, Row, Screen, SwitchRow } from '../components/ui';
 import { useInnerBack } from '../lib/innerBack';
-import { CARRIER_SECTIONS, Carrier, feedbackChange, loadCarriers, loadFeedback, loadReferrals, Referral, tagReferral, loadSpecials, Special, specialActive, specialChange, specialProblems } from '../lib/shop';
+import { CARRIER_SECTIONS, Carrier, loadCarriers, loadReferrals, Referral, tagReferral, loadSpecials, Special, specialActive, specialChange, specialProblems } from '../lib/shop';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 import { useRoles } from '../lib/useRoles';
@@ -123,43 +123,6 @@ function Carriers({ onBack }: { onBack: () => void }) {
       ))}
       <Button label="Add a delivery or pickup method" onPress={() => setForm({})} testID="carrier-new" />
     </Page>
-  );
-}
-
-/** "How did it go?" after a delivery: stars and a comment, saved as a note on the order. */
-export function FeedbackBox({ orderId, orderName }: { orderId: number; orderName: string }) {
-  const { client, offline } = useOdoo();
-  const { save } = useQueue();
-  const [done, setDone] = useState<number | null>(null);
-  const [stars, setStars] = useState(0);
-  const [comment, setComment] = useState('');
-  const [error, setError] = useState('');
-  useEffect(() => {
-    if (client && !offline) loadFeedback(client, orderId).then(setDone).catch(() => undefined);
-  }, [client, offline, orderId]);
-  if (done) return <Body>{`How it went: ${done} of 5 stars.`}</Body>;
-  return (
-    <Card title="How did it go?" testID={`feedback-${orderId}`}>
-      <Row title={stars ? '★'.repeat(stars) + '☆'.repeat(5 - stars) : 'Tap a number of stars'} detail="1 to 5" />
-      {[1, 2, 3, 4, 5].map((n) => (
-        <Button key={n} label={`${n} star${n === 1 ? '' : 's'}`} kind={stars === n ? 'main' : 'plain'} onPress={() => setStars(n)} testID={`feedback-star-${orderId}-${n}`} />
-      ))}
-      <Field label="Comment (optional)" value={comment} onChangeText={setComment} testID={`feedback-comment-${orderId}`} />
-      {error ? <ErrorText>{error}</ErrorText> : null}
-      <Button
-        label="Save"
-        disabled={!stars}
-        testID={`feedback-save-${orderId}`}
-        onPress={async () => {
-          try {
-            await save(feedbackChange(orderId, orderName, stars, comment));
-            setDone(stars);
-          } catch (e) {
-            setError(`Odoo would not take that. ${why(e)}`);
-          }
-        }}
-      />
-    </Card>
   );
 }
 
