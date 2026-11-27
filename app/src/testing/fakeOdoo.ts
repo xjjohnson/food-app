@@ -365,7 +365,13 @@ export class FakeOdoo {
               for (const [op, a, vals] of v as [number, number, Record<string, unknown>][]) {
                 if (op === 0) cur.add(this.create('stock.lot', vals));
                 if (op === 4) cur.add(a);
+                if (op === 5) cur.clear();
+                if (op === 6) {
+                  cur.clear();
+                  for (const x of (vals as unknown as number[]) ?? []) cur.add(x);
+                }
               }
+              if (cur.size > 1) throw { message: 'Odoo Server Error', data: { name: 'odoo.exceptions.UserError', message: 'You cannot set more than 1 lot' } };
               r.lot_producing_ids = [...cur];
             } else if (k === 'category_id' && Array.isArray(v) && Array.isArray(v[0]) && (v[0] as unknown[])[0] === 4) {
               r[k] = [...new Set([...(Array.isArray(r[k]) ? (r[k] as number[]) : []), ...(v as [number, number][]).filter((x) => x[0] === 4).map((x) => x[1])])];

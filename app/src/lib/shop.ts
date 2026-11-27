@@ -132,6 +132,7 @@ export const CARRIER_SECTIONS: Section[] = [
       { name: 'state_ids', label: 'States', kind: 'many', relation: 'res.country.state' },
       { name: 'zip_from', label: 'Zip codes from', kind: 'text' },
       { name: 'zip_to', label: 'Zip codes to', kind: 'text' },
+      { name: 'zip_prefix_ids', label: 'Zip code starts with', kind: 'many', relation: 'delivery.zip.prefix' },
       { name: 'is_published', label: 'On the website', kind: 'bool' },
       { name: 'website_id', label: 'Website', kind: 'one', relation: 'website' },
       { name: 'company_id', label: 'Company', kind: 'one', relation: 'res.company' },
@@ -149,7 +150,10 @@ export interface Carrier {
 }
 
 export async function loadCarriers(c: Client): Promise<Carrier[]> {
-  const rows = (await c.call('delivery.carrier', 'search_read', [[]], { fields: ['name', 'delivery_type', 'fixed_price', 'zip_from', 'zip_to', 'is_published'], order: 'name asc, id asc', limit: 50 })) as Record<string, unknown>[];
+  // Odoo 19 dropped zip_from and zip_to; ask only for fields this Odoo has.
+  const have = (await c.call('delivery.carrier', 'fields_get', [], { attributes: ['type'] })) as Record<string, unknown>;
+  const fields = ['name', 'delivery_type', 'fixed_price', 'zip_from', 'zip_to', 'is_published'].filter((f) => f in have);
+  const rows = (await c.call('delivery.carrier', 'search_read', [[]], { fields, order: 'name asc, id asc', limit: 50 })) as Record<string, unknown>[];
   return rows.map((r) => ({ id: r.id as number, name: String(r.name), kind: String(r.delivery_type ?? ''), price: Number(r.fixed_price ?? 0), zips: [r.zip_from, r.zip_to].filter(Boolean).join(' to '), onSite: r.delivery_type === 'onsite' }));
 }
 

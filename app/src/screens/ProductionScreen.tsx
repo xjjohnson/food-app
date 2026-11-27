@@ -291,6 +291,7 @@ function BatchPage({ id, known, onBack, started }: { id: number; known?: Batch; 
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [lot, setLot] = useState('');
+  const [made, setMade] = useState('');
   const [useBy, setUseBy] = useState('');
   const [days, setDays] = useState<number | null | undefined>(undefined);
   const [source, setSource] = useState<{ source: UseBySource; days: number | null } | null>(null);
@@ -364,8 +365,10 @@ function BatchPage({ id, known, onBack, started }: { id: number; known?: Batch; 
   const okDate = isDate(useBy);
   const amounts: UsedAmount[] = (d?.ingredients ?? []).map((i) => ({ moveId: i.id, name: i.name, planned: i.needed, actual: Number((used[i.id] ?? fmtQty(i.needed)).replace(',', '.')) }));
   const badAmount = amounts.some((a) => !Number.isFinite(a.actual) || a.actual < 0);
-  const ready = canFinish && !!d && d.canRecordLot && lot.trim().length > 0 && okDate && !note && !badAmount;
-  const reasons = finishReasons({ canFinish, loaded: !!d, canRecordLot: !!d?.canRecordLot, lot, okDate, useBy, badAmount, queued: !!note, state: shown.state });
+  const madeQty = made.trim() === '' ? shown.qty : Number(made.replace(',', '.'));
+  const badMade = !Number.isFinite(madeQty) || madeQty <= 0;
+  const ready = canFinish && !!d && d.canRecordLot && lot.trim().length > 0 && okDate && !note && !badAmount && !badMade;
+  const reasons = finishReasons({ canFinish, loaded: !!d, canRecordLot: !!d?.canRecordLot, lot, okDate, useBy, badAmount, queued: !!note, state: shown.state, badMade });
 
   return (
     <Screen title={`${fmtQty(shown.qty)} ${shown.product}`} testID="batch-screen">
@@ -458,6 +461,7 @@ function BatchPage({ id, known, onBack, started }: { id: number; known?: Batch; 
         <Card title="Finish this batch">
           {!d.canRecordLot ? <ErrorText>This Odoo can’t record batch numbers on a batch. Turn on Lots and Serial Numbers in Odoo Inventory settings, then try again.</ErrorText> : null}
           <Field label="Batch number" value={lot} onChangeText={setLot} autoCapitalize="characters" testID="lot-name" />
+          <Field label={`How many were made? (plan ${fmtQty(shown.qty)})`} value={made} onChangeText={setMade} keyboardType="decimal-pad" placeholder={fmtQty(shown.qty)} testID="made-qty" />
           <DatePicker label="Use by" value={useBy} onChange={setUseBy} testID="use-by" />
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
             <Button label="+3 months" kind="plain" onPress={() => setUseBy(addMonths(new Date(), 3))} testID="useby-3m" />
@@ -487,7 +491,7 @@ function BatchPage({ id, known, onBack, started }: { id: number; known?: Batch; 
                 const name = lot.trim();
                 const existing = await findLot(client, shown.productId, name);
                 let queued = false;
-                for (const change of finishBatchChanges(shown, name, useBy, shown.qty, existing, amounts)) {
+                for (const change of finishBatchChanges(shown, name, useBy, madeQty, existing, amounts)) {
                   const r = await save(change);
                   if (r.status === 'queued') queued = true;
                 }

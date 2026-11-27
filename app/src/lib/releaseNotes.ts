@@ -11,6 +11,19 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.44',
+    changes: [
+      'Finish batch now asks "How many were made?", starting at the planned amount, and saves it in Odoo.',
+      'Fixed "You cannot set more than 1 lot": the batch number now replaces any lot on the batch, so a retry or second try keeps exactly one.',
+      'Delivery and pickup methods open again. Odoo 19 has no zip code from/to fields, so the app only asks for fields Odoo has (and shows "Zip code starts with" if Odoo has it).',
+    ],
+    test: [
+      'Make, a Cooking batch: Finish batch has a "How many were made?" box. Change it to a smaller number, finish, and check the batch page yield.',
+      'Finish the Black Raspberry Jelly batch again: it should finish with no "more than 1 lot" message.',
+      'More, Management, Online shop, Delivery and pickup methods: the list should open and a method should edit.',
+    ],
+  },
+  {
     release: '0.1.43',
     changes: [
       'Pay on delivery: when you tap Move to Delivered, the app now makes the Odoo invoice for the order, and a Payment card asks how the customer paid: Cash, Cash App, Venmo, or Not paid yet.',
