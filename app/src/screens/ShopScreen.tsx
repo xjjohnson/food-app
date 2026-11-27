@@ -1,23 +1,19 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Body, Button, Card, ErrorText, Field, Row, Screen, SwitchRow } from '../components/ui';
-import { loadSettings } from '../lib/appSettings';
 import { useInnerBack } from '../lib/innerBack';
-import { draftChange, listModelId, loadDrafts, loadLists, MailList, newsletterBody, newsletterProblems, Draft, sendNewsletter } from '../lib/newsletter';
-import { CARRIER_SECTIONS, Carrier, closeDayChange, feedbackChange, isClosed, loadCarriers, loadFeedback, loadReferrals, loadShop, Referral, tagReferral, loadSpecials, loadWebOrders, ShopRow, shopSwitch, Special, specialActive, specialChange, specialProblems, WebOrder } from '../lib/shop';
+import { CARRIER_SECTIONS, Carrier, feedbackChange, loadCarriers, loadFeedback, loadReferrals, Referral, tagReferral, loadSpecials, Special, specialActive, specialChange, specialProblems } from '../lib/shop';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 import { useRoles } from '../lib/useRoles';
 import { GenericForm } from './GenericForm';
-import { useProductSearch } from './StockExtras';
 
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const money = (n: number) => n.toFixed(2);
 const SAVED = (queued: boolean) => (queued ? 'Saved on the phone. It goes to Odoo when signal is back.' : 'Saved in Odoo.');
-const ymd = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-type Page = 'menu' | 'shop' | 'orders' | 'specials' | 'carriers' | 'closed' | 'news';
+type Page = 'menu' | 'specials' | 'carriers';
 
-/** The online shop, for the owner: switches, new orders, specials, delivery and pickup, closed days, newsletter. */
+/** The online shop, for the owner: specials, and delivery and pickup. Which products are on the shop is set on each product. */
 export function ShopScreen() {
   const { roles } = useRoles();
   const [page, setPage] = useState<Page>('menu');
@@ -29,20 +25,12 @@ export function ShopScreen() {
         <Body>Only the owner can open this.</Body>
       </Screen>
     );
-  if (page === 'shop') return <ShopList onBack={back} />;
-  if (page === 'orders') return <WebOrders onBack={back} />;
   if (page === 'specials') return <Specials onBack={back} />;
   if (page === 'carriers') return <Carriers onBack={back} />;
-  if (page === 'closed') return <ClosedDays onBack={back} />;
-  if (page === 'news') return <Newsletter onBack={back} />;
   return (
     <Screen title="Online shop" testID="shop-screen">
-      <Row title="New website orders" detail="From the last few days" onPress={() => setPage('orders')} testID="shop-orders" />
-      <Row title="On the shop" detail="Switch products on or off, sold out" onPress={() => setPage('shop')} testID="shop-list" />
       <Row title="Specials" detail="Discount codes" onPress={() => setPage('specials')} testID="shop-specials" />
       <Row title="Delivery and pickup" detail="Areas, prices and the pickup place" onPress={() => setPage('carriers')} testID="shop-carriers" />
-      <Row title="Closed days" detail="Days you are not delivering (a warning only)" onPress={() => setPage('closed')} testID="shop-closed" />
-      <Row title="Newsletter" detail="Pick new products, write, save a draft, send on your tap" onPress={() => setPage('news')} testID="shop-news" />
     </Screen>
   );
 }
@@ -53,58 +41,6 @@ function Page({ title, onBack, children, testID }: { title: string; onBack: () =
       {children}
       <Button label="Back" kind="plain" onPress={onBack} />
     </Screen>
-  );
-}
-
-function ShopList({ onBack }: { onBack: () => void }) {
-  const { client, offline } = useOdoo();
-  const { save } = useQueue();
-  const [rows, setRows] = useState<ShopRow[] | null>(null);
-  const [text, setText] = useState('');
-  const [error, setError] = useState('');
-  useEffect(() => {
-    if (client && !offline) loadShop(client).then(setRows).catch((e) => setError(why(e)));
-  }, [client, offline]);
-  const flip = async (r: ShopRow, field: 'is_published' | 'allow_out_of_stock_order', value: boolean) => {
-    setError('');
-    try {
-      await save(shopSwitch(r.id, r.name, field, value));
-      setRows((all) => all?.map((x) => (x.id === r.id ? { ...x, ...(field === 'is_published' ? { onShop: value } : { sellWhenOut: value }) } : x)) ?? null);
-    } catch (e) {
-      setError(`Odoo would not take that. ${why(e)}`);
-    }
-  };
-  const shown = rows?.filter((r) => r.name.toLowerCase().includes(text.trim().toLowerCase()));
-  return (
-    <Page title="On the shop" onBack={onBack} testID="shoplist-page">
-      <Body muted>Turn a product on to show it in the shop. “Sell when out of stock” keeps it orderable when stock is zero; off means customers see it as sold out.</Body>
-      <Field label="Find a product" value={text} onChangeText={setText} testID="shop-find" />
-      {error ? <ErrorText>{error}</ErrorText> : null}
-      {shown?.map((r) => (
-        <Card key={r.id} title={`${r.name} · ${money(r.price)}`}>
-          <SwitchRow title="On the shop" value={r.onShop} onChange={(v) => flip(r, 'is_published', v)} testID={`shop-on-${r.id}`} />
-          <SwitchRow title="Sell when out of stock" value={r.sellWhenOut} onChange={(v) => flip(r, 'allow_out_of_stock_order', v)} testID={`shop-out-${r.id}`} />
-        </Card>
-      ))}
-    </Page>
-  );
-}
-
-function WebOrders({ onBack }: { onBack: () => void }) {
-  const { client, offline } = useOdoo();
-  const [rows, setRows] = useState<WebOrder[] | null>(null);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    if (client && !offline) loadWebOrders(client).then(setRows).catch((e) => setError(`Couldn’t read the orders. ${why(e)}`));
-  }, [client, offline]);
-  return (
-    <Page title="New website orders" onBack={onBack} testID="weborders-page">
-      {error ? <ErrorText>{error}</ErrorText> : null}
-      {rows && !rows.length ? <Body muted>No website orders in the last 3 days.</Body> : null}
-      {rows?.map((o) => (
-        <Row key={o.id} title={o.customer || o.name} detail={`${o.name} · ${o.date}`} value={money(o.total)} />
-      ))}
-    </Page>
   );
 }
 
@@ -186,139 +122,6 @@ function Carriers({ onBack }: { onBack: () => void }) {
         <Row key={r.id} title={r.name} detail={`${r.onSite ? 'Pickup' : 'Delivery'}${r.zips ? ` · zip ${r.zips}` : ''}`} value={r.onSite ? '' : money(r.price)} onPress={() => setForm({ id: r.id })} testID={`carrier-${r.id}`} />
       ))}
       <Button label="Add a delivery or pickup method" onPress={() => setForm({})} testID="carrier-new" />
-    </Page>
-  );
-}
-
-function ClosedDays({ onBack }: { onBack: () => void }) {
-  const { client, offline } = useOdoo();
-  const { save } = useQueue();
-  const [days, setDays] = useState<string[]>([]);
-  const [date, setDate] = useState('');
-  const [error, setError] = useState('');
-  const load = useCallback(async () => {
-    if (client && !offline) {
-      const s = await loadSettings(client);
-      const today = ymd(new Date());
-      setDays(Object.keys(s).filter((k) => k.startsWith('closed.') && isClosed(s, k.slice(7)) && k.slice(7) >= today).map((k) => k.slice(7)).sort());
-    }
-  }, [client, offline]);
-  useEffect(() => {
-    load();
-  }, [load]);
-  const change = async (d: string, closed: boolean) => {
-    setError('');
-    try {
-      await save(closeDayChange(d, closed));
-      setDays((x) => (closed ? [...new Set([...x, d])].sort() : x.filter((y) => y !== d)));
-      setDate('');
-    } catch (e) {
-      setError(`Odoo would not take that. ${why(e)}`);
-    }
-  };
-  return (
-    <Page title="Closed days" onBack={onBack} testID="closed-page">
-      <Body muted>A closed day is a warning on the Delivery board. It does not stop an order.</Body>
-      {error ? <ErrorText>{error}</ErrorText> : null}
-      {days.map((d) => (
-        <Row key={d} title={d} value="Open it again" onPress={() => change(d, false)} testID={`closed-${d}`} />
-      ))}
-      <Field label="Close a day (year-month-day)" value={date} onChangeText={setDate} testID="closed-date" />
-      <Button label="Close this day" disabled={!/^\d{4}-\d{2}-\d{2}$/.test(date)} onPress={() => change(date, true)} testID="closed-add" />
-    </Page>
-  );
-}
-
-function Newsletter({ onBack }: { onBack: () => void }) {
-  const { client, offline } = useOdoo();
-  const { save } = useQueue();
-  const [lists, setLists] = useState<MailList[]>([]);
-  const [picked, setPicked] = useState<number[]>([]);
-  const [subject, setSubject] = useState('');
-  const [words, setWords] = useState('');
-  const [products, setProducts] = useState<{ id: number; name: string; price: number }[]>([]);
-  const [drafts, setDrafts] = useState<Draft[]>([]);
-  const [confirm, setConfirm] = useState<Draft | null>(null);
-  const [note, setNote] = useState('');
-  const [error, setError] = useState('');
-  const search = useProductSearch(true);
-  const load = useCallback(() => {
-    if (!client || offline) return;
-    loadLists(client).then(setLists).catch((e) => setError(`Couldn’t read mailing lists. Is Email Marketing on in Odoo? ${why(e)}`));
-    loadDrafts(client).then(setDrafts).catch(() => undefined);
-  }, [client, offline]);
-  useEffect(load, [load]);
-  const problems = newsletterProblems(subject, words, picked);
-  const people = lists.filter((l) => picked.includes(l.id)).reduce((n, l) => n + l.count, 0);
-  if (confirm)
-    return (
-      <Page title="Send this newsletter?" onBack={() => setConfirm(null)} testID="news-confirm">
-        <Body>{`“${confirm.subject}” goes to ${confirm.people} people. This cannot be taken back.`}</Body>
-        {error ? <ErrorText>{error}</ErrorText> : null}
-        <Button
-          label={`Send to ${confirm.people} people`}
-          kind="danger"
-          testID="news-send"
-          onPress={async () => {
-            try {
-              await sendNewsletter(client!, confirm.id);
-              setNote('Odoo is sending it.');
-              setConfirm(null);
-              load();
-            } catch (e) {
-              setError(`Odoo would not send it. ${why(e)}`);
-            }
-          }}
-        />
-      </Page>
-    );
-  return (
-    <Page title="Newsletter" onBack={onBack} testID="news-page">
-      {error ? <ErrorText>{error}</ErrorText> : null}
-      {note ? <Body>{note}</Body> : null}
-      <Card title="Who it goes to">
-        {lists.map((l) => (
-          <SwitchRow key={l.id} title={l.name} detail={`${l.count} people`} value={picked.includes(l.id)} onChange={(v) => setPicked(v ? [...picked, l.id] : picked.filter((x) => x !== l.id))} testID={`news-list-${l.id}`} />
-        ))}
-        {!lists.length ? <Body muted>No mailing lists found in Odoo.</Body> : null}
-      </Card>
-      <Field label="Subject" value={subject} onChangeText={setSubject} testID="news-subject" />
-      <Field label="A few words" value={words} onChangeText={setWords} multiline testID="news-words" />
-      <Card title="New products to show">
-        {products.map((p) => (
-          <Row key={p.id} title={p.name} value="Remove" onPress={() => setProducts(products.filter((x) => x.id !== p.id))} />
-        ))}
-        <Field label="Find a product" value={search.text} onChangeText={search.setText} testID="news-find" />
-        {search.text
-          ? search.found.filter((p) => !products.some((x) => x.id === p.id)).map((p) => <Row key={p.id} title={p.name} onPress={async () => { const [r] = (await client!.call('product.product', 'read', [[p.id]], { fields: ['list_price'] })) as { list_price?: number }[]; setProducts([...products, { id: p.id, name: p.name, price: Number(r?.list_price ?? 0) }]); search.setText(''); }} testID={`news-add-${p.id}`} />)
-          : null}
-      </Card>
-      {subject || words ? problems.map((p) => <ErrorText key={p}>{p}</ErrorText>) : null}
-      <Body muted>{picked.length ? `It would go to ${people} people.` : ''}</Body>
-      <Button
-        label="Save as a draft"
-        disabled={problems.length > 0}
-        testID="news-save"
-        onPress={async () => {
-          try {
-            const r = await save(draftChange(subject, newsletterBody(words, products), picked, await listModelId(client!)));
-            setNote(`${SAVED(r.status === 'queued')} It is not sent.`);
-            setSubject('');
-            setWords('');
-            setProducts([]);
-            load();
-          } catch (e) {
-            setError(`Odoo would not take that. ${why(e)}`);
-          }
-        }}
-      />
-      {drafts.length ? (
-        <Card title="Drafts and sent">
-          {drafts.map((d) => (
-            <Row key={d.id} title={d.subject} detail={d.state === 'draft' ? `Draft · goes to ${d.people} people` : 'Sent'} onPress={d.state === 'draft' ? () => setConfirm(d) : undefined} testID={`news-draft-${d.id}`} />
-          ))}
-        </Card>
-      ) : null}
     </Page>
   );
 }

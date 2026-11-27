@@ -11,6 +11,19 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.57',
+    changes: [
+      'Online shop now has just Specials and Delivery and pickup.',
+      'Which products are on the shop is set on each product: open a product, then the Online tab. Published on the website and Sell when out of stock are the first two switches.',
+      'Newsletter and Closed days are gone from the app. Nothing already saved in Odoo is changed. Website orders are under Sell.',
+    ],
+    test: [
+      'More, Shop: only Specials and Delivery and pickup should be there.',
+      'Make a product (or open one), Online tab: the first two switches are Published on the website and Sell when out of stock.',
+      'Sell, Orders, Website orders: still opens.',
+    ],
+  },
+  {
     release: '0.1.56',
     changes: [
       'Sell tab redesign: three colored buttons on top of Orders (green Packed, orange To pack, red Late) with counts read from Odoo. Tap one to open the delivery board.',
