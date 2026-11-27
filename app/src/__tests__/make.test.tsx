@@ -41,10 +41,10 @@ describe('the Make tab', () => {
     await open(odoo, '/', 'Production');
     await fireEvent.press(screen.getByTestId('tab-make'));
     await settle();
-    await fireEvent.press(screen.getByTestId('make-seg-recipes'));
+    await fireEvent.press(screen.getByTestId('make-open-recipes'));
     await settle();
     expect(screen.getByTestId('recipe-box')).toBeTruthy();
-    expect(screen.getByTestId(`make-recipe-${bom}`)).toHaveTextContent(/Chocolate chip cookies/);
+    expect(screen.getByTestId('recipe-box')).toHaveTextContent(/Chocolate chip cookies/);
     await fireEvent.press(screen.getByTestId(`make-recipe-${bom}`));
     await settle();
     // The recipe page opened directly, not the Production menu.
@@ -52,14 +52,22 @@ describe('the Make tab', () => {
     expect(screen.queryByTestId('recipes-screen')).toBeNull();
   });
 
-  test('has Batches and Jars in stock segments for the owner, and Jars only for inventory', async () => {
+  test('the owner’s Make home has doors to Batches, Recipes and Jars in stock, each its own page with Back', async () => {
     const { odoo } = bakery();
     await open(odoo, '/', 'Owner');
     await fireEvent.press(screen.getByTestId('tab-make'));
     await settle();
-    await fireEvent.press(screen.getByTestId('make-seg-batches'));
     expect(screen.getByTestId('make-start-batch')).toBeTruthy();
-    await fireEvent.press(screen.getByTestId('make-seg-jars'));
+    expect(screen.getByTestId('make-stats')).toBeTruthy();
+    expect(screen.queryByTestId('make-seg')).toBeNull();
+    await fireEvent.press(screen.getByTestId('make-open-batches'));
+    await settle();
+    expect(screen.getByTestId('make-batches-screen')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('back'));
+    await settle();
+    expect(screen.getByTestId('tab-screen-make')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('make-open-jars'));
+    await settle();
     expect(screen.getByTestId('area-stock')).toBeTruthy();
   });
 
@@ -68,7 +76,10 @@ describe('the Make tab', () => {
     await open(odoo, '/', 'Inventory');
     await fireEvent.press(screen.getByTestId('tab-make'));
     await settle();
-    expect(screen.queryByTestId('recipe-box')).toBeNull();
+    expect(screen.queryByTestId('make-open-recipes')).toBeNull();
+    expect(screen.queryByTestId('make-open-batches')).toBeNull();
+    await fireEvent.press(screen.getByTestId('make-open-jars'));
+    await settle();
     expect(screen.getByTestId('area-stock')).toBeTruthy();
   });
 });
@@ -132,7 +143,8 @@ describe('boards with stages', () => {
     await open(odoo, '/', 'Production');
     await fireEvent.press(screen.getByTestId('tab-make'));
     await settle();
-    await fireEvent.press(screen.getByTestId('make-seg-batches'));
+    await fireEvent.press(screen.getByTestId('make-open-batches'));
+    await settle();
     expect(screen.getByTestId('make-stages-planned')).toHaveTextContent('Planned (1)');
     expect(screen.getByTestId('make-stages-cooking')).toHaveTextContent('Cooking (1)');
     // Opens on Planned (the first stage with a batch); Cooking shows the other batch.
@@ -179,19 +191,19 @@ describe('Make fixes', () => {
     expect(TABS.map((t) => t.id)).toEqual(['index', 'buy', 'make', 'sell', 'more']);
   });
 
-  test('Make opens on Batches, with Food safety there and no Find a product card on any tab', async () => {
+  test('Make home has Food safety and the tools, Recipes has the recipe box, and no Find a product card on any tab', async () => {
     const { odoo } = bakery();
     recipe(odoo);
     await open(odoo, '/', 'Production');
     await fireEvent.press(screen.getByTestId('tab-make'));
     await settle();
-    expect(screen.getByTestId('make-batches')).toBeTruthy();
+    expect(screen.getByTestId('make-plan')).toBeTruthy();
+    expect(screen.getByTestId('make-week')).toBeTruthy();
     expect(screen.queryByTestId('recipe-box')).toBeNull();
     expect(screen.queryByTestId('open-lookup')).toBeNull();
-    await fireEvent.press(screen.getByTestId('make-seg-recipes'));
+    await fireEvent.press(screen.getByTestId('make-open-recipes'));
     await settle();
     expect(screen.getByTestId('recipe-box')).toBeTruthy();
-    expect(screen.queryByTestId('area-safety')).toBeNull();
     expect(screen.queryByTestId('open-lookup')).toBeNull();
   });
 
@@ -212,9 +224,13 @@ describe('Make fixes', () => {
     expect(screen.getByText(/Batch started/)).toBeTruthy();
     await fireEvent.press(screen.getByText('Back to batches'));
     await settle();
-    // Back leaves for the Make tab, where the list shows the new batch.
-    expect(screen.getByTestId('make-batches')).toBeTruthy();
+    // Back leaves for the Make tab, and the Batches page lists the new batch.
+    expect(screen.getByTestId('make-stats')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('make-open-batches'));
+    await settle();
     expect(screen.getByTestId(`make-batch-${odoo.tables['mrp.production']![0]!.id}`)).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('back'));
+    await settle();
     await fireEvent.press(screen.getByTestId('make-start-batch'));
     await settle();
     await fireEvent.press(screen.getByTestId(`recipe-${bom}`));
@@ -250,7 +266,7 @@ describe('Make fixes', () => {
     await open(odoo, '/', 'Owner');
     await fireEvent.press(screen.getByTestId('tab-make'));
     await settle();
-    await fireEvent.press(screen.getByTestId('make-seg-jars'));
+    await fireEvent.press(screen.getByTestId('make-open-jars'));
     await settle();
     expect(screen.getByTestId('make-jars')).toHaveTextContent(/Peach Jam/);
     expect(screen.getByTestId('make-jars')).toHaveTextContent(/11 in stock/);
@@ -258,13 +274,22 @@ describe('Make fixes', () => {
   });
 });
 
-import { qtyWords } from '../lib/production';
+import { groupRecipes, qtyWords, Recipe } from '../lib/production';
 test('counts read in plain words', () => {
   expect(qtyWords(20, 'Pack of 6')).toBe('20 packs of 6');
   expect(qtyWords(1, 'Pack of 6')).toBe('1 pack of 6');
   expect(qtyWords(1, 'Units')).toBe('1 unit');
   expect(qtyWords(12, 'Jars')).toBe('12 Jars');
   expect(qtyWords(3)).toBe('3');
+});
+
+test('recipes group by product with the size listed under it', () => {
+  const r = (id: number, name: string) => ({ id, name, makes: 1, unit: 'Units', lines: [] } as unknown as Recipe);
+  const g = groupRecipes([r(1, 'Apricot Jam (4 oz, Quilted)'), r(2, 'Apricot Jam (8 oz, Quilted)'), r(3, 'Salsa')]);
+  expect(g.map((x) => x.name)).toEqual(['Apricot Jam', 'Salsa']);
+  expect(g[0]!.recipes.map((x) => x.size)).toEqual(['4 oz, Quilted', '8 oz, Quilted']);
+  expect(g[1]!.recipes[0]!.size).toBe('');
+  expect(groupRecipes([r(1, 'Apricot Jam (4 oz, Quilted)'), r(3, 'Salsa')], 'sal').map((x) => x.name)).toEqual(['Salsa']);
 });
 
 describe('the batch page next step', () => {
