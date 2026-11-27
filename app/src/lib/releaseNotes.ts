@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.90',
+    changes: ['The packing step of an order that needs product says Needs product instead of Ready to pack.'],
+    test: ['Open an order whose product has no stock: the tag at the top says Needs product and the Pack button is not offered.'],
+  },
+  {
     release: '0.1.89',
     changes: ['Orders that need product no longer say To pack. They move to Waiting for stock on the Sold board, which shows a red count. There you can add what is short to the planned batches on Make.'],
     test: ['Sell: an order with a product that has no stock should not be under To pack. Waiting for stock shows a count. Open it: the order says Needs product, and What to make has Add to planned batches. Tap it, then open Make, Plan batches: the batch is planned.'],
