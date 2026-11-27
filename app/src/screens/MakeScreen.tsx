@@ -44,7 +44,7 @@ export function MakeScreen() {
     <Screen title="Make" back={false} testID="tab-screen-make">
       {has('production') ? <Button label="Start a batch" onPress={() => router.push('/area/production?go=start')} testID="make-start-batch" /> : null}
       {has('production') ? <MakeStats batches={batches} testID="make-stats" /> : null}
-      <SectionLabel>Open</SectionLabel>
+      <SectionLabel>Your kitchen</SectionLabel>
       {has('production') ? <Row title="Batches" detail={batches ? `${done} finished · see every stage` : 'See every stage'} onPress={() => router.push('/make/batches')} testID="make-open-batches" /> : null}
       {has('production') ? <Row title="Recipes" detail={recipes ? `${products} products · ${recipes.length} recipes` : 'Your recipe box'} onPress={() => router.push('/make/recipes')} testID="make-open-recipes" /> : null}
       {has('stock') ? <Row title="Jars in stock" detail={jarCount ? `${jarCount.jars} jars · ${jarCount.products} products` : 'What is on the shelf'} onPress={() => router.push('/make/jars')} testID="make-open-jars" /> : null}

@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.85',
+    changes: ['On Make, the OPEN heading above Batches, Recipes and Jars in stock now says YOUR KITCHEN.'],
+    test: ['Make tab: the heading above Batches, Recipes and Jars in stock says Your kitchen.'],
+  },
+  {
     release: '0.1.84',
     changes: ['The Today tab and page are now called Home.'],
     test: ['Look at the bottom bar and the first page: they say Home, not Today.'],
