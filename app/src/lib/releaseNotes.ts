@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.94',
+    changes: ['Copy a recipe to a new size now lists only that product’s own sizes, not every product.'],
+    test: ['Recipes, open a recipe, Copy to a new size, tap New size. Only the other sizes of the same product show.'],
+  },
+  {
     release: '0.1.93',
     changes: ['Bought ingredients: tap an item to open its details right under it (how many, price, total, batch, unit, remove) instead of a different page. Tap it again to fold it.'],
     test: ['Buy, Bought ingredients: add an item and tap its row. The fields open under it. Change the price: the row total changes. Tap the row again: it folds. Remove takes it off the list.'],

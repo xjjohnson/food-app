@@ -31,8 +31,10 @@ export interface ProductRow {
  * already has a recipe, and those come first. With `rawOnly`, only raw materials,
  * counted or not (a new ingredient may not be tracked yet).
  */
-export async function searchProducts(c: Client, text: string, markRecipes = false, rawOnly = false): Promise<ProductRow[]> {
+export async function searchProducts(c: Client, text: string, markRecipes = false, rawOnly = false, templateId = 0): Promise<ProductRow[]> {
   const domain: unknown[] = text.trim() ? [['name', 'ilike', text.trim()]] : [];
+  // Only the sizes (variants) of one product, when asked.
+  if (templateId) domain.push(['product_tmpl_id', '=', templateId]);
   const fields = (await c.call('product.product', 'fields_get', [], { attributes: ['string'] })) as Record<string, unknown>;
   if (rawOnly) {
     // Ingredients: the Raw Material category (and what is under it); with no such category, what Odoo can buy.

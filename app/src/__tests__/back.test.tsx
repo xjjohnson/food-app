@@ -81,5 +81,7 @@ describe('product picker', () => {
     expect(rows.map((r) => r.hasRecipe)).toEqual([true, false, false]);
     expect(rows.map((r) => r.id)).toEqual([z, a, b]);
     expect((await searchProducts(c, 'apricot')).map((r) => r.name)[0]).toBe('Apricot Freezer Jam (4 oz, Quilted)');
+    // Copying a recipe to a new size: only the same product's own variants.
+    expect((await searchProducts(c, '', true, false, 1)).map((r) => r.id)).toEqual([a, b]);
   });
 });
