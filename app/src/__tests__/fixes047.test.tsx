@@ -148,3 +148,21 @@ describe('orders due later', () => {
     expect(screen.getByTestId('board-waiting')).toBeTruthy();
   });
 });
+
+describe('what to pack', () => {
+  test('a service line like the delivery charge is not on the pack list', async () => {
+    const { odoo } = bakery();
+    const today = new Date().toISOString().slice(0, 10);
+    odoo.create('res.partner', { name: 'Pat', street: '1 Main St', zip: '78640' });
+    const car = odoo.create('delivery.carrier', { name: 'Local delivery', delivery_type: 'fixed' });
+    const sale = odoo.create('sale.order', { name: 'S0010', carrier_id: [car, 'Local delivery'] });
+    const jam = odoo.create('product.product', { name: 'Jam', type: 'consu' });
+    const fee = odoo.create('product.product', { name: 'Standard delivery', type: 'service' });
+    odoo.create('sale.order.line', { order_id: sale, product_id: [jam, 'Jam'], name: 'Jam', product_uom_qty: 3, display_type: false });
+    odoo.create('sale.order.line', { order_id: sale, product_id: [fee, 'Standard delivery'], name: 'Standard delivery', product_uom_qty: 1, display_type: false });
+    odoo.create('stock.picking', { name: 'WH/S0010', origin: 'S0010', partner_id: [odoo.tables['res.partner']!.at(-1)!.id as number, 'Pat'], state: 'assigned', picking_type_code: 'outgoing', sale_id: [sale, 'S0010'], scheduled_date: `${today} 08:00:00` });
+    await open(odoo, '/area/orders?go=board', 'Shipping & Packaging');
+    expect(await screen.findByLabelText('Jam')).toBeTruthy();
+    expect(screen.queryByLabelText('Standard delivery')).toBeNull();
+  });
+});

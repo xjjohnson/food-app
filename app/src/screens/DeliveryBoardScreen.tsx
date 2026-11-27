@@ -265,7 +265,19 @@ function PackCard({ o, late, onPack }: { o: BoardOrder; late: boolean; onPack: (
     if (!client || offline || !o.saleId) return;
     (async () => {
       const rows = (await client.call('sale.order.line', 'search_read', [[['order_id', '=', o.saleId], ['display_type', '=', false]]], { fields: ['name', 'product_uom_qty', 'product_id'] })) as Record<string, unknown>[];
-      setLines(rows.map((r) => ({ id: r.id as number, name: Array.isArray(r.product_id) ? String(r.product_id[1] ?? '') : String(r.name ?? ''), qty: Number(r.product_uom_qty ?? 0) })));
+      // Services (the delivery charge, for one) are not packed. If Odoo can't say, nothing is hidden.
+      const ids = [...new Set(rows.map((r) => (Array.isArray(r.product_id) ? (r.product_id[0] as number) : 0)).filter(Boolean))];
+      const services = new Set<number>();
+      if (ids.length) {
+        try {
+          const kinds = (await client.call('product.product', 'read', [ids], { fields: ['type'] })) as { id: number; type?: string }[];
+          for (const k of kinds) if (k.type === 'service') services.add(k.id);
+        } catch {
+          // Keep every line.
+        }
+      }
+      const goods = rows.filter((r) => !(Array.isArray(r.product_id) && services.has(r.product_id[0] as number)));
+      setLines(goods.map((r) => ({ id: r.id as number, name: Array.isArray(r.product_id) ? String(r.product_id[1] ?? '') : String(r.name ?? ''), qty: Number(r.product_uom_qty ?? 0) })));
     })().catch(() => undefined);
   }, [client, offline, o.saleId]);
   return (
