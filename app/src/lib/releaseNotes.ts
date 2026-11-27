@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.62',
+    changes: ['Delivery board now looks like the design: a flat Pack, Drive and Done bar instead of pill buttons, Pack cards with the name, a To pack or Late tag and the products to tick off, a Pickup tag on pickup stops, and no big Refresh and Back buttons at the bottom. Pack it opens the packing step for that order.'],
+    test: ['Sell, Delivery board, Pack: see the products on each card, tick a few, tap Pack it and finish packing. Then check Drive and Done.'],
+  },
+  {
     release: '0.1.61',
     changes: ['Delivery board, Drive, now matches the design: a purple Next stop card on top with Navigate, Call and Delivered, then After that with slim numbered stops. Tap a stop to make it the next one, or use its arrows to move it.'],
     test: ['Sell, Delivery board, Drive: check the Next stop card, tap another stop to bring it up, move one with the arrows, then tap Delivered.'],
