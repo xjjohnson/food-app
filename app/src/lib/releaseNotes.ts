@@ -11,6 +11,7 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+<<<<<<< HEAD
     release: '0.1.55',
     changes: [
       'The pages inside More now match the More page: each menu item is its own rounded card with a small tile, instead of bare text on the page. This covers Online shop and its pages, Money and reports and its pages, Management, Settings and Developer.',
@@ -23,6 +24,8 @@ export const RELEASE_NOTES: ReleaseNote[] = [
     ],
   },
   {
+=======
+>>>>>>> origin/main
     release: '0.1.54',
     changes: [
       'More page redesign: your business name and logo with your role at the top, quick buttons for Settings, Money and Shop, and an Owner only box for Management and Developer.',
