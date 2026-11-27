@@ -131,7 +131,7 @@ function Seasons({ onBack }: { onBack: () => void }) {
     );
   return (
     <Screen title="Seasons" testID="seasons-page">
-      <Body muted>Today shows what is in season and what starts within 2 weeks. The shop switch stays yours: turn products on in Online shop.</Body>
+      <Body muted>Home shows what is in season and what starts within 2 weeks. The shop switch stays yours: turn products on in Online shop.</Body>
       {list.map((x) => {
         const s = seasonFromLine(x.line)!;
         return <Row key={x.id} title={x.name} detail={`${s.start} to ${s.end}`} value={inSeason(s) ? 'In season' : `starts in ${daysUntilStart(s)} days`} onPress={() => { setPick({ id: x.id, name: x.name }); setStart(s.start); setEnd(s.end); }} testID={`season-${x.id}`} />;

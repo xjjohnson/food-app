@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.84',
+    changes: ['The Today tab and page are now called Home.'],
+    test: ['Look at the bottom bar and the first page: they say Home, not Today.'],
+  },
+  {
     release: '0.1.83',
     changes: ['Red count dot on Expiring soon inside Stock, so the dot on Jars in stock leads you to it.'],
     test: ['Make, Jars in stock, Count, throw out, find a batch: Expiring soon shows the same red number as the dot on Jars in stock.'],

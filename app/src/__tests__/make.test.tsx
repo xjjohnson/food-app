@@ -184,7 +184,7 @@ describe('no doubles', () => {
 describe('Make fixes', () => {
   beforeEach(() => forgetStarted());
 
-  test('the tabs run Today, Buy, Make, Sell, More', () => {
+  test('the tabs run Home, Buy, Make, Sell, More', () => {
     expect(TABS.map((t) => t.id)).toEqual(['index', 'buy', 'make', 'sell', 'more']);
   });
 
