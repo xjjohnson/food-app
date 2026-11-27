@@ -11,16 +11,16 @@ import { bakery, URL } from '../testing/fakeOdoo';
 const DB = 'https://test.food.example.com|food-test';
 
 describe('pay on delivery', () => {
-  test('separate buttons when Odoo has them, one combined button when Cash App and Venmo share a journal', () => {
+  test('every cash and bank account Odoo has gets a button, named as in Odoo', () => {
     const all = [
       { id: 1, name: 'Cash' },
       { id: 2, name: 'Cash App' },
       { id: 3, name: 'Venmo' },
       { id: 4, name: 'Bank' },
     ];
-    expect(payMethods(all).map((m) => m.label)).toEqual(['Cash', 'Cash App', 'Venmo']);
-    expect(payMethods([{ id: 1, name: 'Cash' }, { id: 2, name: 'Cash App / Venmo' }]).map((m) => m.label)).toEqual(['Cash', 'Cash App / Venmo']);
-    expect(payMethods([{ id: 4, name: 'Bank' }])).toEqual([]);
+    expect(payMethods(all).map((m) => m.label)).toEqual(['Cash', 'Cash App', 'Venmo', 'Bank']);
+    expect(payMethods([{ id: 4, name: 'Bank' }, { id: 5, name: 'Cash Bakery' }, { id: 6, name: 'Cash Bakery' }]).map((m) => m.key)).toEqual(['j4', 'j5', 'j6']);
+    expect(payMethods([])).toEqual([]);
   });
 
   test('the invoice is made once and posted; the payment is recorded and never doubled', async () => {
@@ -64,7 +64,7 @@ describe('pay on delivery', () => {
     await settle();
     expect(odoo.tables['account.move']).toHaveLength(1);
     expect(odoo.tables['account.move']![0]!.payment_state).toBe('not_paid');
-    await fireEvent.press(await screen.findByTestId(`pay-${p}-cash`));
+    await fireEvent.press(await screen.findByTestId(`pay-${p}-j${cash}`));
     await settle();
     expect(screen.getByText(/Paid with Cash/)).toBeTruthy();
     expect(odoo.tables['account.move']![0]!.payment_state).toBe('paid');

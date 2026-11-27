@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.51',
+    changes: ['Paying a purchase bill and paying on delivery now list your Odoo payment accounts (Bank, Cash and so on, as named in Odoo), the same list Bought ingredients uses. Before, they only knew Cash, Cash App and Venmo by name.'],
+    test: ['Ingredients, Purchase orders, an order that is checked in, Lines tab: the Bill and payment card lists every account, including Bank.', 'Sell, Orders, Delivery board, Delivered: the Payment card lists the same accounts.'],
+  },
+  {
     release: '0.1.50',
     changes: [
       'The pack screen has one button, Pack. The Delivery / Pickup choice is gone: delivery or pickup is what the order says in Odoo, shown as "Delivery (set in Odoo): ...".',

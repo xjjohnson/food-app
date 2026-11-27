@@ -192,7 +192,7 @@ function PaymentCard({ order }: { order: BoardOrder }) {
           {methods.map((m) => (
             <Button key={m.key} label={m.label} onPress={() => pay(m.label, m.journal.id)} testID={`pay-${order.id}-${m.key}`} />
           ))}
-          {!methods.length ? <Body muted>Odoo has no Cash, Cash App or Venmo payment method yet. Add them in Odoo, Accounting, Configuration, Journals.</Body> : null}
+          {!methods.length ? <Body muted>Odoo has no cash or bank account yet. Add them in Odoo, Accounting, Configuration, Journals.</Body> : null}
           <Button label="Not paid yet" kind="plain" onPress={() => pay('', null)} testID={`pay-${order.id}-none`} />
         </>
       ) : null}
