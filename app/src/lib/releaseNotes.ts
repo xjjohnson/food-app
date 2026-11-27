@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.91',
+    changes: ['On Sell, the red Late button is now Waiting for stock. It shows how many orders need product first, and opens Waiting for stock.'],
+    test: ['Sell: the third button on top says Waiting for stock with the same count as the Waiting for stock row. Tap it: the orders needing product and What to make open.'],
+  },
+  {
     release: '0.1.90',
     changes: ['The packing step of an order that needs product says Needs product instead of Ready to pack.'],
     test: ['Open an order whose product has no stock: the tag at the top says Needs product and the Pack button is not offered.'],
