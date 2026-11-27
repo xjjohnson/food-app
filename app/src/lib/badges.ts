@@ -32,6 +32,7 @@ export function buildBadges(items: TodayItem[], stuck: number): Badges {
     'buy-low': n(items, 'low'),
     'make-open-batches': n(items, 'batches'),
     'make-open-jars': n(items, 'expiring'),
+    'stock-expiring': n(items, 'expiring'),
     'area-invoices': n(items, 'owed'),
   };
   for (const k of Object.keys(tabs) as TabId[]) if (!tabs[k]) delete tabs[k];

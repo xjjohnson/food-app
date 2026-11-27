@@ -62,7 +62,7 @@ export function HomeScreen() {
 
   return (
     <Screen
-      title="Today"
+      title="Home"
       subtitle={name}
       back={false}
       testID="home-screen"

@@ -146,7 +146,7 @@ export function SpecialDatesBox({ partnerId, name }: { partnerId: number; name: 
     if (!validDay(md)) return setMsg('Type the day like 09-15 (month, then day).');
     try {
       const r = await save(specialDateChange({ partnerId, name, kind, md: md.trim() }, client?.session.uid ?? 0));
-      setMsg(r.status === 'queued' ? 'Saved on the phone. It goes to Odoo when signal is back.' : 'Saved. It will show on Today the week before.');
+      setMsg(r.status === 'queued' ? 'Saved on the phone. It goes to Odoo when signal is back.' : 'Saved. It will show on Home the week before.');
     } catch (e) {
       setMsg(`Odoo said no: ${why(e)}`);
     }

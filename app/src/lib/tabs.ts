@@ -9,7 +9,7 @@ import { canSee, hasAnyRole, type Roles } from './roles';
 export type TabId = 'index' | 'make' | 'buy' | 'sell' | 'more';
 
 export const TABS: { id: TabId; label: string; mark: string; title: string; areas: string[] }[] = [
-  { id: 'index', label: 'Today', mark: '●', title: 'Today', areas: [] },
+  { id: 'index', label: 'Home', mark: '●', title: 'Home', areas: [] },
   { id: 'buy', label: 'Buy', mark: '◍', title: 'Buy', areas: ['ingredients'] },
   { id: 'make', label: 'Make', mark: '◍', title: 'Make', areas: ['production', 'stock', 'safety'] },
   { id: 'sell', label: 'Sell', mark: '◍', title: 'Sell', areas: ['orders', 'invoices', 'sell', 'market'] },

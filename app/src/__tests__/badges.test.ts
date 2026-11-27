@@ -7,7 +7,7 @@ describe('badges', () => {
   test('counts go to the right tabs and rows, zero is left out', () => {
     const b = buildBadges([it('tasks', 2), it('low', 3), it('deliveries', 1), it('batches', 0), it('expiring', 4), it('orders', 5), it('owed', 7)], 1);
     expect(b.tabs).toEqual({ index: 2, buy: 4, make: 4, sell: 5, more: 1 });
-    expect(b.rows).toEqual({ 'buy-low': 3, 'make-open-jars': 4, 'area-invoices': 7 });
+    expect(b.rows).toEqual({ 'buy-low': 3, 'make-open-jars': 4, 'stock-expiring': 4, 'area-invoices': 7 });
   });
   test('nothing waiting means no dots', () => {
     expect(buildBadges([], 0)).toEqual({ tabs: {}, rows: {} });
