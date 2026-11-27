@@ -57,7 +57,7 @@ export function OrdersScreen({ go }: { go?: string } = {}) {
     load();
   }, [load]);
 
-  if (board) return <DeliveryBoardScreen start={go?.split(':')[1]} onBack={() => setBoard(false)} onPack={() => setBoard(false)} />;
+  if (board) return <DeliveryBoardScreen start={go?.split(':')[1]} onBack={() => setBoard(false)} onPack={(b) => { setBoard(false); const found = orders?.find((x) => x.id === b.id); if (found) setOpen(found); }} />;
 
   if (open)
     return (

@@ -20,7 +20,7 @@ const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const copyKey = (db: string) => `board/v1/${db}`;
 
 /** Today's deliveries and pickups: where each goes, its step, and a Delivered tick. */
-export function DeliveryBoardScreen({ onBack, onPack, start }: { onBack: () => void; onPack: () => void; start?: string }) {
+export function DeliveryBoardScreen({ onBack: _onBack, onPack, start }: { onBack: () => void; onPack: (o: BoardOrder) => void; start?: string }) {
   const { colors } = useBrand();
   const { client, db, offline } = useOdoo();
   const { save, items } = useQueue();
@@ -155,6 +155,11 @@ export function DeliveryBoardScreen({ onBack, onPack, start }: { onBack: () => v
                   <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{o.customer || o.origin || o.name}</Text>
                   <Text style={{ fontSize: 14, color: colors.muted }}>{sub(o)}</Text>
                 </View>
+                {o.pickup ? (
+                  <View style={{ backgroundColor: colors.accent, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 }}>
+                    <Text style={{ color: colors.onAccent, fontSize: 12, fontWeight: '800' }}>Pickup</Text>
+                  </View>
+                ) : null}
               </Pressable>
               {n >= 0 && stops.length > 1 ? (
                 <View style={{ gap: 4 }}>
@@ -191,7 +196,16 @@ export function DeliveryBoardScreen({ onBack, onPack, start }: { onBack: () => v
       {!list ? <Body muted>{busy ? 'Loading…' : 'Nothing to show yet. Connect to Odoo to load the board.'}</Body> : null}
       {list && !list.length ? <Body muted>No deliveries or pickups for today.</Body> : null}
       {list && list.length ? (
-        <Segments<Step> options={modes.map((m) => ({ id: m, label: `${MODE_WORDS[m]} (${count(m)})` }))} value={mode} onChange={setStage} testID="board-stages" />
+        <View style={{ flexDirection: 'row', backgroundColor: colors.tint, borderRadius: 14, padding: 4 }} testID="board-stages" accessibilityRole="radiogroup">
+          {modes.map((m) => {
+            const on = m === mode;
+            return (
+              <Pressable key={m} onPress={() => setStage(m)} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={`${MODE_WORDS[m]} (${count(m)})`} testID={`board-stages-${m}`} style={{ flex: 1, minHeight: 44, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? colors.accent : 'transparent' }}>
+                <Text style={{ fontSize: 16, fontWeight: '800', color: on ? colors.onAccent : colors.text }}>{`${MODE_WORDS[m]} (${count(m)})`}</Text>
+              </Pressable>
+            );
+          })}
+        </View>
       ) : null}
       {lateOnly ? <Button label="Showing late orders only. Show all" kind="plain" onPress={() => setLateOnly(false)} testID="board-late-off" /> : null}
       {list && list.length && !ordered.length ? <Body muted>{mode === 'pack' ? 'Nothing to pack.' : mode === 'packed' ? 'Nothing packed and waiting to go.' : 'Nothing delivered yet today.'}</Body> : null}
@@ -208,26 +222,59 @@ export function DeliveryBoardScreen({ onBack, onPack, start }: { onBack: () => v
         </View>
       ) : null}
       {mode === 'packed' && ordered.length ? drive() : null}
-      {mode === 'packed' ? null : ordered.map((o) => {
+      {mode === 'pack' ? ordered.map((o) => <PackCard key={o.id} o={o} late={isLate(o)} onPack={() => onPack(o)} />) : null}
+      {mode === 'delivered' ? ordered.map((o) => {
         const isWaiting = waiting.has(o.saleId);
-        const step = isWaiting ? 'delivered' : o.step;
         return (
           <Card key={o.id} title={o.customer || o.origin || o.name} testID={`board-${o.id}`}>
             {isWaiting ? <Chip label={`${o.pickup ? 'Picked up' : 'Delivered'} (waiting to send)`} testID={`board-step-${o.id}`} /> : null}
-            <Body muted>{`${o.origin || o.name}${o.date ? ` · ${o.date.slice(0, 10)}` : ''}${isLate(o) ? ' · Late' : ''}`}</Body>
-            <Body muted>{[o.pickup ? 'Pickup' : o.address || 'No address on the contact', o.phone].filter(Boolean).join(' · ')}</Body>
-            {o.notes ? <Body>{`Notes: ${o.notes}`}</Body> : null}
-            {step === 'delivered' && o.saleId ? <PaymentCard order={o} /> : null}
-            {step === 'delivered' && o.saleId && !isWaiting ? <FeedbackBox orderId={o.saleId} orderName={o.origin || o.name} /> : null}
-            {step === 'pack' ? <Button label="Pack it" kind="plain" onPress={onPack} testID={`board-pack-${o.id}`} /> : null}
-            {step === 'packed' && o.saleId ? <Button label={o.pickup ? 'Picked up ›' : 'Delivered ›'} onPress={() => delivered(o)} testID={`board-delivered-${o.id}`} /> : null}
-            {o.saleId && !o.pickup && mode !== 'pack' ? <ProofToggle o={o} /> : null}
+            <Body muted>{`${o.origin || o.name}${o.date ? ` · ${o.date.slice(0, 10)}` : ''}`}</Body>
+            {o.saleId ? <PaymentCard order={o} /> : null}
+            {o.saleId && !isWaiting ? <FeedbackBox orderId={o.saleId} orderName={o.origin || o.name} /> : null}
+            {o.saleId && !o.pickup ? <ProofToggle o={o} /> : null}
           </Card>
         );
-      })}
-      <Button label="Refresh" kind="plain" onPress={load} busy={busy} />
-      <Button label="Back" kind="plain" onPress={onBack} />
+      }) : null}
+      <Pressable onPress={load} accessibilityRole="button" accessibilityLabel="Refresh" style={{ alignItems: 'center', padding: 12 }}>
+        <Text style={{ fontSize: 15, color: colors.muted }}>{busy ? 'Refreshing…' : 'Refresh'}</Text>
+      </Pressable>
     </Screen>
+  );
+}
+
+/** One order to pack: name and tag, the products to put in, and one button that opens the packing step. */
+function PackCard({ o, late, onPack }: { o: BoardOrder; late: boolean; onPack: () => void }) {
+  const { client, offline } = useOdoo();
+  const { colors } = useBrand();
+  const [lines, setLines] = useState<{ id: number; name: string; qty: number }[]>([]);
+  const [ticked, setTicked] = useState<Record<number, boolean>>({});
+  useEffect(() => {
+    if (!client || offline || !o.saleId) return;
+    (async () => {
+      const rows = (await client.call('sale.order.line', 'search_read', [[['order_id', '=', o.saleId], ['display_type', '=', false]]], { fields: ['name', 'product_uom_qty', 'product_id'] })) as Record<string, unknown>[];
+      setLines(rows.map((r) => ({ id: r.id as number, name: Array.isArray(r.product_id) ? String(r.product_id[1] ?? '') : String(r.name ?? ''), qty: Number(r.product_uom_qty ?? 0) })));
+    })().catch(() => undefined);
+  }, [client, offline, o.saleId]);
+  return (
+    <Card testID={`board-${o.id}`}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        <Text style={{ flex: 1, fontSize: 18, fontWeight: '800', color: colors.text }}>{o.customer || o.origin || o.name}</Text>
+        <View style={{ backgroundColor: late ? colors.stop : '#C26A0E', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 }}>
+          <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '800' }}>{late ? 'Late' : 'To pack'}</Text>
+        </View>
+      </View>
+      <Body muted>{`${o.origin || o.name}${o.pickup ? ' · Pickup' : ''}${o.date ? ` · ${o.date.slice(0, 10)}` : ''}`}</Body>
+      {lines.map((l) => (
+        <Pressable key={l.id} onPress={() => setTicked({ ...ticked, [l.id]: !ticked[l.id] })} accessibilityRole="checkbox" accessibilityState={{ checked: !!ticked[l.id] }} accessibilityLabel={l.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44, borderTopWidth: 1, borderTopColor: colors.line }}>
+          <View style={{ width: 24, height: 24, borderRadius: 7, borderWidth: 2, borderColor: colors.accent, alignItems: 'center', justifyContent: 'center', backgroundColor: ticked[l.id] ? colors.accent : 'transparent' }}>
+            {ticked[l.id] ? <Text style={{ color: colors.onAccent, fontSize: 14 }}>✓</Text> : null}
+          </View>
+          <Text style={{ flex: 1, fontSize: 16, color: colors.text }}>{l.name}</Text>
+          <Text style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>{String(Math.round(l.qty * 100) / 100)}</Text>
+        </Pressable>
+      ))}
+      <Button label="Pack it ›" onPress={onPack} testID={`board-pack-${o.id}`} />
+    </Card>
   );
 }
 
