@@ -11,7 +11,7 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
-    release: '0.1.71',
+    release: '0.1.72',
     changes: ['Website orders and the Sold board are one now. Orders due after today show on the Sold board under Upcoming, and the Sell buttons count them too. The Website orders row is gone from Sell; orders that wait for stock, with what to make, are a row at the bottom of the Sold board.'],
     test: ['Sell: the To pack number should match the Sold board. Open the Sold board, Pack: an order due later sits under Upcoming. Tap Waiting for stock at the bottom and check it opens.'],
   },
