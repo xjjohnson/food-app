@@ -1,16 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
-import { Body, Button, ErrorText, Row, Screen, SectionLabel, Segments } from '../components/ui';
+import { Body, ErrorText, Screen, SectionLabel } from '../components/ui';
 import { loadMarket, MarketInfo, openFor, posUrl } from '../lib/market';
 import { useBrand } from '../lib/useBrand';
 import { useOdoo } from '../lib/useOdoo';
 import { useInnerBack, useLeaveAtBase } from '../lib/innerBack';
-import { DaySheetPage, DrawerPage, PricePage, ResultsPage, TotalsPage } from './MarketDay';
+import { loadResults, loadSessions, SessionResults } from '../lib/marketDay';
+import { DaySheetPage, ResultsPage, TotalsPage } from './MarketDay';
 import { CheckInPage, CheckOutPage } from './MarketTake';
 
-/** Market: opens Odoo's Point of Sale to ring up sales. */
-const MARKET_PAGES = ['results', 'sheet', 'take', 'checkin', 'price', 'drawer', 'totals'] as const;
-type Part = 'before' | 'selling' | 'after';
+/** Market: one page. A top card for the register, then Get ready, Today and Close up. Opens Odoo's Point of Sale to ring up sales. */
+const MARKET_PAGES = ['results', 'sheet', 'take', 'checkin', 'totals'] as const;
+const qty = (n: number) => String(Math.round(n * 100) / 100);
 
 /** One numbered step card: circle with the number, title, small line, arrow. The step you are on has an accent border. */
 function StepCard({ n, title, detail, onPress, now, testID }: { n: number; title: string; detail: string; onPress: () => void; now?: boolean; testID: string }) {
@@ -29,12 +30,33 @@ function StepCard({ n, title, detail, onPress, now, testID }: { n: number; title
   );
 }
 
+/** A big purple button inside the top card. */
+function HeroButton({ label, onPress, testID }: { label: string; onPress: () => void; testID?: string }) {
+  const { colors } = useBrand();
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} testID={testID} style={{ minHeight: 52, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF' }}>
+      <Text style={{ fontSize: 17, fontWeight: '800', color: colors.accent }}>{label}</Text>
+    </Pressable>
+  );
+}
+
+function Tile({ value, label, testID }: { value: string; label: string; testID?: string }) {
+  const { colors } = useBrand();
+  return (
+    <View style={{ flexGrow: 1, flexBasis: '45%', backgroundColor: colors.card, borderRadius: 14, borderWidth: 1, borderColor: colors.line, padding: 10 }} testID={testID}>
+      <Text style={{ fontSize: 22, fontWeight: '800', color: colors.text }} numberOfLines={1}>{value}</Text>
+      <Text style={{ fontSize: 14, color: colors.muted }}>{label}</Text>
+    </View>
+  );
+}
+
 export function MarketScreen({ go }: { go?: string } = {}) {
   const { client, offline } = useOdoo();
+  const { colors } = useBrand();
   const [info, setInfo] = useState<MarketInfo | null>(null);
+  const [live, setLive] = useState<SessionResults | null>(null);
   const [error, setError] = useState('');
   const [page, setPage] = useState<'main' | (typeof MARKET_PAGES)[number]>(MARKET_PAGES.find((p) => p === go) ?? 'main');
-  const [part, setPart] = useState<Part | null>(null);
   useLeaveAtBase(!!go, page === 'main');
   useInnerBack(page !== 'main' ? () => setPage('main') : null);
 
@@ -44,6 +66,22 @@ export function MarketScreen({ go }: { go?: string } = {}) {
       .then(setInfo)
       .catch((e) => setError(`Couldn’t read the registers from Odoo. ${e instanceof Error ? e.message : String(e)}`));
   }, [client, offline]);
+
+  // Sales so far today come from Odoo's open Point of Sale day. Read only.
+  const openIds = info?.open.map((o) => o.configId).join(',') ?? '';
+  useEffect(() => {
+    if (!client || offline || !openIds) {
+      setLive(null);
+      return;
+    }
+    loadSessions(client, 10)
+      .then((l) => {
+        const s = l.find((x) => x.state !== 'closed');
+        return s ? loadResults(client, s) : null;
+      })
+      .then(setLive)
+      .catch(() => undefined);
+  }, [client, offline, openIds]);
 
   const open = async (id: number) => {
     if (!client) return;
@@ -60,64 +98,60 @@ export function MarketScreen({ go }: { go?: string } = {}) {
   if (page === 'sheet') return <DaySheetPage onBack={back} />;
   if (page === 'take') return <CheckOutPage onBack={back} />;
   if (page === 'checkin') return <CheckInPage onBack={back} />;
-  if (page === 'price') return <PricePage onBack={back} />;
-  if (page === 'drawer') return <DrawerPage onBack={back} />;
   if (page === 'totals') return <TotalsPage onBack={back} />;
-  // Opens on the step you are in: Selling while a register is open, otherwise Before.
-  const active: Part = part ?? (info?.open.length ? 'selling' : 'before');
-  const PARTS: { id: Part; label: string }[] = [
-    { id: 'before', label: 'Before' },
-    { id: 'selling', label: 'Selling' },
-    { id: 'after', label: 'After' },
-  ];
+
+  const first = info?.open[0];
+  const items = live ? live.best.reduce((n, b) => n + b.qty, 0) : 0;
   return (
     <Screen title="Market" testID="market-screen">
-      <Segments<Part> options={PARTS} value={active} onChange={setPart} testID="market-part" />
       {offline ? <Body muted>No signal. The Point of Sale has its own offline mode, but it must be opened once with signal first.</Body> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
+      <View style={{ backgroundColor: colors.accent, borderRadius: 18, padding: 16, gap: 8 }} testID="market-hero">
+        {first ? (
+          <>
+            <Text style={{ color: colors.onAccent, opacity: 0.9, fontSize: 14 }}>{`${first.name} · ${openFor(first.since)}`}</Text>
+            <Text style={{ color: colors.onAccent, fontSize: 26, fontWeight: '800' }} testID="market-sold">{live ? `${live.total.toFixed(2)} sold` : 'Selling'}</Text>
+            <HeroButton label="Go to register ›" onPress={() => open(first.configId)} testID={`open-register-${first.configId}`} />
+          </>
+        ) : (
+          <>
+            <Text style={{ color: colors.onAccent, opacity: 0.9, fontSize: 14 }}>No register is open</Text>
+            <Text style={{ color: colors.onAccent, fontSize: 22, fontWeight: '800' }}>Ready to sell?</Text>
+            {info?.registers.map((r) => (
+              <HeroButton key={r.id} label={`Open ${r.name} ›`} onPress={() => open(r.id)} testID={`open-pos-${r.id}`} />
+            ))}
+          </>
+        )}
+      </View>
       {info && !info.registers.length ? <Body muted>Odoo has no register yet. Set one up in Odoo: Point of Sale, Configuration.</Body> : null}
-      {active === 'before' ? (
-        <>
-          <SectionLabel>Get ready</SectionLabel>
-          <StepCard n={1} now title="Market day sheet" detail="What sold last time, what is in stock" onPress={() => setPage('sheet')} testID="market-sheet" />
-          <StepCard n={2} title="Check out" detail="Move what you take to Market" onPress={() => setPage('take')} testID="market-take" />
-          <StepCard n={3} title="Price sheet" detail="Big list of prices to share" onPress={() => setPage('price')} testID="market-price" />
-          <StepCard n={4} title="Count the cash drawer" detail="Starting bills and coins" onPress={() => setPage('drawer')} testID="market-drawer" />
-        </>
+      {first ? (
+        <Body muted>Sales are rung up in Odoo’s Point of Sale. It opens in your browser, and sales go to Odoo and take stock off the right batch.</Body>
       ) : null}
-      {active !== 'after' ? (
-        <>
-          {info?.registers.map((r) => (
-            <Button key={r.id} label={`Open ${r.name}`} onPress={() => open(r.id)} testID={`open-pos-${r.id}`} />
-          ))}
-          {active === 'selling' ? <Body muted>Sales are rung up in Odoo’s Point of Sale. It opens in your browser, and sales go to Odoo and take stock off the right batch.</Body> : null}
-        </>
-      ) : null}
-      {active === 'selling' ? (
-        <>
-          {info && !info.open.length ? <Body muted>No register is open.</Body> : null}
-          {info?.open.map((o) => (
-            <Row key={o.configId} title={o.name} detail={`Open ${openFor(o.since)}`} testID={`open-register-${o.configId}`} />
-          ))}
-          {info?.payments.length ? <Body muted>{`Ways to pay (set in Odoo): ${info.payments.join(', ')}`}</Body> : null}
-        </>
-      ) : null}
-      {active === 'after' ? (
-        <>
-          <SectionLabel>Close up</SectionLabel>
-          {info?.open.length ? (
-            info.open.map((o) => (
-              <StepCard key={o.configId} n={1} now title={`Close ${o.name}`} detail={`Open ${openFor(o.since)}. In the Point of Sale tap the menu, then Close Register.`} onPress={() => open(o.configId)} testID={`close-register-${o.configId}`} />
-            ))
-          ) : (
-            <StepCard n={1} title="Close the register" detail="No register is open" onPress={() => undefined} testID="close-register-none" />
-          )}
-          <StepCard n={2} now={!info?.open.length} title="Count the cash drawer" detail="Ending bills and coins" onPress={() => setPage('drawer')} testID="market-drawer-after" />
-          <StepCard n={3} title="Check in" detail="Move what came back to the pantry" onPress={() => setPage('checkin')} testID="market-checkin" />
-          <StepCard n={4} title="Day totals" detail="Cash App and Venmo against Odoo" onPress={() => setPage('totals')} testID="market-totals" />
-          <StepCard n={5} title="Results" detail="Sold, best sellers, what is left" onPress={() => setPage('results')} testID="market-results" />
-        </>
-      ) : null}
+
+      <SectionLabel>Get ready</SectionLabel>
+      <StepCard n={1} title="Market day sheet" detail="What sold last time, what is in stock" onPress={() => setPage('sheet')} testID="market-sheet" />
+      <StepCard n={2} title="Check out" detail="Move what you take to Market" onPress={() => setPage('take')} testID="market-take" />
+
+      <SectionLabel>Today</SectionLabel>
+      {live ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }} testID="market-live">
+          <Tile value={live.total.toFixed(2)} label="sold so far" />
+          <Tile value={String(live.orders)} label="orders" />
+          <Tile value={qty(items)} label="items sold" />
+          <Tile value={live.best[0]?.name ?? '-'} label="selling fastest" />
+        </View>
+      ) : (
+        <Body muted>{first ? 'Loading sales…' : 'Sales show here once the register is open.'}</Body>
+      )}
+      {info?.payments.length ? <Body muted>{`Ways to pay (set in Odoo): ${info.payments.join(', ')}`}</Body> : null}
+
+      <SectionLabel>Close up</SectionLabel>
+      {info?.open.map((o) => (
+        <StepCard key={o.configId} n={3} title={`Close ${o.name}`} detail="In the Point of Sale tap the menu, then Close Register." onPress={() => open(o.configId)} testID={`close-register-${o.configId}`} />
+      ))}
+      <StepCard n={info?.open.length ? 4 : 3} title="Check in" detail="Move what came back to the pantry" onPress={() => setPage('checkin')} testID="market-checkin" />
+      <StepCard n={info?.open.length ? 5 : 4} title="Day totals" detail="Cash App and Venmo against Odoo" onPress={() => setPage('totals')} testID="market-totals" />
+      <StepCard n={info?.open.length ? 6 : 5} title="Results" detail="Sold, best sellers, what is left" onPress={() => setPage('results')} testID="market-results" />
     </Screen>
   );
 }

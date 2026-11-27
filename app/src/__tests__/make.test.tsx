@@ -99,9 +99,11 @@ describe('the Buy and Sell tabs', () => {
     await fireEvent.press(screen.getByTestId('area-market'));
     await settle();
     expect(screen.getByTestId('market-screen')).toBeTruthy();
-    await fireEvent.press(screen.getByTestId('market-price'));
+    expect(screen.queryByTestId('market-price')).toBeNull();
+    expect(screen.queryByTestId('market-drawer')).toBeNull();
+    await fireEvent.press(screen.getByTestId('market-sheet'));
     await settle();
-    expect(screen.getByTestId('price-page')).toBeTruthy();
+    expect(screen.getByTestId('daysheet-page')).toBeTruthy();
   });
 });
 
