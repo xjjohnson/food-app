@@ -1,23 +1,16 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { View } from 'react-native';
-import { Button, Row, Screen, SectionLabel, Segments, StatusButtons } from '../components/ui';
+import { Row, Screen, SectionLabel, StatusButtons } from '../components/ui';
 import { CustomerStatus, loadCustomerStatus, loadOrderStatus, OrderStatus } from '../lib/sellStatus';
 import { tabAreas } from '../lib/tabs';
 import { useOdoo } from '../lib/useOdoo';
 import { useRoles } from '../lib/useRoles';
 
-type Seg = 'orders' | 'market';
-
-/** The Sell tab: Orders and Market (Customers are under More). Colored status buttons on top (counts from Odoo), then cards. */
+/** The Sell tab: one sales page (Customers are under More; Market is a row here). Colored status buttons on top (counts from Odoo), then cards. */
 export function SellTab() {
   const { roles } = useRoles();
   const { client, offline } = useOdoo();
   const has = (id: string) => tabAreas('sell', roles).some((a) => a.id === id);
-  const options: { id: Seg; label: string }[] = [];
-  if (has('orders') || has('sell') || has('invoices')) options.push({ id: 'orders', label: 'Orders' });
-  if (has('market')) options.push({ id: 'market', label: 'Market' });
-  const [seg, setSeg] = useState<Seg>(options[0]!.id);
   const [orders, setOrders] = useState<OrderStatus | null>(null);
   const [people, setPeople] = useState<CustomerStatus | null>(null);
   const open = (area: string, go?: string) => router.push(`/area/${area}${go ? `?go=${go}` : ''}` as never);
@@ -34,9 +27,7 @@ export function SellTab() {
 
   return (
     <Screen title="Sell" back={false} testID="tab-screen-sell">
-      {options.length > 1 ? <Segments<Seg> options={options} value={seg} onChange={setSeg} testID="sell-seg" /> : null}
-      {seg === 'orders' ? (
-        <>
+      <>
           {has('orders') ? (
             <StatusButtons
               testID="order-status"
@@ -48,8 +39,9 @@ export function SellTab() {
             />
           ) : null}
           <SectionLabel>Today</SectionLabel>
-          {has('orders') ? <Row title="Delivery board" detail={orders ? `${orders.toPack} to pack, ${orders.packed} packed` : 'To pack, packed and delivered, with the route'} onPress={() => open('orders', 'board')} testID="sell-board" /> : null}
+          {has('orders') ? <Row title="Sold board" detail={orders ? `${orders.toPack} to pack, ${orders.packed} packed` : 'To pack, packed and delivered, with the route'} onPress={() => open('orders', 'board')} testID="sell-board" /> : null}
           {has('orders') ? <Row title="Website orders" detail="Pack orders, oldest batch first, delivered or picked up" onPress={() => open('orders')} testID="area-orders" /> : null}
+          {has('market') ? <Row title="Market" detail="Before, selling and after: the register, cash and results" onPress={() => open('market')} testID="area-market" /> : null}
           {has('sell') ? (
             <>
               <SectionLabel>Sell</SectionLabel>
@@ -62,22 +54,7 @@ export function SellTab() {
               <Row title="Invoices" detail={people ? `${people.owe} owed${people.overdue ? `, ${people.overdue} overdue` : ''}` : 'Who owes you, who has paid'} onPress={() => open('invoices')} testID="area-invoices" />
             </>
           ) : null}
-        </>
-      ) : null}
-      {seg === 'market' && has('market') ? (
-        <View style={{ gap: 12 }} testID="market-tiles">
-          <Button label="Open register" onPress={() => open('market')} testID="area-market" />
-          <SectionLabel>Before and after</SectionLabel>
-          <Row title="Day sheet" detail="What sold, what is in stock" onPress={() => open('market', 'sheet')} testID="market-tile-sheet" />
-          <Row title="Check out" detail="Move what you take to Market" onPress={() => open('market', 'take')} testID="market-tile-take" />
-          <Row title="Check in" detail="Move what came back" onPress={() => open('market', 'checkin')} testID="market-tile-checkin" />
-          <Row title="Price sheet" detail="Big list to share" onPress={() => open('market', 'price')} testID="market-tile-price" />
-          <SectionLabel>Money</SectionLabel>
-          <Row title="Cash drawer" detail="Count bills and coins" onPress={() => open('market', 'drawer')} testID="market-tile-drawer" />
-          <Row title="Day totals" detail="Cash App and Venmo" onPress={() => open('market', 'totals')} testID="market-tile-totals" />
-          <Row title="Results" detail="Sales after closing" onPress={() => open('market', 'results')} testID="market-tile-results" />
-        </View>
-      ) : null}
+      </>
     </Screen>
   );
 }

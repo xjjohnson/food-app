@@ -49,7 +49,7 @@ export type Step =
   | { kind: 'count'; quantId: number; counted: number; expected: number }
   | { kind: 'move'; token: string; productId: number; lotId: number; qty: number; fromId: number; toId: number }
   | {
-      /** A note on a record's chatter, posted once (Delivered on the delivery board). */
+      /** A note on a record's chatter, posted once (Delivered on the sold board). */
       kind: 'note';
       model: string;
       resId: number;

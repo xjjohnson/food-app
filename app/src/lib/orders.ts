@@ -134,7 +134,7 @@ export const carrierIsPickup = (label: string, deliveryType?: unknown) => delive
  * batches picked (only where they differ from what Odoo set aside), leave a
  * note saying packed, then validate the delivery. Each is skipped if the
  * delivery is already done in Odoo. Delivered or picked up is a later step on
- * the delivery board; whether it is a delivery or a pickup comes from Odoo.
+ * the sold board; whether it is a delivery or a pickup comes from Odoo.
  */
 export function handOverChanges(order: Order, lines: { line: PackLine; picks: LotPick[] }[]): NewChange[] {
   const already = { model: 'stock.picking', domain: [['id', '=', order.id], ['state', '=', 'done']] };

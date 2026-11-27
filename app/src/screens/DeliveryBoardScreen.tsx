@@ -3,7 +3,7 @@ import { applyRoute, moveStop, routeKey, routeLink, sortByZip } from '../lib/buy
 import { useTyped } from './MarketDay';
 import { useCallback, useEffect, useState } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
-import { Body, Button, Card, Chip, ErrorText, Screen, Row, SectionLabel, Segments } from '../components/ui';
+import { Body, Button, Card, ErrorText, Screen, Row, SectionLabel, Segments } from '../components/ui';
 import { useBrand } from '../lib/useBrand';
 import { thankYouChange } from '../lib/activities';
 import { BoardOrder, deliveredChange, loadBoard, mapLink, STEP_WORDS, Step } from '../lib/deliveryBoard';
@@ -89,6 +89,7 @@ export function DeliveryBoardScreen({ onBack: _onBack, onPack, start }: { onBack
   // Cards on this side: deliveries in route order first, then pickups.
   const ordered = [...deliveries, ...pickups].filter((o) => inMode(o, mode));
   const stops = deliveries.filter((o) => inMode(o, mode));
+  const sidePickups = pickups.filter((o) => inMode(o, mode));
   const routeUrl = mode === 'packed' && stops.length ? routeLink(stops) : '';
 
   const delivered = async (o: BoardOrder) => {
@@ -106,7 +107,7 @@ export function DeliveryBoardScreen({ onBack: _onBack, onPack, start }: { onBack
   };
 
   /** Drive: the next stop big on top, the rest as slim numbered stops. Tap a stop to make it the big one. */
-  const drive = () => {
+  const drive = (ordered: BoardOrder[], kind: 'delivery' | 'pickup') => {
     const first = ordered.find((o) => o.id === focus) ?? ordered[0]!;
     const rest = ordered.filter((o) => o.id !== first.id);
     const numOf = (o: BoardOrder) => ordered.findIndex((x) => x.id === o.id) + 1;
@@ -115,7 +116,7 @@ export function DeliveryBoardScreen({ onBack: _onBack, onPack, start }: { onBack
     return (
       <>
         <View style={{ backgroundColor: colors.accent, borderRadius: 18, padding: 14, gap: 8 }} testID={`board-${first.id}`}>
-          <Text style={{ color: colors.onAccent, opacity: 0.9, fontSize: 14 }}>{`Next stop · ${ordered.length} left`}</Text>
+          <Text style={{ color: colors.onAccent, opacity: 0.9, fontSize: 14 }}>{`${kind === 'pickup' ? 'Next pickup' : 'Next stop'} · ${ordered.length} left`}</Text>
           <Text style={{ color: colors.onAccent, fontSize: 22, fontWeight: '800' }}>{`${numOf(first)}. ${first.customer || first.origin || first.name}`}</Text>
           <Text style={{ color: colors.onAccent, opacity: 0.9, fontSize: 15 }}>{`${sub(first)}${isLate(first) ? ' · Late' : ''}`}</Text>
           {first.notes ? <Text style={{ color: colors.onAccent, fontSize: 15 }}>{`Notes: ${first.notes}`}</Text> : null}
@@ -144,7 +145,7 @@ export function DeliveryBoardScreen({ onBack: _onBack, onPack, start }: { onBack
         {first.saleId && !first.pickup ? <ProofToggle o={first} /> : null}
         {rest.length ? <SectionLabel>After that</SectionLabel> : null}
         {rest.map((o) => {
-          const n = stops.findIndex((x) => x.id === o.id);
+          const n = kind === 'delivery' ? stops.findIndex((x) => x.id === o.id) : -1;
           return (
             <View key={o.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.card, borderRadius: 16, borderWidth: 1, borderColor: colors.line, padding: 10 }} testID={`board-${o.id}`}>
               <Pressable onPress={() => setFocus(o.id)} accessibilityRole="button" accessibilityLabel={`Go to ${o.customer || o.name}`} testID={`board-open-${o.id}`} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -155,11 +156,6 @@ export function DeliveryBoardScreen({ onBack: _onBack, onPack, start }: { onBack
                   <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{o.customer || o.origin || o.name}</Text>
                   <Text style={{ fontSize: 14, color: colors.muted }}>{sub(o)}</Text>
                 </View>
-                {o.pickup ? (
-                  <View style={{ backgroundColor: colors.accent, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 }}>
-                    <Text style={{ color: colors.onAccent, fontSize: 12, fontWeight: '800' }}>Pickup</Text>
-                  </View>
-                ) : null}
               </Pressable>
               {n >= 0 && stops.length > 1 ? (
                 <View style={{ gap: 4 }}>
@@ -189,7 +185,7 @@ export function DeliveryBoardScreen({ onBack: _onBack, onPack, start }: { onBack
   };
 
   return (
-    <Screen title="Delivery board" testID="board-screen">
+    <Screen title="Sold board" testID="board-screen">
       {closedToday ? <Body>Today is marked as a closed day. This is only a warning.</Body> : null}
       {fromPhone ? <Body muted>No signal. Showing what the phone saw last.</Body> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
@@ -221,18 +217,37 @@ export function DeliveryBoardScreen({ onBack: _onBack, onPack, start }: { onBack
           ) : null}
         </View>
       ) : null}
-      {mode === 'packed' && ordered.length ? drive() : null}
-      {mode === 'pack' ? ordered.map((o) => <PackCard key={o.id} o={o} late={isLate(o)} onPack={() => onPack(o)} />) : null}
-      {mode === 'delivered' ? ordered.map((o) => {
+      {mode === 'packed' && stops.length ? (
+        <>
+          <SectionLabel>Deliveries</SectionLabel>
+          {drive(stops, 'delivery')}
+        </>
+      ) : null}
+      {mode === 'packed' && sidePickups.length ? (
+        <>
+          <SectionLabel>Pickups</SectionLabel>
+          {drive(sidePickups, 'pickup')}
+        </>
+      ) : null}
+      {mode === 'pack' && stops.length ? <SectionLabel>Deliveries</SectionLabel> : null}
+      {mode === 'pack' ? stops.map((o) => <PackCard key={o.id} o={o} late={isLate(o)} onPack={() => onPack(o)} />) : null}
+      {mode === 'pack' && sidePickups.length ? <SectionLabel>Pickups</SectionLabel> : null}
+      {mode === 'pack' ? sidePickups.map((o) => <PackCard key={o.id} o={o} late={isLate(o)} onPack={() => onPack(o)} />) : null}
+      {mode === 'delivered' && stops.length ? <SectionLabel>Deliveries</SectionLabel> : null}
+      {mode === 'delivered' && sidePickups.length && !stops.length ? <SectionLabel>Pickups</SectionLabel> : null}
+      {mode === 'delivered' ? [...stops, ...sidePickups].map((o, idx) => {
         const isWaiting = waiting.has(o.saleId);
         return (
-          <Card key={o.id} title={o.customer || o.origin || o.name} testID={`board-${o.id}`}>
-            {isWaiting ? <Chip label={`${o.pickup ? 'Picked up' : 'Delivered'} (waiting to send)`} testID={`board-step-${o.id}`} /> : null}
+          <View key={o.id} style={{ gap: 12 }}>
+            {o.pickup && idx === stops.length && stops.length ? <SectionLabel>Pickups</SectionLabel> : null}
+          <Card title={o.customer || o.origin || o.name} testID={`board-${o.id}`}>
+            {isWaiting ? <Body muted>{`${o.pickup ? 'Picked up' : 'Delivered'} (waiting to send)`}</Body> : null}
             <Body muted>{`${o.origin || o.name}${o.date ? ` · ${o.date.slice(0, 10)}` : ''}`}</Body>
             {o.saleId ? <PaymentCard order={o} /> : null}
             {o.saleId && !isWaiting ? <FeedbackBox orderId={o.saleId} orderName={o.origin || o.name} /> : null}
             {o.saleId && !o.pickup ? <ProofToggle o={o} /> : null}
           </Card>
+          </View>
         );
       }) : null}
       <Pressable onPress={load} accessibilityRole="button" accessibilityLabel="Refresh" style={{ alignItems: 'center', padding: 12 }}>

@@ -89,18 +89,19 @@ describe('the Buy and Sell tabs', () => {
     expect(screen.queryByTestId('ingredients-screen')).toBeNull();
   });
 
-  test('Sell has market day as big buttons, and a day sheet tile opens that page', async () => {
+  test('Sell is one page with a Market row that opens the numbered Market steps', async () => {
     const { odoo } = bakery();
     await open(odoo, '/', 'Owner');
     await fireEvent.press(screen.getByTestId('tab-sell'));
     await settle();
     expect(screen.getByTestId('sell-board')).toBeTruthy();
-    await fireEvent.press(screen.getByTestId('sell-seg-market'));
-    expect(screen.getByTestId('market-tiles')).toBeTruthy();
-    await fireEvent.press(screen.getByTestId('market-tile-price'));
+    expect(screen.queryByTestId('sell-seg')).toBeNull();
+    await fireEvent.press(screen.getByTestId('area-market'));
     await settle();
-    expect(screen.queryByTestId('market-screen')).toBeNull();
-    expect(screen.queryByTestId('market-tiles')).toBeNull();
+    expect(screen.getByTestId('market-screen')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('market-price'));
+    await settle();
+    expect(screen.getByTestId('price-page')).toBeTruthy();
   });
 });
 
