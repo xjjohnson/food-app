@@ -47,7 +47,7 @@ describe('bought ingredients: one chain for a shopping trip', () => {
     expect(odoo.tables['stock.move.line']![0]).toMatchObject({ lot_name: 'F-1', expiration_date: '2027-05-01 12:00:00', quantity: 10 });
     // The bill is posted, dated, and paid from the chosen way to pay.
     expect(odoo.tables['account.move']![0]).toMatchObject({ state: 'posted', invoice_date: '2026-11-25', payment_state: 'paid' });
-    expect(odoo.tables['account.payment']![0]).toMatchObject({ journal_id: s.cash });
+    expect(odoo.tables['account.payment']![0]).toMatchObject({ journal_id: [s.cash, expect.any(String)] });
     // The last price paid is there to start from next time.
     expect(await lastPricePaid(c, s.flour)).toBe(1.8);
   });

@@ -11,6 +11,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.48',
+    changes: [
+      'Purchase orders: the Lines tab now has the next step. Confirm order, then Check in the delivery, then Make the bill with Cash, Cash App or Venmo (or "not paid yet"). No more going to Odoo for the bill.',
+      'A bill now shows how it was paid: date, Cash / Cash App / Venmo and the amount.',
+      'Find a batch lists the newest batches right away, and narrows as you type.',
+      'Orders Odoo is waiting on: each short line has Make a batch for this, which opens Start batch with the amount filled in. Website orders also has a What to make card that adds up everything short.',
+    ],
+    test: [
+      'Ingredients, Purchase orders, open a quote, Lines tab: tap Confirm order. Then Check in the delivery. Then pick how you paid under Bill and payment.',
+      'Open that bill in Purchase history: it should show how it was paid.',
+      'Stock, Find a batch: the newest batches show before you type anything.',
+      'Sell, Orders: a What to make card should list what is short. Tap one: Start batch opens with that amount.',
+    ],
+  },
+  {
     release: '0.1.47',
     changes: [
       'Packing an order now reads the delivery method chosen at checkout: it shows "Chosen at checkout: Local delivery" and starts the Delivery / Pickup choice on what the order says. You can still change it.',

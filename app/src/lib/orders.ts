@@ -197,3 +197,44 @@ export function shortWords(need: number, free: number | undefined): string {
   const short = Math.round((need - Math.max(0, free)) * 1000) / 1000;
   return `Short by ${short}: need ${need}, ${Math.max(0, free)} free. Finish a batch or count stock, then Odoo sets it aside.`;
 }
+
+/** How many more to make so an order line is covered, or 0 when stock is enough or unknown. */
+export function makeShort(need: number, free: number | undefined): number {
+  if (free === undefined || free >= need) return 0;
+  return Math.round((need - Math.max(0, free)) * 1000) / 1000;
+}
+
+/** The link to Start a batch for a product, with the amount filled in. */
+export const makeLink = (productId: number, qty: number) => `/area/production?go=make:${productId}:${qty}`;
+
+export interface ToMake {
+  productId: number;
+  name: string;
+  /** What the waiting orders ask for in all. */
+  need: number;
+  free: number;
+  /** How many more to make. */
+  short: number;
+}
+
+/**
+ * What to make for the orders Odoo is waiting on: the product lines of those
+ * orders added up, against what is free now. Only products that are short.
+ */
+export async function loadToMake(c: Client, waiting: Order[]): Promise<ToMake[]> {
+  const need = new Map<number, { name: string; qty: number }>();
+  for (const o of waiting) {
+    for (const l of await loadPackLines(c, o.id)) {
+      const cur = need.get(l.productId);
+      need.set(l.productId, { name: l.name, qty: (cur?.qty ?? 0) + l.qty });
+    }
+  }
+  const free = await loadFree(c, [...need.keys()]);
+  const out: ToMake[] = [];
+  for (const [productId, n] of need) {
+    const f = free.get(productId);
+    const short = makeShort(n.qty, f);
+    if (short > 0) out.push({ productId, name: n.name, need: n.qty, free: Math.max(0, f ?? 0), short });
+  }
+  return out.sort((a, b) => a.name.localeCompare(b.name));
+}

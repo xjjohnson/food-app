@@ -386,6 +386,7 @@ function FindBatch({ onBack }: { onBack: () => void }) {
       {error ? <ErrorText>{error}</ErrorText> : null}
       {!offline ? <ScanButton label="Scan a batch code" onMatch={(m) => m.kind === 'lot' && setText(m.name)} /> : null}
       <Button label="Add a batch" kind="plain" onPress={() => setForm({})} testID="new-lot" />
+      {found.length && !text.trim() ? <Body muted>Newest batches. Tap one, or type to narrow it down.</Body> : null}
       {found.map((f) => (
         <Row
           key={f.id}

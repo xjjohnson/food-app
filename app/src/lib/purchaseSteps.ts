@@ -37,6 +37,8 @@ export type Step =
       /** The payment journal (Cash, Bank...) the bill was paid from, or null for "not paid yet". */
       journalId: number | null;
     }
+  /** The same, for an order that already exists in Odoo (made on the Purchase orders screen). */
+  | { kind: 'orderbill'; orderId: number; date: string; journalId: number | null }
   | ExpenseStep
   | { kind: 'saleinvoice'; orderId: number }
   /** Invoice an order, post it, and optionally mark it paid (pay on delivery). */
@@ -63,11 +65,16 @@ export type Step =
       journalId: number;
     };
 
-async function orderByToken(c: Client, token: string): Promise<{ id: number; state: string; pickings: number[]; bills: number[] } | null> {
-  const [o] = (await c.call('purchase.order', 'search_read', [[['origin', '=', token]]], { fields: ['state', 'picking_ids', 'invoice_ids'], limit: 1 })) as Record<string, unknown>[];
+type PoRead = { id: number; state: string; pickings: number[]; bills: number[] };
+
+async function orderWhere(c: Client, domain: unknown[]): Promise<PoRead | null> {
+  const [o] = (await c.call('purchase.order', 'search_read', [domain], { fields: ['state', 'picking_ids', 'invoice_ids'], limit: 1 })) as Record<string, unknown>[];
   if (!o) return null;
   return { id: o.id as number, state: String(o.state ?? ''), pickings: (o.picking_ids as number[]) ?? [], bills: (o.invoice_ids as number[]) ?? [] };
 }
+
+const orderByToken = (c: Client, token: string) => orderWhere(c, [['origin', '=', token]]);
+const orderById = (c: Client, id: number) => orderWhere(c, [['id', '=', id]]);
 
 /** Puts what came on the order's delivery and validates it. A delivery already done is left alone. */
 async function receive(c: Client, step: Extract<Step, { kind: 'receive' }>): Promise<void> {
@@ -90,11 +97,15 @@ async function receive(c: Client, step: Extract<Step, { kind: 'receive' }>): Pro
 
 /** Makes the vendor bill from the received order, posts it, and registers the payment. Each part is skipped if already done. */
 async function bill(c: Client, step: Extract<Step, { kind: 'bill' }>): Promise<void> {
-  let o = await orderByToken(c, step.token);
+  return billOrder(c, () => orderByToken(c, step.token), step);
+}
+
+async function billOrder(c: Client, find: () => Promise<PoRead | null>, step: { date: string; journalId: number | null }): Promise<void> {
+  let o = await find();
   if (!o) throw new Error('The order for this purchase is not in Odoo yet.');
   if (!o.bills.length) {
     await c.call('purchase.order', 'action_create_invoice', [[o.id]], {});
-    o = (await orderByToken(c, step.token))!;
+    o = (await find())!;
   }
   const bills = o.bills.length ? ((await c.call('account.move', 'read', [o.bills], { fields: ['state', 'payment_state'] })) as { id: number; state?: string; payment_state?: string }[]) : [];
   const b = bills.find((x) => x.state !== 'cancel');
@@ -152,6 +163,7 @@ export async function runStep(c: Client, step: Step): Promise<void> {
   if (step.kind === 'note') return note(c, step);
   if (step.kind === 'pay') return pay(c, step);
   if (step.kind === 'receive') return receive(c, step);
+  if (step.kind === 'orderbill') return billOrder(c, () => orderById(c, step.orderId), step);
   return bill(c, step);
 }
 

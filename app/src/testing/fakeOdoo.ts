@@ -171,7 +171,7 @@ export class FakeOdoo {
     const table = model === 'hr.employee.public' ? this.tables['hr.employee']! : (this.tables[model] ??= []);
     switch (method) {
       case 'search_read':
-        return table.filter((r) => this.match(r, (args[0] as unknown[]) ?? [])).slice(0, (kw.limit as number) ?? 1e9).map((r) => this.pick(r, kw.fields as string[]));
+        return table.filter((r) => this.match(r, (args[0] as unknown[]) ?? [])).sort((a, b) => (kw.order === 'id desc' ? (b.id as number) - (a.id as number) : 0)).slice(0, (kw.limit as number) ?? 1e9).map((r) => this.pick(r, kw.fields as string[]));
       case 'search':
         return table.filter((r) => this.match(r, (args[0] as unknown[]) ?? [])).map((r) => r.id);
       case 'name_search': {
@@ -304,7 +304,8 @@ export class FakeOdoo {
         for (const mid of w.active_ids as number[]) {
           const m = this.tables['account.move']!.find((x) => x.id === mid)!;
           m.payment_state = 'paid';
-          this.create('account.payment', { move_id: mid, journal_id: w.journal_id, amount: m.amount_total });
+          const pid = this.create('account.payment', { move_id: mid, journal_id: [w.journal_id as number, this.tables['account.journal']?.find((j) => j.id === w.journal_id)?.name ?? 'Cash'], amount: m.amount_total, date: w.payment_date });
+          m.matched_payment_ids = [...((m.matched_payment_ids as number[]) ?? []), pid];
         }
         return true;
       }

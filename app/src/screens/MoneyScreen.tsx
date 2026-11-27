@@ -10,6 +10,7 @@ import { filterMoney, loadMoney, loadMoneyLines, MoneyKind, MoneyLine, MoneyRow,
 import { fmtQty, ymd } from '../lib/production';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
+import { loadBillPayments, type BillPayment } from '../lib/poBill';
 
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const copyKey = (kind: MoneyKind, db: string, partnerId?: number) => `money/${kind}/${db}${partnerId ? `/${partnerId}` : ''}`;
@@ -111,6 +112,7 @@ function Detail({ row, money, waiting, kind, onBack }: { row: MoneyRow; money: (
   const { client, db, offline } = useOdoo();
   const { save } = useQueue();
   const [lines, setLines] = useState<MoneyLine[] | null>(null);
+  const [payments, setPayments] = useState<BillPayment[]>([]);
   const [journals, setJournals] = useState<Journal[]>([]);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
@@ -120,6 +122,7 @@ function Detail({ row, money, waiting, kind, onBack }: { row: MoneyRow; money: (
     loadMoneyLines(client, row.id)
       .then(setLines)
       .catch((e) => setError(`Couldn’t read the lines from Odoo. ${why(e)}`));
+    loadBillPayments(client, row.id).then(setPayments).catch(() => undefined);
     loadJournals(client).then((j) => {
       setJournals(j);
       if (db) AsyncStorage.setItem(journalKey(db), JSON.stringify(j)).catch(() => undefined);
@@ -162,6 +165,13 @@ function Detail({ row, money, waiting, kind, onBack }: { row: MoneyRow; money: (
           <Row key={l.id} title={l.name} detail={`${fmtQty(l.qty)} at ${money(l.price)}`} value={money(l.subtotal)} />
         ))}
       </Card>
+      {payments.length ? (
+        <Card title="How it was paid" testID="money-payments">
+          {payments.map((p, i) => (
+            <Row key={i} title={p.how || 'Payment'} detail={p.date} value={money(p.amount)} />
+          ))}
+        </Card>
+      ) : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
       {note ? <Body>{note}</Body> : null}
       {row.state === 'draft' ? <Body muted>This is still a draft in Odoo. Confirm it there before marking it paid.</Body> : null}
