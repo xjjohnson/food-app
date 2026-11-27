@@ -74,7 +74,7 @@ const nameOf = (v: unknown): string => (Array.isArray(v) && typeof v[1] === 'str
 export const batchStep = (state: string): number => (state === 'draft' ? 0 : state === 'confirmed' || state === 'progress' ? 1 : state === 'to_close' ? 2 : state === 'done' ? 3 : 0);
 
 /** What stops Finish batch, in plain words. Empty when it can go. */
-export function finishReasons(a: { canFinish: boolean; loaded: boolean; canRecordLot: boolean; lot: string; okDate: boolean; useBy: string; badAmount: boolean; queued: boolean; state: string }): string[] {
+export function finishReasons(a: { canFinish: boolean; loaded: boolean; canRecordLot: boolean; lot: string; okDate: boolean; useBy: string; badAmount: boolean; queued: boolean; state: string; badMade?: boolean }): string[] {
   const out: string[] = [];
   if (!a.canFinish) out.push(a.state === 'draft' ? 'This batch is only planned. Confirm it first.' : a.state === 'done' ? 'This batch is already finished.' : 'This batch is cancelled.');
   if (!a.loaded) out.push('Odoo has not answered yet. Check the signal.');
@@ -82,6 +82,7 @@ export function finishReasons(a: { canFinish: boolean; loaded: boolean; canRecor
   if (!a.lot.trim()) out.push('Batch number is empty.');
   if (!a.okDate) out.push(a.useBy ? 'Use-by is not a date. Use 2026-12-25.' : 'Use-by date is empty.');
   if (a.badAmount) out.push('An amount used is not a number.');
+  if (a.badMade) out.push('How many were made is not a number above zero.');
   if (a.queued) out.push('Saved on the phone, waiting to reach Odoo.');
   return out;
 }
@@ -362,7 +363,8 @@ export async function loadBatchCost(c: Client, id: number): Promise<BatchCost | 
  */
 export function finishBatchChanges(batch: Pick<Batch, 'id' | 'name' | 'productId' | 'qty'>, lotName: string, useBy: string, madeQty = batch.qty, existingLotId: number | null = null, used: UsedAmount[] = []): NewChange[] {
   const already = { model: 'mrp.production', domain: [['id', '=', batch.id], ['state', '=', 'done']] };
-  const lot = existingLotId ? [[4, existingLotId, 0]] : [[0, 0, { name: lotName.trim(), product_id: batch.productId, expiration_date: `${useBy} 12:00:00` }]];
+  // Replace whatever lot is on the batch, so there is only ever one (Odoo refuses more than one).
+  const lot = existingLotId ? [[6, 0, [existingLotId]]] : [[5, 0, 0], [0, 0, { name: lotName.trim(), product_id: batch.productId, expiration_date: `${useBy} 12:00:00` }]];
   // Only amounts that differ from the plan are written; Odoo uses the planned amount for the rest.
   const amounts: NewChange[] = used
     .filter((u) => u.actual !== u.planned)
