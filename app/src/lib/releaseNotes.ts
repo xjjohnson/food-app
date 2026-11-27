@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.86',
+    changes: ['Buy: the Shopping list row shows a red dot with how many things are on the list.'],
+    test: ['Buy tab: the Shopping list dot matches the number of items on the Shopping list page.'],
+  },
+  {
     release: '0.1.85',
     changes: ['On Make, the OPEN heading above Batches, Recipes and Jars in stock now says YOUR KITCHEN.'],
     test: ['Make tab: the heading above Batches, Recipes and Jars in stock says Your kitchen.'],
