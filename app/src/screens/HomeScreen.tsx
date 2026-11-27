@@ -1,5 +1,5 @@
-import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Body, Button, Card, Chip, Row, Screen, SectionLabel, useUi } from '../components/ui';
 import { hasAnyRole, roleNames } from '../lib/roles';
@@ -37,13 +37,20 @@ export function HomeScreen() {
   const hrefs = Object.fromEntries(plusChoices(roles).map((c) => [c.id, c.href]));
   const first = client?.session.name.split(' ')[0] ?? '';
   const [today, setToday] = useState<TodayItem[]>([]);
-  useEffect(() => {
+  // The counts are read again each time Today comes into view, and on pull down.
+  const reload = useCallback(async () => {
     if (!client || offline || !hasAnyRole(roles)) return;
-    loadToday(client, roles)
-      .then(setToday)
-      .catch(() => undefined);
+    try {
+      setToday(await loadToday(client, roles));
+    } catch {
+      // Keep the last numbers.
+    }
   }, [client, offline, roles]);
-
+  useFocusEffect(
+    useCallback(() => {
+      void reload();
+    }, [reload]),
+  );
   const open = (t: TodayItem) => router.push(t.area === 'tasks' ? '/tasks' : (`/area/${t.area}` as never));
   const tiles = TILES.flatMap((t) => {
     const item = today.find((x) => x.id === t.id);
@@ -54,7 +61,7 @@ export function HomeScreen() {
   const hidden = today.filter((t) => t.count === 0);
 
   return (
-    <Screen title={name} back={false} testID="home-screen" right={<Button label="Search" kind="plain" onPress={() => router.push('/search')} testID="open-search-top" />}>
+    <Screen title={name} back={false} testID="home-screen" onRefresh={reload} right={<Button label="Search" kind="plain" onPress={() => router.push('/search')} testID="open-search-top" />}>
       <View style={{ gap: 6 }}>
         <Text style={s.cardTitle}>{first ? `Hi ${first}` : 'Hi'}</Text>
         {hasAnyRole(roles) ? <Chip label={roleNames(roles)} testID="my-roles" /> : null}

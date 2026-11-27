@@ -67,6 +67,11 @@ describe('today and product lookup', () => {
     expect(screen.getByTestId('today-show-all')).toHaveTextContent(/All clear/);
     await fireEvent.press(screen.getByTestId('today-show-all'));
     expect(screen.getByTestId('today-tasks')).toBeTruthy();
+    // Pulling the page down reads the counts again.
+    odoo.create('mrp.production', { name: 'WH/MO/00003', state: 'progress' });
+    await act(async () => fireEvent(screen.getByTestId('home-screen-scroll'), 'refresh'));
+    await settle();
+    expect(screen.getByTestId('today-batches')).toHaveTextContent(/2/);
     // Find a product is reached from Jars in stock (for stock roles) and Search; it is opened here by its address.
     await act(async () => router.push('/lookup'));
     await settle();
