@@ -1,7 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { Body, Button, Card, Chip, Row, Screen, SectionLabel, useUi } from '../components/ui';
+import { Body, Card, Chip, Row, Screen, SectionLabel, useUi } from '../components/ui';
 import { hasAnyRole, roleNames } from '../lib/roles';
 import { plusChoices } from '../lib/tabs';
 import { loadToday, TodayItem } from '../lib/today';
@@ -61,7 +61,18 @@ export function HomeScreen() {
   const hidden = today.filter((t) => t.count === 0);
 
   return (
-    <Screen title={name} back={false} testID="home-screen" onRefresh={reload} right={<Button label="Search" kind="plain" onPress={() => router.push('/search')} testID="open-search-top" />}>
+    <Screen
+      title="Today"
+      subtitle={name}
+      back={false}
+      testID="home-screen"
+      onRefresh={reload}
+      right={
+        <Pressable onPress={() => router.push('/search')} accessibilityRole="button" accessibilityLabel="Search" testID="open-search-top" style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 20, color: colors.onHead }}>⌕</Text>
+        </Pressable>
+      }
+    >
       <View style={{ gap: 6 }}>
         <Text style={s.cardTitle}>{first ? `Hi ${first}` : 'Hi'}</Text>
         {hasAnyRole(roles) ? <Chip label={roleNames(roles)} testID="my-roles" /> : null}
