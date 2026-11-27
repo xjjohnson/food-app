@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.67',
+    changes: ['Recipes now use the same clean cards as the rest of the app: no dashed paper cards or serif titles on the recipe list or the recipe pages.'],
+    test: ['Make, Recipes: check the list, then open a recipe, edit it and go Back.'],
+  },
+  {
     release: '0.1.66',
     changes: ['Buy is shorter: I bought something, then Plan, Your lists and Look back as labeled cards.', 'Purchase orders and Check in a delivery are no longer on the Buy page. Nothing is deleted in Odoo.'],
     test: ['Buy: open Running low, Shopping list, Ingredient list, Suppliers and Purchase history, and go Back from each. Check that I bought something still saves.'],
