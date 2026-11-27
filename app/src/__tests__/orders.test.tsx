@@ -63,14 +63,14 @@ describe('website orders lib', () => {
     const lines = await loadPackLines(c, order!.id);
     const stock = await loadLotStock(c, s.jelly);
     const plan = lines.map((line) => ({ line, picks: oldestFirst(stock, line.qty).picks }));
-    const changes = handOverChanges(order!, plan, 'pickup');
+    const changes = handOverChanges(order!, plan);
     expect(changes.map((x) => x.method)).toEqual(['write', 'message_post', 'button_validate']);
     for (const ch of changes) await saveOrQueue(c, AsyncStorage, DB, 1, ch);
     const pick = odoo.tables['stock.picking']![0]!;
     expect(pick.state).toBe('done');
     const used = odoo.tables['stock.move.line']!.filter((l) => (odoo.tables['stock.move']![0]!.move_line_ids as number[]).includes(l.id));
     expect(used.map((l) => [(l.lot_id as number[])[0], l.quantity])).toEqual([[s.older, 4], [s.newer, 2]]);
-    expect(odoo.tables['mail.message']![0]!.body).toMatch(/Picked up/);
+    expect(odoo.tables['mail.message']![0]!.body).toMatch(/Packed/);
   });
 
   test('when Odoo already set aside the right batch, nothing is rewritten', async () => {
@@ -81,7 +81,7 @@ describe('website orders lib', () => {
     const [order] = await loadOrders(c);
     const lines = await loadPackLines(c, order!.id);
     const plan = lines.map((line) => ({ line, picks: oldestFirst([{ lotId: s.newer, lot: 'J-NEW', useBy: '', qty: 8 }], line.qty).picks }));
-    expect(handOverChanges(order!, plan, 'delivery').map((x) => x.method)).toEqual(['message_post', 'button_validate']);
+    expect(handOverChanges(order!, plan).map((x) => x.method)).toEqual(['message_post', 'button_validate']);
   });
 
   test('without signal the hand-over waits, and is sent once, in order', async () => {
@@ -90,7 +90,7 @@ describe('website orders lib', () => {
     const c = await client(odoo);
     const [order] = await loadOrders(c);
     const lines = await loadPackLines(c, order!.id);
-    const changes = handOverChanges(order!, lines.map((line) => ({ line, picks: [] })), 'delivery');
+    const changes = handOverChanges(order!, lines.map((line) => ({ line, picks: [] })));
     odoo.offline = true;
     for (const ch of changes) await saveOrQueue(c, AsyncStorage, DB, 1, ch);
     expect(await loadQueue(AsyncStorage)).toHaveLength(2);
@@ -124,10 +124,10 @@ describe('website orders screen', () => {
     await settle();
     const move = odoo.tables['stock.move']![0]!;
     expect(screen.getByTestId(`line-${move.id}`)).toHaveTextContent(/4 from batch J-OLD \(use by 2026-12-01\), 2 from batch J-NEW/);
-    await fireEvent.press(screen.getByTestId('how-pickup'));
+    expect(screen.queryByTestId('how-pickup')).toBeNull();
     await fireEvent.press(screen.getByTestId('hand-over'));
     await settle();
     expect(pick.state).toBe('done');
-    expect(odoo.tables['mail.message']![0]!.body).toMatch(/Picked up/);
+    expect(odoo.tables['mail.message']![0]!.body).toMatch(/Packed/);
   });
 });
