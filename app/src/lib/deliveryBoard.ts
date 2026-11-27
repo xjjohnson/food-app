@@ -5,7 +5,7 @@
  * from the app, because Odoo has no step for it). Read only except that note.
  */
 import { m2oId, type OdooClient } from './odoo';
-import { pickupSales } from './orders';
+import { needsProduct, pickupSales } from './orders';
 import { partnerFields } from './partnerFields';
 import type { NewChange } from './queue';
 
@@ -30,6 +30,8 @@ export interface BoardOrder {
   pickup?: boolean;
   /** Still to pack, and due after today. */
   later?: boolean;
+  /** Needs product: Odoo is waiting for stock, or a stocked line is short on hand. */
+  short?: boolean;
 }
 
 export const STEP_WORDS: Record<Step, string> = { pack: 'To pack', packed: 'Packed', delivered: 'Delivered' };
@@ -53,6 +55,7 @@ export async function loadBoard(c: Client, now = new Date()): Promise<BoardOrder
   const done = saleIds.length ? ((await c.call('mail.message', 'search_read', [[['model', '=', 'sale.order'], ['res_id', 'in', saleIds], ['body', 'ilike', DELIVERED_TAG]]], { fields: ['res_id'] })) as { res_id: number }[]) : [];
   const delivered = new Set(done.map((m) => m.res_id));
   const pickups = await pickupSales(c, saleIds);
+  const short = await needsProduct(c, open.map((r) => ({ id: r.id as number, state: str(r.state) })));
   return rows
     .map((r) => {
       const p = partners.find((x) => x.id === m2oId(r.partner_id)) ?? {};
@@ -73,6 +76,7 @@ export async function loadBoard(c: Client, now = new Date()): Promise<BoardOrder
         date: str(r.scheduled_date),
         step,
         ...(pickups.has(saleId) ? { pickup: true } : {}),
+        ...(!picked && short.has(r.id as number) ? { short: true } : {}),
         ...(!picked && str(r.scheduled_date).slice(0, 10) > day(now) ? { later: true } : {}),
       };
     });

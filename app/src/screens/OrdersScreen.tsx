@@ -1,9 +1,10 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
+import { View } from 'react-native';
 import { Body, Button, Card, Chip, ErrorText, ListRow, Row, Screen } from '../components/ui';
 import { fmtQty } from '../lib/production';
 import { router } from 'expo-router';
-import { Checkout, handOverChanges, loadCheckout, loadFree, loadLotStock, loadOrders, loadPackLines, loadToMake, LotPick, makeLink, makeShort, oldestFirst, Order, PackLine, readyToPack, shortWords, stateWords, ToMake } from '../lib/orders';
+import { Checkout, handOverChanges, loadCheckout, loadFree, loadLotStock, loadOrders, loadPackLines, loadToMake, LotPick, makeLink, makeShort, oldestFirst, Order, PackLine, planMakeChange, readyToPack, shortWords, stateWords, ToMake } from '../lib/orders';
 import { DeliveryBoardScreen } from './DeliveryBoardScreen';
 import { useInnerBack, useLeaveAtBase } from '../lib/innerBack';
 import { useOdoo } from '../lib/useOdoo';
@@ -25,6 +26,25 @@ export function OrdersScreen({ go }: { go?: string } = {}) {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [toMake, setToMake] = useState<ToMake[]>([]);
+  const [planned, setPlanned] = useState<Record<number, boolean>>({});
+  const { save } = useQueue();
+
+  /** Adds a product that is short to the planned batches on Make: a draft batch from its recipe. */
+  const addToPlan = async (m: ToMake) => {
+    if (!client) return;
+    setError('');
+    try {
+      const change = await planMakeChange(client, m.productId, m.short);
+      if (!change) {
+        setError(`${m.name} has no recipe yet, so it can’t be planned. Add a recipe first.`);
+        return;
+      }
+      await save(change);
+      setPlanned((p) => ({ ...p, [m.productId]: true }));
+    } catch (e) {
+      setError(`Odoo would not take that. ${why(e)}`);
+    }
+  };
 
   const load = useCallback(async () => {
     if (!db) return;
@@ -35,7 +55,7 @@ export function OrdersScreen({ go }: { go?: string } = {}) {
         const list = await loadOrders(client);
         setOrders(list);
         setFromPhone(false);
-        loadToMake(client, list.filter((o) => !readyToPack(o))).then(setToMake).catch(() => setToMake([]));
+        loadToMake(client, list.filter((o) => !readyToPack(o) || o.short)).then(setToMake).catch(() => setToMake([]));
         await AsyncStorage.setItem(copyKey(db), JSON.stringify(list));
         return;
       } catch (e) {
@@ -92,14 +112,18 @@ export function OrdersScreen({ go }: { go?: string } = {}) {
       {error ? <ErrorText>{error}</ErrorText> : null}
       {!orders ? <Body muted>{busy ? 'Loading…' : 'Nothing to show yet. Connect to Odoo to load orders.'}</Body> : null}
       {orders && !orders.length ? <Body muted>No website orders waiting to be packed.</Body> : null}
-      {orders?.map((o) => (
-        <ListRow key={o.id} title={o.customer || o.origin || o.name} detail={`${o.origin || o.name} · ${o.pickup ? 'Pickup' : 'Delivery'}${o.date ? ` · ${o.date}` : ''}`} tag={{ label: stateWords(o.state), tone: readyToPack(o) ? 'good' : 'warn' }} onPress={() => setOpen(o)} testID={`order-${o.id}`} />
+      {waiting && orders?.length && !orders.some((o) => !readyToPack(o)) ? <Body muted>Nothing needs product right now.</Body> : null}
+      {(waiting ? orders?.filter((o) => !readyToPack(o)) : orders)?.map((o) => (
+        <ListRow key={o.id} title={o.customer || o.origin || o.name} detail={`${o.origin || o.name} · ${o.pickup ? 'Pickup' : 'Delivery'}${o.date ? ` · ${o.date}` : ''}`} tag={{ label: o.short && o.state === 'assigned' ? 'Needs product' : stateWords(o.state), tone: readyToPack(o) ? 'good' : 'warn' }} onPress={() => setOpen(o)} testID={`order-${o.id}`} />
       ))}
       {toMake.length ? (
         <Card title="What to make" testID="to-make">
-          <Body muted>Odoo is waiting on these. Tap one to start a batch with the amount filled in.</Body>
+          <Body muted>These orders are waiting on product. Add one to the planned batches on Make, or tap it to start a batch now with the amount filled in.</Body>
           {toMake.map((m) => (
-            <Row key={m.productId} title={`${fmtQty(m.short)} ${m.name}`} detail={`Waiting orders need ${fmtQty(m.need)}, ${fmtQty(m.free)} free`} onPress={() => router.push(makeLink(m.productId, m.short))} testID={`tomake-${m.productId}`} />
+            <View key={m.productId} style={{ gap: 8 }}>
+              <Row title={`${fmtQty(m.short)} ${m.name}`} detail={`Waiting orders need ${fmtQty(m.need)}, ${fmtQty(m.free)} free`} onPress={() => router.push(makeLink(m.productId, m.short))} testID={`tomake-${m.productId}`} />
+              <Button label={planned[m.productId] ? 'Added to planned batches ✓' : 'Add to planned batches'} kind={planned[m.productId] ? 'plain' : 'main'} onPress={() => (planned[m.productId] ? undefined : addToPlan(m))} testID={`tomake-plan-${m.productId}`} />
+            </View>
           ))}
         </Card>
       ) : null}

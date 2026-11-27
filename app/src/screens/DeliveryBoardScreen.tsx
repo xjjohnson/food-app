@@ -89,7 +89,8 @@ export function DeliveryBoardScreen({ onBack: _onBack, onPack, onWaiting, start,
   const stepOf = (o: BoardOrder): Step => (waiting.has(o.saleId) ? 'delivered' : o.step);
   const isLate = (o: BoardOrder) => stepOf(o) !== 'delivered' && o.date.slice(0, 10) < today;
   const keep = (o: BoardOrder) => !lateOnly || isLate(o);
-  const inMode = (o: BoardOrder, m: Step) => stepOf(o) === m && keep(o);
+  const inMode = (o: BoardOrder, m: Step) => stepOf(o) === m && keep(o) && !(m === 'pack' && o.short);
+  const needsCount = list ? list.filter((o) => stepOf(o) === 'pack' && o.short).length : 0;
   const modes: Step[] = ['pack', 'packed', 'delivered'];
   const MODE_WORDS: Record<Step, string> = { pack: 'To pack', packed: 'Ready', delivered: 'Done' };
   const count = (m: Step) => (list ? list.filter((o) => inMode(o, m)).length : 0);
@@ -260,7 +261,7 @@ export function DeliveryBoardScreen({ onBack: _onBack, onPack, onWaiting, start,
           </View>
         );
       }) : null}
-      {onWaiting ? <Row title="Waiting for stock" detail="Orders that can’t be packed yet, and what to make" onPress={onWaiting} testID="board-waiting" /> : null}
+      {onWaiting ? <Row title="Waiting for stock" detail={needsCount ? `${needsCount} ${needsCount === 1 ? 'order needs' : 'orders need'} product first. Add it to what to make.` : 'Orders that can’t be packed yet, and what to make'} badge={needsCount} onPress={onWaiting} testID="board-waiting" /> : null}
       <Pressable onPress={load} accessibilityRole="button" accessibilityLabel="Refresh" style={{ alignItems: 'center', padding: 12 }}>
         <Text style={{ fontSize: 15, color: colors.muted }}>{busy ? 'Refreshing…' : 'Refresh'}</Text>
       </Pressable>
