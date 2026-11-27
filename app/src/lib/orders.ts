@@ -154,3 +154,46 @@ export function handOverChanges(order: Order, lines: { line: PackLine; picks: Lo
   return out;
 }
 
+
+export interface Checkout {
+  /** The delivery method chosen at checkout, as Odoo has it (for example "Local delivery"). */
+  label: string;
+  how: Handover;
+}
+
+/** The delivery method on the sale order behind this delivery, or null when there is none (or no Delivery app). */
+export async function loadCheckout(c: Client, pickingId: number): Promise<Checkout | null> {
+  try {
+    const [p] = (await c.call('stock.picking', 'read', [[pickingId]], { fields: ['sale_id'] })) as Record<string, unknown>[];
+    const saleId = m2oId(p?.sale_id);
+    if (!saleId) return null;
+    const [o] = (await c.call('sale.order', 'read', [[saleId]], { fields: ['carrier_id'] })) as Record<string, unknown>[];
+    const carrierId = m2oId(o?.carrier_id);
+    if (!carrierId) return null;
+    const [car] = (await c.call('delivery.carrier', 'read', [[carrierId]], { fields: ['name', 'delivery_type'] })) as Record<string, unknown>[];
+    const label = nameOf(o?.carrier_id) || String(car?.name ?? '');
+    return { label, how: car?.delivery_type === 'onsite' || /pick\s?-?up/i.test(label) ? 'pickup' : 'delivery' };
+  } catch {
+    return null;
+  }
+}
+
+/** How many of each product Odoo has free to promise right now. */
+export async function loadFree(c: Client, productIds: number[]): Promise<Map<number, number>> {
+  const out = new Map<number, number>();
+  if (!productIds.length) return out;
+  try {
+    const rows = (await c.call('product.product', 'read', [productIds], { fields: ['free_qty'] })) as { id: number; free_qty?: number }[];
+    for (const r of rows) out.set(r.id, Number(r.free_qty ?? 0));
+  } catch {
+    // Not known.
+  }
+  return out;
+}
+
+/** "Short by 2: need 3, 1 free. Finish a batch or count stock." for a line Odoo is waiting on, or '' when stock is enough or unknown. */
+export function shortWords(need: number, free: number | undefined): string {
+  if (free === undefined || free >= need) return '';
+  const short = Math.round((need - Math.max(0, free)) * 1000) / 1000;
+  return `Short by ${short}: need ${need}, ${Math.max(0, free)} free. Finish a batch or count stock, then Odoo sets it aside.`;
+}

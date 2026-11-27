@@ -27,7 +27,7 @@ export function AreaScreen({ id, go }: { id: string; go?: string }) {
   if (area.id === 'ingredients') return <IngredientsScreen go={go} />;
   if (area.id === 'invoices') return <MoneyScreen kind="out" />;
   if (area.id === 'sell') return <SellScreen go={go} />;
-  if (area.id === 'safety') return <SafetyScreen />;
+  if (area.id === 'safety') return <SafetyScreen go={go} />;
   if (area.id === 'market') return <MarketScreen go={go} />;
   return (
     <Screen title={area.title} testID={`area-screen-${area.id}`}>

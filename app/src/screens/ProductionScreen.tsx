@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useInnerBack, useLeaveAtBase } from '../lib/innerBack';
 import { WeekPage } from './MakingPages';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -448,6 +449,12 @@ function BatchPage({ id, known, onBack, started }: { id: number; known?: Batch; 
           <Row title="Yield" detail="Made compared with the plan" value={`${fmtQty(cost.made)} of ${fmtQty(shown.qty)}${shown.qty > 0 ? ` (${Math.round((cost.made / shown.qty) * 100)}%)` : ''}`} testID="batch-yield" />
           <Row title="Whole batch" value={cost.total.toFixed(2)} />
           <Row title={`Each (${fmtQty(cost.made)} made)`} value={cost.perUnit.toFixed(2)} testID="batch-cost-each" />
+        </Card>
+      ) : null}
+      {shown.state === 'done' && d && d.lots.length ? (
+        <Card title="Check this batch" testID="batch-records">
+          <Button label="Add a tasting for this batch" kind="plain" onPress={() => router.push(`/area/safety?go=${encodeURIComponent(`tasting:${shown.product}, batch ${d.lots[0]!.name}`)}`)} testID="batch-taste" />
+          <Button label="Shelf-life check for this batch" kind="plain" onPress={() => router.push(`/area/safety?go=${encodeURIComponent(`shelf:${d.lots[0]!.name}`)}`)} testID="batch-shelf" />
         </Card>
       ) : null}
       {shown.state === 'done' && d ? (
