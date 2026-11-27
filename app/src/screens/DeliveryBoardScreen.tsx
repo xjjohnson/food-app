@@ -133,6 +133,7 @@ export function DeliveryBoardScreen({ onBack: _onBack, onPack, onWaiting, start,
           <Text style={{ color: colors.onAccent, fontSize: 22, fontWeight: '800' }}>{`${numOf(first)}. ${first.customer || first.origin || first.name}`}</Text>
           <Text style={{ color: colors.onAccent, opacity: 0.9, fontSize: 15 }}>{`${sub(first)}${isLate(first) ? ' · Late' : ''}`}</Text>
           {first.notes ? <Text style={{ color: colors.onAccent, fontSize: 15 }}>{`Notes: ${first.notes}`}</Text> : null}
+          {first.saleId ? <GoodsList saleId={first.saleId} color={colors.onAccent} /> : null}
           <View style={{ flexDirection: 'row', gap: 10 }}>
             {!first.pickup && first.address ? (
               <View style={{ flex: 1 }}>
@@ -274,16 +275,14 @@ export function DeliveryBoardScreen({ onBack: _onBack, onPack, onWaiting, start,
   );
 }
 
-/** One order to pack: name and tag, the products to put in, and one button that opens the packing step. */
-function PackCard({ o, late, onPack }: { o: BoardOrder; late: boolean; onPack: () => void }) {
+/** The products on an order (services such as the delivery charge left out), read from Odoo. */
+function useGoods(saleId: number): { id: number; name: string; qty: number }[] {
   const { client, offline } = useOdoo();
-  const { colors } = useBrand();
   const [lines, setLines] = useState<{ id: number; name: string; qty: number }[]>([]);
-  const [ticked, setTicked] = useState<Record<number, boolean>>({});
   useEffect(() => {
-    if (!client || offline || !o.saleId) return;
+    if (!client || offline || !saleId) return;
     (async () => {
-      const rows = (await client.call('sale.order.line', 'search_read', [[['order_id', '=', o.saleId], ['display_type', '=', false]]], { fields: ['name', 'product_uom_qty', 'product_id'] })) as Record<string, unknown>[];
+      const rows = (await client.call('sale.order.line', 'search_read', [[['order_id', '=', saleId], ['display_type', '=', false]]], { fields: ['name', 'product_uom_qty', 'product_id'] })) as Record<string, unknown>[];
       // Services (the delivery charge, for one) are not packed. If Odoo can't say, nothing is hidden.
       const ids = [...new Set(rows.map((r) => (Array.isArray(r.product_id) ? (r.product_id[0] as number) : 0)).filter(Boolean))];
       const services = new Set<number>();
@@ -298,7 +297,28 @@ function PackCard({ o, late, onPack }: { o: BoardOrder; late: boolean; onPack: (
       const goods = rows.filter((r) => !(Array.isArray(r.product_id) && services.has(r.product_id[0] as number)));
       setLines(goods.map((r) => ({ id: r.id as number, name: Array.isArray(r.product_id) ? String(r.product_id[1] ?? '') : String(r.name ?? ''), qty: Number(r.product_uom_qty ?? 0) })));
     })().catch(() => undefined);
-  }, [client, offline, o.saleId]);
+  }, [client, offline, saleId]);
+  return lines;
+}
+
+/** A plain list of what is in the order. */
+function GoodsList({ saleId, color, muted }: { saleId: number; color: string; muted?: boolean }) {
+  const lines = useGoods(saleId);
+  if (!lines.length) return null;
+  return (
+    <View style={{ gap: 2 }} testID={`goods-${saleId}`}>
+      {lines.map((l) => (
+        <Text key={l.id} style={{ color, fontSize: 15, opacity: muted ? 0.7 : 1 }}>{`${String(Math.round(l.qty * 100) / 100)} × ${l.name}`}</Text>
+      ))}
+    </View>
+  );
+}
+
+/** One order to pack: name and tag, the products to put in, and one button that opens the packing step. */
+function PackCard({ o, late, onPack }: { o: BoardOrder; late: boolean; onPack: () => void }) {
+  const { colors } = useBrand();
+  const lines = useGoods(o.saleId);
+  const [ticked, setTicked] = useState<Record<number, boolean>>({});
   return (
     <Card testID={`board-${o.id}`}>
       <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -430,6 +450,7 @@ function DoneRow({ o, waitingToSend }: { o: BoardOrder; waitingToSend: boolean }
           </Text>
         ) : null}
       </View>
+      {o.saleId ? <GoodsList saleId={o.saleId} color={colors.muted} /> : null}
       {waitingToSend ? <Body muted>{`${o.pickup ? 'Picked up' : 'Delivered'} (waiting to send)`}</Body> : null}
       {o.saleId && paid !== true && !paying ? <Button label="Record payment" kind="plain" onPress={() => setPaying(true)} testID={`board-record-${o.id}`} /> : null}
       {o.saleId && paying ? <PaymentCard order={o} /> : null}
