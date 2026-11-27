@@ -1,7 +1,7 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { Body, Button, Card, Field, LookScope, Row, Screen, Segments, useUi } from '../components/ui';
+import { Body, Button, Card, Field, Row, Screen, Segments, useUi } from '../components/ui';
 import type { Palette } from '../lib/palette';
 import { batchStep, fmtQty, groupRecipes, loadBatches, loadRecipes, qtyWords, Batch, Recipe, stateLabel } from '../lib/production';
 import { groupJars, JarRow, loadExpiring, loadInStock } from '../lib/stock';
@@ -114,7 +114,7 @@ export function MakeRecipesScreen() {
   const groups = recipes ? groupRecipes(recipes, text) : null;
   return (
     <Screen title="Recipes" testID="make-recipes-screen">
-      <LookScope look="cookbook">
+      <>
         {offline ? <Body muted>No signal. Recipes show when the phone is back online.</Body> : null}
         {recipes && recipes.length > 8 ? <Field label="Find a recipe" value={text} onChangeText={setText} testID="make-recipe-search" /> : null}
         <View style={{ gap: 12 }} testID="recipe-box">
@@ -128,7 +128,7 @@ export function MakeRecipesScreen() {
         </View>
         {recipes && !recipes.length ? <Body muted>No recipes yet.</Body> : null}
         <Button label="New recipe" kind="plain" onPress={() => router.push('/area/production?go=recipes')} testID="make-new-recipe" />
-      </LookScope>
+      </>
     </Screen>
   );
 }

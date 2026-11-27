@@ -3,7 +3,7 @@ import { TestsPage, VersionBox } from './MakingPages';
 import { router } from 'expo-router';
 import { View } from 'react-native';
 import { useCallback, useEffect, useState } from 'react';
-import { Body, Button, Card, ErrorText, Field, LookScope, Row, Screen, Segments, SwitchRow } from '../components/ui';
+import { Body, Button, Card, ErrorText, Field, Row, Screen, Segments, SwitchRow } from '../components/ui';
 import { IngredientForm } from './IngredientListScreen';
 import { ProductForm } from './ProductForm';
 import { loadUnits } from '../lib/ingredientList';
@@ -78,13 +78,9 @@ function ProductPicker({ title, onPick, onBack, markRecipes, raw }: { title: str
   );
 }
 
-/** The recipe box. Recipe pages have the cookbook look. `openId` opens one recipe straight away. */
+/** The recipe box, in the same card style as the rest of the app. `openId` opens one recipe straight away. */
 export function RecipesScreen({ onBack, openId }: { onBack: () => void; openId?: number }) {
-  return (
-    <LookScope look="cookbook">
-      <RecipesInner onBack={onBack} openId={openId} />
-    </LookScope>
-  );
+  return <RecipesInner onBack={onBack} openId={openId} />;
 }
 
 function RecipesInner({ onBack, openId }: { onBack: () => void; openId?: number }) {
