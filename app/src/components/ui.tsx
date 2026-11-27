@@ -74,7 +74,7 @@ export function useUi() {
 }
 
 /** A page with the brand header. `back` shows a Back button (full pages); the home screen has none. */
-export function Screen({ title, back = true, children, right, testID, onRefresh }: { title: string; back?: boolean; children: ReactNode; right?: ReactNode; testID?: string; onRefresh?: () => Promise<unknown> | void }) {
+export function Screen({ title, subtitle, back = true, children, right, testID, onRefresh }: { title: string; subtitle?: string; back?: boolean; children: ReactNode; right?: ReactNode; testID?: string; onRefresh?: () => Promise<unknown> | void }) {
   const s = useUi();
   const { brand, dark } = useBrand();
   const look = useLook();
@@ -96,9 +96,20 @@ export function Screen({ title, back = true, children, right, testID, onRefresh 
         ) : brand.logo ? (
           <Image source={{ uri: brand.logo }} style={s.logo} resizeMode="contain" accessibilityLabel={`${brand.name} logo`} testID="brand-logo" />
         ) : null}
-        <Text style={[s.headTitle, look === 'cookbook' && { fontFamily: SERIF }]} accessibilityRole="header" numberOfLines={1}>
-          {title}
-        </Text>
+        {subtitle ? (
+          <View style={{ flex: 1 }}>
+            <Text style={[s.headTitle, { flex: 0 }, look === 'cookbook' && { fontFamily: SERIF }]} accessibilityRole="header" numberOfLines={1}>
+              {title}
+            </Text>
+            <Text style={{ color: s.headTitle.color, opacity: 0.85, fontSize: 14 }} numberOfLines={1}>
+              {subtitle}
+            </Text>
+          </View>
+        ) : (
+          <Text style={[s.headTitle, look === 'cookbook' && { fontFamily: SERIF }]} accessibilityRole="header" numberOfLines={1}>
+            {title}
+          </Text>
+        )}
         {right}
       </View>
       <ScrollView

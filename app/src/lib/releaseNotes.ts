@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.74',
+    changes: ['Today header is tidier: a plain Today title, the business name as a small line under it (no more cut-off name), and a small round search button instead of the big white one.'],
+    test: ['Open Today: check the title, the full business name under it, and that the round search button opens Search.'],
+  },
+  {
     release: '0.1.73',
     changes: ['Orders to pack on Today is the same number as To pack on Sell, and tapping it opens the Sold board on Pack.'],
     test: ['Compare Today, Orders to pack with Sell, To pack: they should match. Tap the Today tile and check it opens the Pack side of the Sold board.'],
