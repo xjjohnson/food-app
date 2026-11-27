@@ -51,7 +51,7 @@ export function HomeScreen() {
       void reload();
     }, [reload]),
   );
-  const open = (t: TodayItem) => router.push(t.area === 'tasks' ? '/tasks' : (`/area/${t.area}` as never));
+  const open = (t: TodayItem) => router.push(t.area === 'tasks' ? '/tasks' : (`/area/${t.area}${t.go ? `?go=${t.go}` : ''}` as never));
   const tiles = TILES.flatMap((t) => {
     const item = today.find((x) => x.id === t.id);
     return item ? [{ item, label: t.label, hot: t.hot }] : [];
