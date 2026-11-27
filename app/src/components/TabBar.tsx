@@ -1,6 +1,6 @@
 /**
  * The bottom tab bar and its plus button. Colors come from the company brand.
- * The plus button opens a short list of "start something" choices; each one
+ * The plus button shows on every tab except Today, which has its own quick buttons. It opens a short list of "start something" choices; each one
  * opens the same screen as before, ready to fill in, so saves still go
  * through the offline queue.
  */
@@ -25,7 +25,7 @@ export function TabBar({ state, navigateToTab }: TabBarProps) {
   const current = state.routes[state.index]?.name as TabId | undefined;
   return (
     <View>
-      {choices.length ? (
+      {choices.length && current !== 'index' ? (
         <Pressable
           onPress={() => setOpen(true)}
           accessibilityRole="button"

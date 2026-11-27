@@ -61,6 +61,12 @@ describe('today and product lookup', () => {
     await renderRouter('src/app', { initialUrl: '/' });
     await settle();
     expect(screen.getByTestId('today-batches')).toHaveTextContent(/1/);
+    // Rows that are zero are hidden behind "Show all"; the tiles stay.
+    expect(screen.getByTestId('today-tile-tasks')).toBeTruthy();
+    expect(screen.queryByTestId('today-tasks')).toBeNull();
+    expect(screen.getByTestId('today-show-all')).toHaveTextContent(/All clear/);
+    await fireEvent.press(screen.getByTestId('today-show-all'));
+    expect(screen.getByTestId('today-tasks')).toBeTruthy();
     // Find a product is reached from Jars in stock (for stock roles) and Search; it is opened here by its address.
     await act(async () => router.push('/lookup'));
     await settle();
