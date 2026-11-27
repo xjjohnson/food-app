@@ -1,10 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
-import { Body, Button, Card, ErrorText, Field, Row, Screen, SwitchRow } from '../components/ui';
+import { View } from 'react-native';
+import { Body, Button, Card, ErrorText, Field, Row, Screen, Segments, SwitchRow } from '../components/ui';
+import { DatePicker } from '../components/DatePicker';
 import { loadSettings, Settings, settingChange } from '../lib/appSettings';
 import { useInnerBack } from '../lib/innerBack';
 import { nutritionKey, nutritionText, RULES_KEY, rulesList, toLine, fromLine } from '../lib/records';
-import { LOG_KINDS, LogEntry, LogForm, LogKind, LogValues, loadLogEntries, loadLogForm, logChange, logProblems, setupLog } from '../lib/surveyLog';
+import { askKind, keepForNext, LOG_KINDS, LogEntry, LogForm, LogKind, LogQuestion, LogValues, loadLogEntries, loadLogForm, loadLogSuggestions, logChange, logDefaults, logProblems, setupLog } from '../lib/surveyLog';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 import { useRoles } from '../lib/useRoles';
@@ -43,8 +45,12 @@ function LogPage({ kind, onBack }: { kind: LogKind; onBack: () => void }) {
   const [missing, setMissing] = useState(false);
   const [entries, setEntries] = useState<LogEntry[]>([]);
   const [values, setValues] = useState<LogValues>({});
+  const [who, setWho] = useState('');
+  const [picks, setPicks] = useState<Record<string, string[]>>({});
+  const [started, setStarted] = useState(false);
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
+  const today = new Date().toISOString().slice(0, 10);
   const cacheKey = `logform/v1/${db}/${kind.id}`;
 
   const load = useCallback(async () => {
@@ -75,7 +81,39 @@ function LogPage({ kind, onBack }: { kind: LogKind; onBack: () => void }) {
     load();
   }, [load]);
 
+  // The person signed in, for "Who tasted it".
+  useEffect(() => {
+    if (!client || offline) return;
+    (client.call('res.users', 'read', [[client.session.uid]], { fields: ['name'] }) as Promise<{ name?: string }[]>).then((r) => setWho(String(r[0]?.name ?? ''))).catch(() => undefined);
+  }, [client, offline]);
+
+  // Names to pick from, for product and batch questions.
+  useEffect(() => {
+    if (!client || offline || !form) return;
+    for (const q of form.questions) {
+      const k = askKind(q);
+      if (k === 'product' || k === 'batch') loadLogSuggestions(client, k).then((l) => setPicks((p) => ({ ...p, [k]: l }))).catch(() => undefined);
+    }
+  }, [client, offline, form]);
+
+  // A fresh entry starts with today's date, who is signed in, and Good on each Good / Off choice.
+  useEffect(() => {
+    if (!form || started) return;
+    setValues(logDefaults(form, today, who));
+    setStarted(true);
+  }, [form, started, today, who]);
+  // The name can arrive after the form: fill "Who" in if it is still empty.
+  useEffect(() => {
+    if (!form || !who) return;
+    setValues((v) => {
+      const next = { ...v };
+      for (const q of form.questions) if (askKind(q) === 'who' && !next[q.id]) next[q.id] = who;
+      return next;
+    });
+  }, [form, who]);
+
   const problems = form ? logProblems(form, values) : [];
+  const set = (q: LogQuestion, v: string) => setValues({ ...values, [q.id]: v });
 
   return (
     <Screen title={kind.title} testID={`log-${kind.id}`}>
@@ -105,21 +143,42 @@ function LogPage({ kind, onBack }: { kind: LogKind; onBack: () => void }) {
       ) : null}
       {form ? (
         <Card title="New entry">
-          {form.questions.map((q) =>
-            q.type === 'simple_choice' ? (
-              <Card key={q.id} title={q.title}>
-                {q.choices.map((c) => (
-                  <SwitchRow key={c.id} title={c.value} value={values[q.id] === String(c.id)} onChange={() => setValues({ ...values, [q.id]: values[q.id] === String(c.id) ? '' : String(c.id) })} testID={`log-q${q.id}-${c.id}`} />
-                ))}
-              </Card>
-            ) : (
-              <Field key={q.id} label={q.type === 'date' ? `${q.title} (year-month-day)` : q.title} value={values[q.id] ?? ''} onChangeText={(v) => setValues({ ...values, [q.id]: v })} keyboardType={q.type === 'numerical_box' ? 'decimal-pad' : 'default'} multiline={q.type === 'text_box'} testID={`log-q${q.id}`} />
-            ),
-          )}
+          {form.questions.map((q) => {
+            const k = askKind(q);
+            if (k === 'choice')
+              return (
+                <View key={q.id} style={{ gap: 6 }}>
+                  <Body>{q.title}</Body>
+                  <Segments options={q.choices.map((c) => ({ id: String(c.id), label: c.value }))} value={values[q.id] ?? ''} onChange={(v) => set(q, v)} testID={`log-q${q.id}`} />
+                </View>
+              );
+            if (k === 'date') return <DatePicker key={q.id} label={q.title} value={values[q.id] ?? ''} onChange={(v) => set(q, v)} testID={`log-q${q.id}`} />;
+            if (k === 'score')
+              return (
+                <View key={q.id} style={{ gap: 6 }}>
+                  <Body>{q.title}</Body>
+                  <Segments options={[1, 2, 3, 4, 5].map((n) => ({ id: String(n), label: '★'.repeat(n) }))} value={values[q.id] ?? ''} onChange={(v) => set(q, v)} testID={`log-q${q.id}`} />
+                </View>
+              );
+            const typed = (values[q.id] ?? '').trim().toLowerCase();
+            const options = k === 'product' || k === 'batch' ? (picks[k] ?? []).filter((n) => !typed || (n.toLowerCase().includes(typed) && n.toLowerCase() !== typed)).slice(0, 6) : [];
+            return (
+              <View key={q.id} style={{ gap: 6 }}>
+                <Field label={q.title} value={values[q.id] ?? ''} onChangeText={(v) => set(q, v)} keyboardType={k === 'number' ? 'decimal-pad' : 'default'} multiline={k === 'text'} testID={`log-q${q.id}`} />
+                {options.length ? (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                    {options.map((n) => (
+                      <Button key={n} label={n} kind="plain" onPress={() => set(q, n)} testID={`log-q${q.id}-pick-${n}`} />
+                    ))}
+                  </View>
+                ) : null}
+              </View>
+            );
+          })}
           {values && Object.values(values).some((x) => x) ? problems.map((p) => <ErrorText key={p}>{p}</ErrorText>) : null}
           {note ? <Body>{note}</Body> : null}
           <Button
-            label="Save entry"
+            label="Save entry (the next one keeps who and the day)"
             disabled={problems.length > 0}
             testID="log-save"
             onPress={async () => {
@@ -127,7 +186,7 @@ function LogPage({ kind, onBack }: { kind: LogKind; onBack: () => void }) {
               try {
                 const r = await save(logChange(form, values));
                 setNote(SAVED(r.status === 'queued'));
-                setValues({});
+                setValues(keepForNext(form, values, today, who));
                 await load();
               } catch (e) {
                 setError(`Odoo would not take that. ${why(e)}`);

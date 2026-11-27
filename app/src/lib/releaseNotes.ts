@@ -11,6 +11,18 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.45',
+    changes: [
+      'Make, Jars in stock: sizes are grouped under each product with a total, use-by soon first, then the most in stock. Out-of-stock jars are hidden behind a Show out of stock button, anything a recipe uses as an ingredient is left out, and a Find a jar box shows on a long list.',
+      'Tasting log and Shelf-life check fill themselves in: the day is today with a calendar, Who tasted it is you, Score is five stars, Look, Smell, Texture are one Good / Off choice that starts on Good, and Product or Batch number show names to tap. Saving keeps who and the day for the next entry.',
+    ],
+    test: [
+      'Make, Jars in stock: the list should be grouped and sorted, with no ingredients and no zero jars. Tap Show out of stock to see them.',
+      'Safety and records, Tasting log: Who tasted it is your name, tap a star score, tap a suggested batch or product, and save.',
+      'Safety and records, Shelf-life check: the day is today, Look/Smell/Texture start on Good. Tap a batch number to pick it.',
+    ],
+  },
+  {
     release: '0.1.44',
     changes: [
       'Finish batch now asks "How many were made?", starting at the planned amount, and saves it in Odoo.',

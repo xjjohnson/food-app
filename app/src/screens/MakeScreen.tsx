@@ -1,8 +1,8 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Body, Button, Card, LookScope, Row, Screen, Segments } from '../components/ui';
+import { Body, Button, Card, Field, LookScope, Row, Screen, Segments } from '../components/ui';
 import { fmtQty, loadBatches, loadRecipes, qtyWords, Batch, Recipe, stateWithOdoo } from '../lib/production';
-import { InStockRow, loadExpiring, loadInStock } from '../lib/stock';
+import { groupJars, JarRow, loadExpiring, loadInStock } from '../lib/stock';
 import { tabAreas } from '../lib/tabs';
 import { useOdoo } from '../lib/useOdoo';
 import { useRoles } from '../lib/useRoles';
@@ -26,7 +26,9 @@ export function MakeScreen() {
   const [seg, setSeg] = useState<Seg>(first);
   const [recipes, setRecipes] = useState<Recipe[] | null>(null);
   const [batches, setBatches] = useState<Batch[] | null>(null);
-  const [jars, setJars] = useState<(InStockRow & { soon?: number })[] | null>(null);
+  const [jars, setJars] = useState<JarRow[] | null>(null);
+  const [showEmpty, setShowEmpty] = useState(false);
+  const [jarText, setJarText] = useState('');
   const [stage, setStage] = useState<Stage | null>(null);
 
   // Read again every time the tab comes back into view, so a batch just started is there.
@@ -43,8 +45,6 @@ export function MakeScreen() {
             const days = new Map<string, number>();
             for (const l of soon) if (!days.has(l.product) || l.days < days.get(l.product)!) days.set(l.product, l.days);
             const marked = rows.map((r) => ({ ...r, soon: days.get(r.name) }));
-            // Use-by soon first, then lowest stock.
-            marked.sort((a, b) => (a.soon === undefined ? 1 : 0) - (b.soon === undefined ? 1 : 0) || a.onHand - b.onHand);
             setJars(marked);
           })
           .catch(() => setJars([]));
@@ -53,6 +53,9 @@ export function MakeScreen() {
     }, [client, offline, roles]),
   );
 
+  // Ingredients are not jars: leave out anything a recipe uses as an ingredient.
+  const ingredientIds = new Set((recipes ?? []).flatMap((r) => r.lines.map((l) => l.productId)));
+  const shownJars = jars ? groupJars(jars, { ingredientIds, showEmpty, text: jarText }) : null;
   const inStage = (id: Stage) => (batches ?? []).filter((b) => STAGES.find((s) => s.id === id)!.states.includes(b.state));
   // The board opens on the first stage that has a batch.
   const activeStage: Stage = stage ?? STAGES.find((s) => inStage(s.id).length > 0)?.id ?? 'planned';
@@ -95,17 +98,19 @@ export function MakeScreen() {
         <>
           <Card title="Jars in stock" testID="make-jars">
             {offline ? <Body muted>No signal. Stock shows when the phone is back online.</Body> : null}
-            {jars?.map((j) => (
+            {jars && jars.length > 8 ? <Field label="Find a jar" value={jarText} onChangeText={setJarText} testID="make-jar-search" /> : null}
+            {shownJars?.map((g) => (
               <Row
-                key={j.id}
-                title={j.name}
-                detail={j.soon === undefined ? undefined : j.soon < 0 ? 'Use-by date has passed' : `Use-by in ${j.soon} days`}
-                value={`${fmtQty(j.onHand)} in stock`}
+                key={g.key}
+                title={g.name}
+                detail={[g.sizes.length > 1 || g.sizes[0]?.size ? g.sizes.map((x) => `${x.size || 'each'}: ${fmtQty(x.onHand)}`).join(' · ') : '', g.soon === undefined ? '' : g.soon < 0 ? 'Use-by date has passed' : `Use-by in ${g.soon} days`].filter(Boolean).join(' · ') || undefined}
+                value={`${fmtQty(g.total)} in stock`}
                 onPress={() => router.push('/lookup')}
-                testID={`make-jar-${j.id}`}
+                testID={`make-jar-${g.sizes[0]?.id}`}
               />
             ))}
-            {jars && !jars.length ? <Body muted>Nothing counted yet. Finish a batch or count stock.</Body> : null}
+            {jars && !shownJars?.length ? <Body muted>{jars.length ? 'Nothing in stock. Turn on Show out of stock to see everything.' : 'Nothing counted yet. Finish a batch or count stock.'}</Body> : null}
+            {jars?.length ? <Button label={showEmpty ? 'Hide out of stock' : 'Show out of stock'} kind="plain" onPress={() => setShowEmpty(!showEmpty)} testID="make-jar-empty" /> : null}
           </Card>
           <Row title="Count, throw out, find a batch" detail="Counts, expiring soon, waste, batch lookup" onPress={() => router.push('/area/stock')} testID="area-stock" />
         </>

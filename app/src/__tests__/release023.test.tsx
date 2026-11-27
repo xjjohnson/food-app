@@ -32,8 +32,8 @@ describe('logs kept as Odoo surveys', () => {
     const pass = q('Result').choices.find((x) => x.value === 'Pass')!;
     const values = { [q('Batch number').id]: 'J-12', [q('Result').id]: String(pass.id), [q('Day checked').id]: '2026-11-26' };
     expect(logProblems(form, values)).toEqual([]);
-    expect(logProblems(form, {})).toEqual(['Fill in at least one answer.']);
-    expect(logProblems(form, { [q('Day checked').id]: 'soon' })[0]).toContain('use the form');
+    expect(logProblems(form, {})).toEqual(['Batch number: pick one or type it.', 'Fill in at least one answer.']);
+    expect(logProblems(form, { [q('Batch number').id]: 'J-1', [q('Day checked').id]: 'soon' })[0]).toContain('use the form');
     const change = logChange(form, values, 1700000000000);
     const lines = (change.args[0] as { user_input_line_ids: unknown[][] }).user_input_line_ids;
     expect(lines).toHaveLength(3);
