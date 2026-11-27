@@ -99,17 +99,14 @@ describe('pack, then delivered or picked up, as Odoo says', () => {
     const pickup = mk('S0001', 'onsite', 'Pick up');
     const ship = mk('S0002', 'fixed', 'Local delivery');
     await open(odoo, '/area/orders?go=board', 'Shipping & Packaging');
-    await fireEvent.press(await screen.findByText(/Packed \(1\)/));
+    await fireEvent.press(await screen.findByText(/Drive \(2\)/));
     expect(await screen.findByTestId(`board-delivered-${ship}`)).toHaveTextContent('Delivered ›');
-    await fireEvent.press(screen.getByText('Pickups (1)'));
-    await settle();
-    await fireEvent.press(await screen.findByText(/Packed \(1\)/));
     expect(await screen.findByTestId(`board-delivered-${pickup}`)).toHaveTextContent('Picked up ›');
   });
 });
 
 describe('pickups and deliveries are kept apart on the board', () => {
-  test('two lists with counts; only deliveries have the route, stops and address', async () => {
+  test('pickups sit on the Drive side with no stop number, route or address', async () => {
     const { odoo } = bakery();
     const today = new Date().toISOString().slice(0, 10);
     odoo.create('res.partner', { name: 'Pat', street: '1 Main St', zip: '78640', phone: '555-0100' });
@@ -122,18 +119,12 @@ describe('pickups and deliveries are kept apart on the board', () => {
     const d2 = mk('S0002', 'fixed', 'Local delivery');
     const pk = mk('S0003', 'onsite', 'Pick up');
     await open(odoo, '/area/orders?go=board', 'Shipping & Packaging');
-    await fireEvent.press(await screen.findByText(/Packed \(3\)|Packed \(2\)/));
-    expect(await screen.findByText('Deliveries (2)')).toBeTruthy();
-    expect(screen.getByText('Pickups (1)')).toBeTruthy();
+    await fireEvent.press(await screen.findByText(/Drive \(3\)/));
     expect(screen.getByTestId('route-card')).toBeTruthy();
     expect(screen.getByTestId(`stop-${d1}`)).toBeTruthy();
     expect(screen.getByTestId(`stop-${d2}`)).toBeTruthy();
-    expect(screen.queryByTestId(`board-${pk}`)).toBeNull();
-    await fireEvent.press(screen.getByText('Pickups (1)'));
-    await settle();
-    await fireEvent.press(await screen.findByText(/Packed \(1\)/));
+    expect(screen.getByTestId(`stop-up-${d2}`)).toBeTruthy();
     expect(await screen.findByTestId(`board-${pk}`)).toBeTruthy();
-    expect(screen.queryByTestId('route-card')).toBeNull();
     expect(screen.queryByTestId(`stop-${pk}`)).toBeNull();
     expect(screen.queryByTestId(`board-map-${pk}`)).toBeNull();
     expect(screen.getByTestId(`board-delivered-${pk}`)).toHaveTextContent('Picked up ›');

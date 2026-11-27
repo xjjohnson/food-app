@@ -296,6 +296,40 @@ export function StatusButtons({ items, testID }: { items: { label: string; count
   );
 }
 
+/** One list card for Sell lists: name first, number and date under it, a small colored tag, the amount big on the right. */
+export function ListRow({ title, detail, tag, amount, onPress, testID }: { title: string; detail?: string; tag?: { label: string; tone: 'good' | 'warn' | 'bad' | 'plain' }; amount?: string; onPress?: () => void; testID?: string }) {
+  const s = useUi();
+  const { colors } = useBrand();
+  const bg = tag ? { good: '#2F7D52', warn: '#C26A0E', bad: colors.stop, plain: '#6B7280' }[tag.tone] : '';
+  const body = (
+    <>
+      <View style={{ flex: 1, gap: 3 }}>
+        <Text style={s.rowTitle}>{title}</Text>
+        {detail ? <Text style={s.muted}>{detail}</Text> : null}
+      </View>
+      <View style={{ alignItems: 'flex-end', gap: 4 }}>
+        {amount ? <Text style={[s.rowTitle, { fontSize: 18 }]}>{amount}</Text> : null}
+        {tag ? (
+          <View style={{ backgroundColor: bg, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3 }}>
+            <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: '800' }}>{tag.label}</Text>
+          </View>
+        ) : null}
+      </View>
+    </>
+  );
+  if (!onPress)
+    return (
+      <View style={s.navCard} testID={testID}>
+        {body}
+      </View>
+    );
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [s.navCard, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel={title} testID={testID}>
+      {body}
+    </Pressable>
+  );
+}
+
 /** A big button tile for standing-up work (market day): large text, easy to hit. */
 export function BigTile({ label, detail, onPress, testID }: { label: string; detail?: string; onPress: () => void; testID?: string }) {
   const { colors } = useBrand();

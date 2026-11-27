@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
-import { Body, Button, Card, Chip, ErrorText, Row, Screen } from '../components/ui';
+import { Body, Button, Card, Chip, ErrorText, ListRow, Row, Screen } from '../components/ui';
 import { fmtQty } from '../lib/production';
 import { router } from 'expo-router';
 import { Checkout, handOverChanges, loadCheckout, loadFree, loadLotStock, loadOrders, loadPackLines, loadToMake, LotPick, makeLink, makeShort, oldestFirst, Order, PackLine, readyToPack, shortWords, stateWords, ToMake } from '../lib/orders';
@@ -18,8 +18,8 @@ export function OrdersScreen({ go }: { go?: string } = {}) {
   const [orders, setOrders] = useState<Order[] | null>(null);
   const [open, setOpen] = useState<Order | null>(null);
   const [fromPhone, setFromPhone] = useState(false);
-  const [board, setBoard] = useState(go === 'board');
-  useLeaveAtBase(go === 'board', !board);
+  const [board, setBoard] = useState(!!go && go.startsWith('board'));
+  useLeaveAtBase(!!go && go.startsWith('board'), !board);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [toMake, setToMake] = useState<ToMake[]>([]);
@@ -57,7 +57,7 @@ export function OrdersScreen({ go }: { go?: string } = {}) {
     load();
   }, [load]);
 
-  if (board) return <DeliveryBoardScreen onBack={() => setBoard(false)} onPack={() => setBoard(false)} />;
+  if (board) return <DeliveryBoardScreen start={go?.split(':')[1]} onBack={() => setBoard(false)} onPack={() => setBoard(false)} />;
 
   if (open)
     return (
@@ -72,16 +72,13 @@ export function OrdersScreen({ go }: { go?: string } = {}) {
 
   return (
     <Screen title="Website orders" testID="orders-screen">
-      <Button label="Delivery board (today)" onPress={() => setBoard(true)} testID="open-board" />
       {fromPhone ? <Body muted>No signal. Showing what the phone saw last.</Body> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
-      <Card title="Waiting to be packed">
-        {!orders ? <Body muted>{busy ? 'Loading…' : 'Nothing to show yet. Connect to Odoo to load orders.'}</Body> : null}
-        {orders && !orders.length ? <Body muted>No website orders waiting.</Body> : null}
-        {orders?.map((o) => (
-          <Row key={o.id} title={o.customer || o.origin || o.name} detail={`${o.origin || o.name} · ${stateWords(o.state)} · ${o.pickup ? 'Pickup' : 'Delivery'}${o.date ? ` · ${o.date}` : ''}`} onPress={() => setOpen(o)} testID={`order-${o.id}`} />
-        ))}
-      </Card>
+      {!orders ? <Body muted>{busy ? 'Loading…' : 'Nothing to show yet. Connect to Odoo to load orders.'}</Body> : null}
+      {orders && !orders.length ? <Body muted>No website orders waiting to be packed.</Body> : null}
+      {orders?.map((o) => (
+        <ListRow key={o.id} title={o.customer || o.origin || o.name} detail={`${o.origin || o.name} · ${o.pickup ? 'Pickup' : 'Delivery'}${o.date ? ` · ${o.date}` : ''}`} tag={{ label: stateWords(o.state), tone: readyToPack(o) ? 'good' : 'warn' }} onPress={() => setOpen(o)} testID={`order-${o.id}`} />
+      ))}
       {toMake.length ? (
         <Card title="What to make" testID="to-make">
           <Body muted>Odoo is waiting on these. Tap one to start a batch with the amount filled in.</Body>

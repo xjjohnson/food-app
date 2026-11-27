@@ -2,8 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { applyRoute, moveStop, routeKey, routeLink, sortByZip } from '../lib/buying';
 import { useTyped } from './MarketDay';
 import { useCallback, useEffect, useState } from 'react';
-import { Linking } from 'react-native';
+import { Linking, Pressable, Text, View } from 'react-native';
 import { Body, Button, Card, Chip, ErrorText, Screen, Row, Segments } from '../components/ui';
+import { useBrand } from '../lib/useBrand';
 import { thankYouChange } from '../lib/activities';
 import { BoardOrder, deliveredChange, loadBoard, mapLink, STEP_WORDS, Step } from '../lib/deliveryBoard';
 import { useOdoo } from '../lib/useOdoo';
@@ -19,7 +20,8 @@ const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const copyKey = (db: string) => `board/v1/${db}`;
 
 /** Today's deliveries and pickups: where each goes, its step, and a Delivered tick. */
-export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; onPack: () => void }) {
+export function DeliveryBoardScreen({ onBack, onPack, start }: { onBack: () => void; onPack: () => void; start?: string }) {
+  const { colors } = useBrand();
   const { client, db, offline } = useOdoo();
   const { save, items } = useQueue();
   const [list, setList] = useState<BoardOrder[] | null>(null);
@@ -28,7 +30,7 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
   const [busy, setBusy] = useState(false);
   const [closedToday, setClosedToday] = useState(false);
   const [stage, setStage] = useState<Step | null>(null);
-  const [kind, setKind] = useState<'deliveries' | 'pickups' | null>(null);
+  const [lateOnly, setLateOnly] = useState(start === 'late');
 
   const load = useCallback(async () => {
     if (!db) return;
@@ -66,19 +68,27 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
   }, [client, offline]);
 
   const route = useTyped(routeKey(new Date().toISOString().slice(0, 10)));
-  // Deliveries and pickups are kept apart: only deliveries have a route and stops.
+  // Deliveries have a route and stops; pickups have none. Both are on the board.
   const deliveries = list ? applyRoute(list.filter((o) => !o.pickup), route.value) : [];
   const pickups = list ? list.filter((o) => o.pickup) : [];
-  const activeKind = kind ?? (deliveries.length || !pickups.length ? 'deliveries' : 'pickups');
-  const ordered = list ? (activeKind === 'pickups' ? pickups : deliveries) : list;
-  const routeUrl = deliveries.length ? routeLink(deliveries) : '';
+  const today = new Date().toISOString().slice(0, 10);
   const waiting = new Set(items.filter((i) => i.step?.kind === 'note').map((i) => (i.step as { resId: number }).resId));
 
   const stepOf = (o: BoardOrder): Step => (waiting.has(o.saleId) ? 'delivered' : o.step);
-  const stages: Step[] = ['pack', 'packed', 'delivered'];
-  const count = (st: Step) => (ordered ? ordered.filter((o) => stepOf(o) === st).length : 0);
-  // The board opens on the first stage that has a card; tap another stage to see its cards.
-  const active: Step = stage ?? stages.find((st) => count(st) > 0) ?? 'pack';
+  const isLate = (o: BoardOrder) => stepOf(o) !== 'delivered' && o.date.slice(0, 10) < today;
+  const keep = (o: BoardOrder) => !lateOnly || isLate(o);
+  const inMode = (o: BoardOrder, m: Step) => stepOf(o) === m && keep(o);
+  const modes: Step[] = ['pack', 'packed', 'delivered'];
+  const MODE_WORDS: Record<Step, string> = { pack: 'Pack', packed: 'Drive', delivered: 'Done' };
+  const count = (m: Step) => (list ? list.filter((o) => inMode(o, m)).length : 0);
+  // "Late" opens on whichever side has a late order; otherwise the first side with a card.
+  const active: Step = stage ?? modes.find((m) => count(m) > 0) ?? (start === 'packed' ? 'packed' : 'pack');
+  const stage0 = start === 'packed' && stage === null && count('packed') > 0 ? 'packed' : active;
+  const mode: Step = stage ?? stage0;
+  // Cards on this side: deliveries in route order first, then pickups.
+  const ordered = [...deliveries, ...pickups].filter((o) => inMode(o, mode));
+  const stops = deliveries.filter((o) => inMode(o, mode));
+  const routeUrl = mode === 'packed' && stops.length ? routeLink(stops) : '';
 
   const delivered = async (o: BoardOrder) => {
     setError('');
@@ -87,6 +97,7 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
       // The invoice is made now; the payment is chosen on the card that opens.
       await save(salePayChange(o.saleId, o.origin || o.name, null, '', new Date().toISOString().slice(0, 10)));
       if (o.partnerId && client) await save(thankYouChange({ partnerId: o.partnerId, customer: o.customer, saleName: o.origin || o.name }, client.session.uid)).catch(() => undefined);
+      setStage('delivered');
       await load();
     } catch (e) {
       setError(`Odoo would not take that. ${why(e)}`);
@@ -100,43 +111,56 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
       {error ? <ErrorText>{error}</ErrorText> : null}
       {!list ? <Body muted>{busy ? 'Loading…' : 'Nothing to show yet. Connect to Odoo to load the board.'}</Body> : null}
       {list && !list.length ? <Body muted>No deliveries or pickups for today.</Body> : null}
-      {list && list.length && ordered && !ordered.length ? <Body muted>{activeKind === 'pickups' ? 'No pickups for today.' : 'No deliveries for today.'}</Body> : null}
       {list && list.length ? (
-        <Segments<'deliveries' | 'pickups'>
-          options={[{ id: 'deliveries', label: `Deliveries (${deliveries.length})` }, { id: 'pickups', label: `Pickups (${pickups.length})` }]}
-          value={activeKind}
-          onChange={(k) => {
-            setKind(k);
-            setStage(null);
-          }}
-          testID="board-kind"
-        />
+        <Segments<Step> options={modes.map((m) => ({ id: m, label: `${MODE_WORDS[m]} (${count(m)})` }))} value={mode} onChange={setStage} testID="board-stages" />
       ) : null}
-      {activeKind === 'deliveries' && deliveries.length > 1 ? (
-        <Card title="Route" testID="route-card">
-          <Body muted>The app doesn’t plan the route. Sort by zip to start, then move stops up or down.</Body>
-          <Button label="Sort by zip" kind="plain" onPress={() => route.put(sortByZip(deliveries.map((o) => ({ id: o.id, address: o.address, zip: o.zip ?? '' }))).map((x) => x.id).join(','))} testID="route-sort" />
-          {routeUrl ? <Button label="Open the whole route in Maps" onPress={() => Linking.openURL(routeUrl)} testID="route-open" /> : null}
-        </Card>
+      {lateOnly ? <Button label="Showing late orders only. Show all" kind="plain" onPress={() => setLateOnly(false)} testID="board-late-off" /> : null}
+      {list && list.length && !ordered.length ? <Body muted>{mode === 'pack' ? 'Nothing to pack.' : mode === 'packed' ? 'Nothing packed and waiting to go.' : 'Nothing delivered yet today.'}</Body> : null}
+      {mode === 'packed' && stops.length > 1 ? (
+        <View style={{ flexDirection: 'row', gap: 10 }} testID="route-card">
+          <View style={{ flex: 1 }}>
+            <Button label="Sort by zip" kind="plain" onPress={() => route.put(sortByZip(stops.map((o) => ({ id: o.id, address: o.address, zip: o.zip ?? '' }))).map((x) => x.id).join(','))} testID="route-sort" />
+          </View>
+          {routeUrl ? (
+            <View style={{ flex: 1 }}>
+              <Button label="Open in Maps" onPress={() => Linking.openURL(routeUrl)} testID="route-open" />
+            </View>
+          ) : null}
+        </View>
       ) : null}
-      {ordered && ordered.length ? (
-        <Segments<Step> options={stages.map((st) => ({ id: st, label: `${STEP_WORDS[st]} (${count(st)})` }))} value={active} onChange={setStage} testID="board-stages" />
-      ) : null}
-      {ordered?.map((o, n) => {
-        if (stepOf(o) !== active) return null;
+      {ordered.map((o) => {
+        const n = stops.findIndex((x) => x.id === o.id);
         const isWaiting = waiting.has(o.saleId);
         const step = isWaiting ? 'delivered' : o.step;
         return (
           <Card key={o.id} title={o.customer || o.origin || o.name} testID={`board-${o.id}`}>
-            <Chip label={isWaiting ? `${o.pickup ? 'Picked up' : 'Delivered'} (waiting to send)` : o.pickup && step === 'delivered' ? 'Picked up' : STEP_WORDS[step]} testID={`board-step-${o.id}`} />
-            <Body muted>{`${o.origin || o.name}${o.date ? ` · ${o.date.slice(0, 10)}` : ''}`}</Body>
-            {!o.pickup && ordered && ordered.length > 1 ? (
-              <>
-                <Chip label={`Stop ${n + 1}`} testID={`stop-${o.id}`} />
-                <Button label="Move up" kind="plain" disabled={n === 0} onPress={() => route.put(moveStop(ordered, n, -1).map((x) => x.id).join(','))} testID={`stop-up-${o.id}`} />
-                <Button label="Move down" kind="plain" disabled={n === ordered.length - 1} onPress={() => route.put(moveStop(ordered, n, 1).map((x) => x.id).join(','))} testID={`stop-down-${o.id}`} />
-              </>
-            ) : null}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View style={{ flex: 1, gap: 6 }}>
+                {isWaiting ? <Chip label={`${o.pickup ? 'Picked up' : 'Delivered'} (waiting to send)`} testID={`board-step-${o.id}`} /> : null}
+                {n >= 0 && stops.length > 1 && mode === 'packed' ? <Chip label={`Stop ${n + 1}`} testID={`stop-${o.id}`} /> : null}
+                <Body muted>{`${o.origin || o.name}${o.date ? ` · ${o.date.slice(0, 10)}` : ''}${isLate(o) ? ' · Late' : ''}`}</Body>
+              </View>
+              {n >= 0 && stops.length > 1 && mode === 'packed' ? (
+                <View style={{ gap: 6 }}>
+                  {[-1, 1].map((d) => {
+                    const off = d === -1 ? n === 0 : n === stops.length - 1;
+                    return (
+                      <Pressable
+                        key={d}
+                        disabled={off}
+                        onPress={() => route.put(moveStop(stops, n, d as 1 | -1).map((x) => x.id).join(','))}
+                        accessibilityRole="button"
+                        accessibilityLabel={d === -1 ? 'Move up' : 'Move down'}
+                        testID={d === -1 ? `stop-up-${o.id}` : `stop-down-${o.id}`}
+                        style={{ width: 44, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.tint, opacity: off ? 0.35 : 1 }}
+                      >
+                        <Text style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>{d === -1 ? '▲' : '▼'}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : null}
+            </View>
             {o.pickup ? null : o.address ? <Row title="Address" detail={o.address} onPress={() => Linking.openURL(mapLink(o.address))} testID={`board-map-${o.id}`} /> : <Body muted>No address on the contact.</Body>}
             {o.phone ? <Row title="Phone" detail={o.phone} onPress={() => Linking.openURL(`tel:${o.phone}`)} /> : null}
             {o.notes ? <Body>{`Notes: ${o.notes}`}</Body> : null}
