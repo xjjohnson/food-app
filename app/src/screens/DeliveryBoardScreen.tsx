@@ -3,7 +3,7 @@ import { applyRoute, moveStop, routeKey, routeLink, sortByZip } from '../lib/buy
 import { useTyped } from './MarketDay';
 import { useCallback, useEffect, useState } from 'react';
 import { Linking, Pressable, Text, View } from 'react-native';
-import { Body, Button, Card, Chip, ErrorText, Screen, Row, Segments } from '../components/ui';
+import { Body, Button, Card, Chip, ErrorText, Screen, Row, SectionLabel, Segments } from '../components/ui';
 import { useBrand } from '../lib/useBrand';
 import { thankYouChange } from '../lib/activities';
 import { BoardOrder, deliveredChange, loadBoard, mapLink, STEP_WORDS, Step } from '../lib/deliveryBoard';
@@ -31,6 +31,7 @@ export function DeliveryBoardScreen({ onBack, onPack, start }: { onBack: () => v
   const [closedToday, setClosedToday] = useState(false);
   const [stage, setStage] = useState<Step | null>(null);
   const [lateOnly, setLateOnly] = useState(start === 'late');
+  const [focus, setFocus] = useState<number | null>(null);
 
   const load = useCallback(async () => {
     if (!db) return;
@@ -104,6 +105,84 @@ export function DeliveryBoardScreen({ onBack, onPack, start }: { onBack: () => v
     }
   };
 
+  /** Drive: the next stop big on top, the rest as slim numbered stops. Tap a stop to make it the big one. */
+  const drive = () => {
+    const first = ordered.find((o) => o.id === focus) ?? ordered[0]!;
+    const rest = ordered.filter((o) => o.id !== first.id);
+    const numOf = (o: BoardOrder) => ordered.findIndex((x) => x.id === o.id) + 1;
+    const sub = (o: BoardOrder) => (o.pickup ? `Pickup${o.phone ? ` · ${o.phone}` : ''}` : o.address || 'No address on the contact');
+    const white = { backgroundColor: '#FFFFFF' };
+    return (
+      <>
+        <View style={{ backgroundColor: colors.accent, borderRadius: 18, padding: 14, gap: 8 }} testID={`board-${first.id}`}>
+          <Text style={{ color: colors.onAccent, opacity: 0.9, fontSize: 14 }}>{`Next stop · ${ordered.length} left`}</Text>
+          <Text style={{ color: colors.onAccent, fontSize: 22, fontWeight: '800' }}>{`${numOf(first)}. ${first.customer || first.origin || first.name}`}</Text>
+          <Text style={{ color: colors.onAccent, opacity: 0.9, fontSize: 15 }}>{`${sub(first)}${isLate(first) ? ' · Late' : ''}`}</Text>
+          {first.notes ? <Text style={{ color: colors.onAccent, fontSize: 15 }}>{`Notes: ${first.notes}`}</Text> : null}
+          <View style={{ flexDirection: 'row', gap: 10 }}>
+            {!first.pickup && first.address ? (
+              <View style={{ flex: 1 }}>
+                <Pressable onPress={() => Linking.openURL(mapLink(first.address))} accessibilityRole="button" accessibilityLabel="Navigate" testID={`board-map-${first.id}`} style={[{ minHeight: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }, white]}>
+                  <Text style={{ fontSize: 17, fontWeight: '800', color: colors.accent }}>Navigate</Text>
+                </Pressable>
+              </View>
+            ) : null}
+            {first.phone ? (
+              <View style={{ flex: 1 }}>
+                <Pressable onPress={() => Linking.openURL(`tel:${first.phone}`)} accessibilityRole="button" accessibilityLabel="Call" testID={`board-call-${first.id}`} style={[{ minHeight: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }, white]}>
+                  <Text style={{ fontSize: 17, fontWeight: '800', color: colors.accent }}>Call</Text>
+                </Pressable>
+              </View>
+            ) : null}
+          </View>
+          {first.saleId ? (
+            <Pressable onPress={() => delivered(first)} accessibilityRole="button" accessibilityLabel={first.pickup ? 'Picked up' : 'Delivered'} testID={`board-delivered-${first.id}`} style={{ minHeight: 52, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#2F7D52' }}>
+              <Text style={{ fontSize: 17, fontWeight: '800', color: '#FFFFFF' }}>{first.pickup ? 'Picked up ›' : 'Delivered ›'}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+        {first.saleId && !first.pickup ? <ProofToggle o={first} /> : null}
+        {rest.length ? <SectionLabel>After that</SectionLabel> : null}
+        {rest.map((o) => {
+          const n = stops.findIndex((x) => x.id === o.id);
+          return (
+            <View key={o.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: colors.card, borderRadius: 16, borderWidth: 1, borderColor: colors.line, padding: 10 }} testID={`board-${o.id}`}>
+              <Pressable onPress={() => setFocus(o.id)} accessibilityRole="button" accessibilityLabel={`Go to ${o.customer || o.name}`} testID={`board-open-${o.id}`} style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' }} testID={n >= 0 ? `stop-${o.id}` : undefined}>
+                  <Text style={{ color: colors.onAccent, fontWeight: '800' }}>{numOf(o)}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 16, fontWeight: '700', color: colors.text }}>{o.customer || o.origin || o.name}</Text>
+                  <Text style={{ fontSize: 14, color: colors.muted }}>{sub(o)}</Text>
+                </View>
+              </Pressable>
+              {n >= 0 && stops.length > 1 ? (
+                <View style={{ gap: 4 }}>
+                  {[-1, 1].map((d) => {
+                    const off = d === -1 ? n === 0 : n === stops.length - 1;
+                    return (
+                      <Pressable
+                        key={d}
+                        disabled={off}
+                        onPress={() => route.put(moveStop(stops, n, d as 1 | -1).map((x) => x.id).join(','))}
+                        accessibilityRole="button"
+                        accessibilityLabel={d === -1 ? 'Move up' : 'Move down'}
+                        testID={d === -1 ? `stop-up-${o.id}` : `stop-down-${o.id}`}
+                        style={{ width: 40, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.tint, opacity: off ? 0.35 : 1 }}
+                      >
+                        <Text style={{ fontSize: 14, fontWeight: '800', color: colors.text }}>{d === -1 ? '▲' : '▼'}</Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : null}
+            </View>
+          );
+        })}
+      </>
+    );
+  };
+
   return (
     <Screen title="Delivery board" testID="board-screen">
       {closedToday ? <Body>Today is marked as a closed day. This is only a warning.</Body> : null}
@@ -128,54 +207,15 @@ export function DeliveryBoardScreen({ onBack, onPack, start }: { onBack: () => v
           ) : null}
         </View>
       ) : null}
-      {ordered.map((o) => {
-        const n = stops.findIndex((x) => x.id === o.id);
+      {mode === 'packed' && ordered.length ? drive() : null}
+      {mode === 'packed' ? null : ordered.map((o) => {
         const isWaiting = waiting.has(o.saleId);
         const step = isWaiting ? 'delivered' : o.step;
         return (
           <Card key={o.id} title={o.customer || o.origin || o.name} testID={`board-${o.id}`}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <View style={{ flex: 1, gap: 6 }}>
-                {isWaiting ? <Chip label={`${o.pickup ? 'Picked up' : 'Delivered'} (waiting to send)`} testID={`board-step-${o.id}`} /> : null}
-                {n >= 0 && mode === 'packed' ? <Chip label={`Stop ${n + 1}`} testID={`stop-${o.id}`} /> : null}
-                <Body muted>{`${o.origin || o.name}${o.date ? ` · ${o.date.slice(0, 10)}` : ''}${isLate(o) ? ' · Late' : ''}`}</Body>
-              </View>
-              {n >= 0 && stops.length > 1 && mode === 'packed' ? (
-                <View style={{ gap: 6 }}>
-                  {[-1, 1].map((d) => {
-                    const off = d === -1 ? n === 0 : n === stops.length - 1;
-                    return (
-                      <Pressable
-                        key={d}
-                        disabled={off}
-                        onPress={() => route.put(moveStop(stops, n, d as 1 | -1).map((x) => x.id).join(','))}
-                        accessibilityRole="button"
-                        accessibilityLabel={d === -1 ? 'Move up' : 'Move down'}
-                        testID={d === -1 ? `stop-up-${o.id}` : `stop-down-${o.id}`}
-                        style={{ width: 44, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.tint, opacity: off ? 0.35 : 1 }}
-                      >
-                        <Text style={{ fontSize: 16, fontWeight: '800', color: colors.text }}>{d === -1 ? '▲' : '▼'}</Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              ) : null}
-            </View>
+            {isWaiting ? <Chip label={`${o.pickup ? 'Picked up' : 'Delivered'} (waiting to send)`} testID={`board-step-${o.id}`} /> : null}
+            <Body muted>{`${o.origin || o.name}${o.date ? ` · ${o.date.slice(0, 10)}` : ''}${isLate(o) ? ' · Late' : ''}`}</Body>
             <Body muted>{[o.pickup ? 'Pickup' : o.address || 'No address on the contact', o.phone].filter(Boolean).join(' · ')}</Body>
-            {mode === 'packed' && ((!o.pickup && o.address) || o.phone) ? (
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                {!o.pickup && o.address ? (
-                  <View style={{ flex: 1 }}>
-                    <Button label="Navigate" kind="plain" onPress={() => Linking.openURL(mapLink(o.address))} testID={`board-map-${o.id}`} />
-                  </View>
-                ) : null}
-                {o.phone ? (
-                  <View style={{ flex: 1 }}>
-                    <Button label="Call" kind="plain" onPress={() => Linking.openURL(`tel:${o.phone}`)} testID={`board-call-${o.id}`} />
-                  </View>
-                ) : null}
-              </View>
-            ) : null}
             {o.notes ? <Body>{`Notes: ${o.notes}`}</Body> : null}
             {step === 'delivered' && o.saleId ? <PaymentCard order={o} /> : null}
             {step === 'delivered' && o.saleId && !isWaiting ? <FeedbackBox orderId={o.saleId} orderName={o.origin || o.name} /> : null}
