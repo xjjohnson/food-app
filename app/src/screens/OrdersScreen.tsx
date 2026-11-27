@@ -173,9 +173,9 @@ function PackOrder({ order, onBack }: { order: Order; onBack: () => void }) {
   const ready = readyToPack(order) && !!plan && !note;
   return (
     <Screen title={order.customer || order.origin || order.name} testID="pack-screen">
-      <Chip label={`${order.origin || order.name} · ${stateWords(order.state)}`} />
+      <Chip label={`${order.origin || order.name} · ${order.short && order.state === 'assigned' ? 'Needs product' : stateWords(order.state)}`} />
       {offline ? <Body muted>No signal. Packing needs the batch list from Odoo, so open this order again with signal.</Body> : null}
-      {!readyToPack(order) ? <Body muted>Odoo is still waiting for stock for this order, so it can’t be packed yet.</Body> : null}
+      {!readyToPack(order) ? <Body muted>This order needs product first, so it can’t be packed yet.</Body> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
       {plan?.some((x) => x.picks.some((p) => p.expired)) ? <ErrorText>One of these batches is past its use-by date. Check it before you pack it, and fix the date in Odoo if it was a typing mistake.</ErrorText> : null}
       <Card title="Pack these">
