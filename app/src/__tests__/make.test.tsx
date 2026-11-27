@@ -292,6 +292,39 @@ test('recipes group by product with the size listed under it', () => {
   expect(groupRecipes([r(1, 'Apricot Jam (4 oz, Quilted)'), r(3, 'Salsa')], 'sal').map((x) => x.name)).toEqual(['Salsa']);
 });
 
+describe('Start a batch groups sizes under their product', () => {
+  test('a product with sizes opens to them; a product with one size goes straight to the amount', async () => {
+    const { odoo } = bakery();
+    const a = recipe(odoo);
+    const mk = (name: string) => {
+      const p = odoo.create('product.product', { name, free_qty: 0 });
+      const bom = odoo.create('mrp.bom', { product_tmpl_id: [1, name], product_id: [p, name], product_qty: 8, product_uom_id: [1, 'Units'], type: 'normal' });
+      odoo.tables['mrp.bom']!.find((b) => b.id === bom)!.bom_line_ids = [];
+      return bom;
+    };
+    const s4 = mk('Apricot Jam (4 oz, Quilted)');
+    const s8 = mk('Apricot Jam (8 oz, Ball)');
+    await open(odoo, '/area/production?go=start', 'Production');
+    expect(screen.queryByTestId(`recipe-${s4}`)).toBeNull();
+    await fireEvent.press(screen.getByTestId('start-product-Apricot Jam'));
+    expect(screen.getByTestId(`recipe-${s4}`)).toHaveTextContent(/4 oz, Quilted/);
+    expect(screen.getByTestId(`recipe-${s8}`)).toBeTruthy();
+    await fireEvent.press(screen.getByTestId(`recipe-${s8}`));
+    await settle();
+    expect(screen.getByTestId('batch-qty')).toBeTruthy();
+    expect(a).toBeTruthy();
+  });
+
+  test('a product with one size skips straight to the amount', async () => {
+    const { odoo } = bakery();
+    const bom = recipe(odoo);
+    await open(odoo, '/area/production?go=start', 'Production');
+    await fireEvent.press(screen.getByTestId(`recipe-${bom}`));
+    await settle();
+    expect(screen.getByTestId('batch-qty')).toBeTruthy();
+  });
+});
+
 describe('the batch page next step', () => {
   async function openBatch(odoo: FakeOdoo, state: string) {
     const jam = odoo.create('product.product', { name: 'Jam', free_qty: 0 });

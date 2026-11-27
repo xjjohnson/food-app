@@ -10,6 +10,7 @@ import { GenericForm } from './GenericForm';
 import { LinesScreen, unitAfterProduct } from './SubRecordsEditor';
 import { BATCH_PARTS } from '../lib/subRecords';
 import {
+  groupRecipes,
   addDays,
   Batch,
   BatchDetail,
@@ -184,6 +185,8 @@ function StartBatch({ recipes, recipeId, productId, wantQty, onBack, onSaved }: 
   const [priceCost, setPriceCost] = useState<PriceCost | null>(null);
 
   const [later, setLater] = useState(false);
+  const [openProduct, setOpenProduct] = useState<string | null>(null);
+  const [find, setFind] = useState('');
   const [repeat, setRepeat] = useState(false);
   const qty = Number(qtyText.replace(',', '.'));
   const okQty = Number.isFinite(qty) && qty > 0;
@@ -217,9 +220,22 @@ function StartBatch({ recipes, recipeId, productId, wantQty, onBack, onSaved }: 
     return (
       <Screen title="Start a batch" testID="start-screen">
         <Body>Pick what you are making.</Body>
-        {recipes.map((r) => (
-          <Row key={r.id} title={r.name} detail={`Makes ${qtyWords(r.makes, r.unit)}`} onPress={() => pick(r)} testID={`recipe-${r.id}`} />
-        ))}
+        {recipes.length > 8 ? <Field label="Find a recipe" value={find} onChangeText={setFind} testID="start-search" /> : null}
+        {groupRecipes(recipes, find).map((g) => {
+          const only = g.recipes.length === 1 ? g.recipes[0]! : null;
+          // A product with one size goes straight to the amount.
+          if (only) return <Row key={g.name} title={g.name} detail={`${only.size ? `${only.size} · ` : ''}Makes ${qtyWords(only.recipe.makes, only.recipe.unit)}`} onPress={() => pick(only.recipe)} testID={`recipe-${only.recipe.id}`} />;
+          const isOpen = openProduct === g.name || (!!find.trim() && groupRecipes(recipes, find).length === 1);
+          if (!isOpen) return <Row key={g.name} title={g.name} detail={`${g.recipes.length} sizes`} onPress={() => setOpenProduct(g.name)} testID={`start-product-${g.name}`} />;
+          return (
+            <Card key={g.name} title={g.name} testID={`start-open-${g.name}`}>
+              {g.recipes.map(({ recipe: r, size }) => (
+                <Row key={r.id} title={size || 'One size'} detail={`Makes ${qtyWords(r.makes, r.unit)}`} onPress={() => pick(r)} testID={`recipe-${r.id}`} />
+              ))}
+              <Button label="Close" kind="plain" onPress={() => setOpenProduct(null)} testID={`start-close-${g.name}`} />
+            </Card>
+          );
+        })}
         <Button label="Back" kind="plain" onPress={onBack} />
       </Screen>
     );

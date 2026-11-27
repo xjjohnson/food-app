@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.71',
+    changes: ['Start a batch is a short list of products now. Tap a product to open its sizes, then tap a size. A product with one size goes straight to how many.'],
+    test: ['Make, Start a batch: open a product with several sizes, pick one and start or plan a batch. Then try a product with one size.'],
+  },
+  {
     release: '0.1.70',
     changes: ['Today numbers now update every time you open the Today tab, and when you pull the page down.'],
     test: ['Pack or add a website order, then open Today and check the tiles. Pull down on Today to refresh.'],
