@@ -5,11 +5,50 @@ import { useQueue } from '../lib/useQueue';
 import { Image, View } from 'react-native';
 import { Body, Button, Card, ErrorText, Field, Row, Screen, Segments, SwitchRow } from '../components/ui';
 import { listPeople, Person, roleNames, ROLES, Roles, saveRoles } from '../lib/roles';
+import { setUpMarketStock } from '../lib/marketStock';
 import { useBrand } from '../lib/useBrand';
 import { useOdoo } from '../lib/useOdoo';
 import { useRoles } from '../lib/useRoles';
 
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
+
+/** Owner-tap setup for market stock. It says exactly what it changes in Odoo; nothing runs unless this button is tapped. */
+function MarketStockCard() {
+  const { client, offline } = useOdoo();
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState('');
+  const [error, setError] = useState('');
+  return (
+    <Card title="Market stock" testID="market-stock-card">
+      <Body muted>Makes Check out and Check in real Odoo stock transfers. Tapping the button changes these things in Odoo:</Body>
+      <Body>1. Turns on Inventory, Settings, Storage Locations, if it is off.</Body>
+      <Body>2. Adds a storage place called Market in your warehouse, if there is none.</Body>
+      <Body>3. Sets each register’s stock operation to take sold items from Market, so sales come off what you took.</Body>
+      <Body muted>Safe to tap again. You need to be an Odoo admin.</Body>
+      {error ? <ErrorText>{error}</ErrorText> : null}
+      {note ? <Body>{note}</Body> : null}
+      <Button
+        label="Set up market stock in Odoo"
+        disabled={!client || offline}
+        busy={busy}
+        testID="market-stock-setup"
+        onPress={async () => {
+          if (!client) return;
+          setBusy(true);
+          setError('');
+          try {
+            const r = await setUpMarketStock(client);
+            setNote(`Done. ${r.storageLocationsWasOn ? 'Storage Locations was already on.' : 'Storage Locations is now on.'} ${r.placeMade ? 'The Market place was added.' : 'The Market place was already there.'} ${r.registers} register${r.registers === 1 ? '' : 's'} now sell from Market.`);
+          } catch (e) {
+            setError(`Odoo would not do that. ${why(e)}`);
+          } finally {
+            setBusy(false);
+          }
+        }}
+      />
+    </Card>
+  );
+}
 
 function PersonRoles({ person, onSaved }: { person: Person; onSaved: (p: Person) => void }) {
   const { client } = useOdoo();
@@ -216,6 +255,9 @@ export function ManagementScreen() {
           <Body muted>Check that Odoo is set up the way the app needs, and use the test database. The check only reads. It never changes Odoo.</Body>
           <Row title="Connection check and test database" detail="Developer screen" onPress={() => router.push('/developer')} testID="open-developer" />
         </Card>
+      ) : null}
+      {part === 'odoo' ? (
+        <MarketStockCard />
       ) : null}
     </Screen>
   );

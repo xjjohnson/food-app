@@ -11,6 +11,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.59',
+    changes: [
+      'Market redone: Before, Selling and After at the top. It opens on Selling while a register is open.',
+      'Check out and Check in are real Odoo stock transfers to and from a Market place, batch by batch.',
+      'Management, Odoo tab: a button that sets up market stock. It says exactly what it changes: turns on Storage Locations, adds the Market place, and makes the registers sell from Market. Nothing changes unless you tap it.',
+      'Until that is set up, Check out and Check in stay the old note sheet.',
+    ],
+    test: [
+      'Management, Odoo: tap Set up market stock in Odoo. In Odoo check Storage Locations is on, a Market place exists, and the register operation takes from Market.',
+      'Market, Before, Check out: add a product, type an amount, Move to Market. In Odoo the transfer is done and the stock is in Market.',
+      'Ring up a sale in the Point of Sale and close the register. Check the sale came off Market, not the pantry.',
+      'Market, After, Check in: the count starts at what Odoo says is left. Move it back and check the pantry.',
+    ],
+  },
+  {
     release: '0.1.58',
     changes: [
       'Delivery board redone: Pack, Drive and Done at the top. Drive shows the stops in order with small up and down arrows, and Sort by zip and Open in Maps side by side.',
