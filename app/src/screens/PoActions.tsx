@@ -6,6 +6,7 @@ import { loadJournals, type Journal } from '../lib/ingredients';
 import { loadPoState, orderBillChange, type PoState } from '../lib/poBill';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
+import { PhotosCard } from './PhotosCard';
 
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const journalKey = (db: string) => `money/journals/${db}`;
@@ -101,6 +102,13 @@ export function PoActions({ id, onCheckIn }: { id: number; onCheckIn: () => void
           {error ? <ErrorText>{error}</ErrorText> : null}
           {note ? <Body>{note}</Body> : null}
         </Card>
+      ) : null}
+      {po.openReceipts === 0 && po.doneReceipts > 0 ? (
+        po.bills.length ? (
+          <PhotosCard model="account.move" resId={po.bills[0]!.id} recordName={`bill ${po.bills[0]!.name}`} title="Photo of the bill" about="Bill photo" button="Take a photo of the bill" testID="po-bill-photos" />
+        ) : (
+          <PhotosCard model="purchase.order" resId={id} recordName={`order ${po.name}`} title="Photo of the bill" about="Bill photo" button="Take a photo of the bill" testID="po-bill-photos" />
+        )
       ) : null}
       {error && po.openReceipts > 0 ? <ErrorText>{error}</ErrorText> : null}
     </>

@@ -66,6 +66,7 @@ describe('bill an order that already exists', () => {
     await fireEvent.press(await screen.findByTestId('form-tabs-lines'));
     await settle();
     expect(screen.queryByTestId('po-confirm')).toBeNull();
+    expect(await screen.findByTestId('po-bill-photos')).toHaveTextContent(/Take a photo of the bill/);
     await fireEvent.press(await screen.findByTestId('po-pay-cash'));
     await settle();
     expect(await screen.findByText(/Bill made and paid with Cash/)).toBeTruthy();
@@ -135,5 +136,16 @@ describe('plan work from waiting orders', () => {
     odoo.tables['mrp.bom']!.find((b) => b.id === bom)!.bom_line_ids = [odoo.create('mrp.bom.line', { bom_id: bom, product_id: [made, 'x'], product_qty: 1 })];
     await open(odoo, `/area/production?go=make:${made}:7`, 'Production');
     expect((await screen.findByTestId('batch-qty')).props.value).toBe('7');
+  });
+});
+
+describe('a photo of the bill', () => {
+  test('the bill page has a photo button for bills we bought', async () => {
+    const { odoo } = bakery();
+    const bill = odoo.create('account.move', { name: 'BILL/2026/11/0005', move_type: 'in_invoice', state: 'posted', payment_state: 'not_paid', partner_id: [5, 'heb'], invoice_date: '2026-11-26', amount_total: 4, amount_residual: 4 });
+    await open(odoo, '/area/ingredients?go=history', 'Owner');
+    await fireEvent.press(await screen.findByTestId(`money-${bill}`));
+    await settle();
+    expect(await screen.findByTestId('bill-photos')).toHaveTextContent(/Take a photo of the bill/);
   });
 });
