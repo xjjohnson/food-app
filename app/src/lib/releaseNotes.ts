@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.60',
+    changes: ['New quote moved inside Quotes and open orders (a button at the top), so the Sell page has one fewer card.', 'New quote: pick the customer and tap Next: add products. It saves the quote and opens the product lines straight away, so you no longer reopen it to add products.'],
+    test: ['Sell, Quotes and open orders, New quote: pick a customer, tap Next: add products, add a product line, then open the Send tab.'],
+  },
+  {
     release: '0.1.59',
     changes: [
       'Market redone: Before, Selling and After at the top. It opens on Selling while a register is open.',

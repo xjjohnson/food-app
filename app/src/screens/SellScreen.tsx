@@ -19,8 +19,8 @@ export function SellScreen({ go }: { go?: string } = {}) {
   const [page, setPage] = useState<Page>(go === 'quote' ? { p: 'quote' } : go === 'list' ? { p: 'list' } : { p: 'menu' });
   const menu = () => setPage({ p: 'menu' });
   useLeaveAtBase(!!go, page.p === 'menu');
-  useInnerBack(page.p === 'menu' ? null : page.p === 'quote' && page.lines ? () => setPage({ p: 'quote', id: page.id }) : page.p === 'quote' && page.id ? () => setPage({ p: 'list' }) : menu);
-  if (page.p === 'list') return <QuoteList onBack={menu} onOpen={(id) => setPage({ p: 'quote', id })} />;
+  useInnerBack(page.p === 'menu' ? null : page.p === 'quote' && page.lines ? () => setPage({ p: 'quote', id: page.id }) : page.p === 'quote' ? () => setPage({ p: 'list' }) : menu);
+  if (page.p === 'list') return <QuoteList onBack={menu} onOpen={(id) => setPage({ p: 'quote', id })} onNew={() => setPage({ p: 'quote' })} />;
   if (page.p === 'quote') {
     if (page.lines && page.id) return <QuoteLines id={page.id} onBack={() => setPage({ p: 'quote', id: page.id })} />;
     return (
@@ -33,8 +33,10 @@ export function SellScreen({ go }: { go?: string } = {}) {
         sections={SALE_SECTIONS}
         required={['partner_id']}
         uniqueField="client_order_ref"
+        saveLabel="Next: add products"
+        onCreated={(id) => setPage({ p: 'quote', id, lines: true })}
         testID="quote-form"
-        onBack={() => (page.id ? setPage({ p: 'list' }) : menu())}
+        onBack={() => setPage({ p: 'list' })}
         extraTabs={
           page.id
             ? [
@@ -48,7 +50,6 @@ export function SellScreen({ go }: { go?: string } = {}) {
   }
   return (
     <Screen title="Quotes and orders" testID="sell-screen">
-      <Row title="New quote" detail="Pick a customer, then add products" onPress={() => setPage({ p: 'quote' })} testID="sell-new" />
       <Row title="Quotes and open orders" detail="Open, confirm, share, invoice" onPress={() => setPage({ p: 'list' })} testID="sell-list" />
     </Screen>
   );
@@ -115,7 +116,7 @@ function QuoteActions({ id }: { id: number }) {
   );
 }
 
-function QuoteList({ onOpen }: { onBack: () => void; onOpen: (id: number) => void }) {
+function QuoteList({ onOpen, onNew }: { onBack: () => void; onOpen: (id: number) => void; onNew: () => void }) {
   const { client, offline } = useOdoo();
   const [rows, setRows] = useState<QuoteRow[] | null>(null);
   const [error, setError] = useState('');
@@ -130,6 +131,7 @@ function QuoteList({ onOpen }: { onBack: () => void; onOpen: (id: number) => voi
   }, [rows, text]);
   return (
     <Screen title="Quotes and open orders" testID="quote-list">
+      <Button label="New quote" onPress={onNew} testID="sell-new" />
       {offline ? <Body muted>No signal. The list needs Odoo.</Body> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
       <Field label="Search" placeholder="Customer or number" value={text} onChangeText={setText} testID="quote-search" />

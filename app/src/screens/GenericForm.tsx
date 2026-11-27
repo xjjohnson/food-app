@@ -36,6 +36,8 @@ export interface GenericFormProps {
   extraTabs?: ExtraTab[];
   /** Called with the new record's id right after it is made in Odoo (not when it is only saved on the phone). */
   onCreated?: (id: number) => void;
+  /** Words on the Save button for a new record, when it leads to a next step. */
+  saveLabel?: string;
   /** Called after the first field loads, for the screen to learn the draft. */
   onBack: () => void;
   testID?: string;
@@ -45,7 +47,7 @@ export interface GenericFormProps {
  * Any Odoo form: tabs of fields, one Save that sends only what changed, and
  * pickers for linked records. Fields this Odoo doesn't have are left out.
  */
-export function GenericForm({ model, recordId, title, sections: all, required = [], uniqueField = 'name', defaults = {}, noun, extraTabs = [], onCreated, onBack, testID }: GenericFormProps) {
+export function GenericForm({ model, recordId, title, sections: all, required = [], uniqueField = 'name', defaults = {}, noun, extraTabs = [], onCreated, saveLabel, onBack, testID }: GenericFormProps) {
   const { client, offline } = useOdoo();
   const { save } = useQueue();
   const [sections, setSections] = useState<Section[]>([]);
@@ -160,7 +162,7 @@ export function GenericForm({ model, recordId, title, sections: all, required = 
       ))}
       {error ? <ErrorText>{error}</ErrorText> : null}
       {note ? <Body>{note}</Body> : null}
-      <Button label={recordId ? (count ? `Save ${count} change${count > 1 ? 's' : ''}` : 'Nothing changed') : `Save ${noun.toLowerCase()}`} disabled={!ready} busy={busy} testID="save-form" onPress={doSave} />
+      <Button label={recordId ? (count ? `Save ${count} change${count > 1 ? 's' : ''}` : 'Nothing changed') : saveLabel ?? `Save ${noun.toLowerCase()}`} disabled={!ready} busy={busy} testID="save-form" onPress={doSave} />
       <Button label="Back" kind="plain" onPress={onBack} />
     </Screen>
   );
