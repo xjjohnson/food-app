@@ -173,10 +173,10 @@ export interface BatchTrace {
   wentOutOn: { name: string; origin: string; customer: string; qty: number }[];
 }
 
-/** Batches whose number contains what was typed. */
+/** Batches whose number contains what was typed. With nothing typed, the newest batches. */
 export async function findLots(c: Client, text: string): Promise<{ id: number; name: string; product: string }[]> {
-  if (!text.trim()) return [];
-  const rows = (await c.call('stock.lot', 'search_read', [[['name', 'ilike', text.trim()]]], { fields: ['name', 'product_id'], limit: 20 })) as Record<string, unknown>[];
+  const t = text.trim();
+  const rows = (await c.call('stock.lot', 'search_read', [t ? [['name', 'ilike', t]] : []], { fields: ['name', 'product_id'], order: 'id desc', limit: t ? 20 : 12 })) as Record<string, unknown>[];
   return rows.map((r) => ({ id: r.id as number, name: String(r.name), product: nameOf(r.product_id) }));
 }
 

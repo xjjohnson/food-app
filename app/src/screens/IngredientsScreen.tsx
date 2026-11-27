@@ -13,6 +13,7 @@ import { PlanScreen } from './PlanScreen';
 import { loadRecipes } from '../lib/production';
 import { MoneyScreen } from './MoneyScreen';
 import { BoughtScreen } from './BoughtScreen';
+import { PoActions } from './PoActions';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 
@@ -85,7 +86,7 @@ export function IngredientsScreen({ go }: { go?: string } = {}) {
           testID="po-form"
           onBack={() => setPage({ p: 'pos' })}
           onCreated={(id) => setPage({ p: 'po', id, lines: true, fresh: true })}
-          extraTabs={[{ id: 'lines', label: 'Lines', render: () => <PoLinesPreview id={page.id!} onEdit={() => setPage({ p: 'po', id: page.id, lines: true })} /> }]}
+          extraTabs={[{ id: 'lines', label: 'Lines', render: () => <PoLinesPreview id={page.id!} onEdit={() => setPage({ p: 'po', id: page.id, lines: true })} onCheckIn={() => setPage({ p: 'receipts' })} /> }]}
         />
       );
     case 'checkin':
@@ -120,7 +121,7 @@ function ShoppingPage({ onBack }: { onBack: () => void }) {
 }
 
 /** The lines of an order, listed on its Lines tab, with a button to add or change them. */
-function PoLinesPreview({ id, onEdit }: { id: number; onEdit: () => void }) {
+function PoLinesPreview({ id, onEdit, onCheckIn }: { id: number; onEdit: () => void; onCheckIn: () => void }) {
   const { client, offline } = useOdoo();
   const [lines, setLines] = useState<{ id: number; name: string; qty: number; price: number }[] | null>(null);
   useEffect(() => {
@@ -131,28 +132,27 @@ function PoLinesPreview({ id, onEdit }: { id: number; onEdit: () => void }) {
       .catch(() => setLines([]));
   }, [client, offline, id]);
   return (
-    <Card title="Order lines" testID="po-lines-card">
-      {offline ? <Body muted>No signal. The lines come from Odoo.</Body> : null}
-      {lines && !lines.length ? <Body muted>No lines yet. Tap Add or change lines.</Body> : null}
-      {lines?.map((l) => (
-        <Row key={l.id} title={l.name} detail={`${fmtQty(l.qty)} at ${l.price.toFixed(2)} each`} />
-      ))}
-      <Button label={lines && lines.length ? 'Add or change lines' : 'Add the first line'} onPress={onEdit} testID="po-lines" />
-    </Card>
+    <>
+      <Card title="Order lines" testID="po-lines-card">
+        {offline ? <Body muted>No signal. The lines come from Odoo.</Body> : null}
+        {lines && !lines.length ? <Body muted>No lines yet. Tap Add or change lines.</Body> : null}
+        {lines?.map((l) => (
+          <Row key={l.id} title={l.name} detail={`${fmtQty(l.qty)} at ${l.price.toFixed(2)} each`} />
+        ))}
+        <Button label={lines && lines.length ? 'Add or change lines' : 'Add the first line'} onPress={onEdit} testID="po-lines" />
+      </Card>
+      <PoActions id={id} onCheckIn={onCheckIn} />
+    </>
   );
 }
 
 function PoLines({ id, fresh, onBack, onCheckIn }: { id: number; fresh?: boolean; onBack: () => void; onCheckIn: () => void }) {
   const { client } = useOdoo();
-  const { save } = useQueue();
   const [state, setState] = useState('');
-  const [note, setNote] = useState('');
-  const [error, setError] = useState('');
-  const read = () => {
+  useEffect(() => {
     if (!client) return;
     client.call('purchase.order', 'read', [[id]], { fields: ['state'] }).then((r) => setState(String((r as { state?: string }[])[0]?.state ?? ''))).catch(() => undefined);
-  };
-  useEffect(read, [client, id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [client, id]);
   return (
     <Screen title="Order lines" testID="lines-screen">
       {fresh ? <Body>Order saved. Add what you are ordering below. When it is right, confirm the order and it shows under Check in a delivery.</Body> : null}
@@ -166,28 +166,7 @@ function PoLines({ id, fresh, onBack, onCheckIn }: { id: number; fresh?: boolean
         lockedNote="This order is finished or cancelled. Change it in Odoo."
         afterPick={unitAfterProduct('product_uom_id')}
       />
-      {state === 'draft' || state === 'sent' ? (
-        <Card title="Confirm this order">
-          <Body muted>Odoo makes the delivery when you confirm. Then Check in a delivery is ready for it.</Body>
-          {error ? <ErrorText>{error}</ErrorText> : null}
-          {note ? <Body>{note}</Body> : null}
-          <Button
-            label="Confirm order"
-            testID="po-confirm"
-            onPress={async () => {
-              setError('');
-              try {
-                const r = await save({ label: 'Confirm purchase order', model: 'purchase.order', method: 'button_confirm', args: [[id]], already: { model: 'purchase.order', domain: [['id', '=', id], ['state', 'not in', ['draft', 'sent']]] } });
-                setNote(r.status === 'queued' ? 'Saved on the phone. It goes to Odoo when signal is back.' : 'Confirmed. Odoo made the delivery.');
-                read();
-              } catch (e) {
-                setError(`Odoo said no: ${why(e)}`);
-              }
-            }}
-          />
-        </Card>
-      ) : null}
-      {state === 'purchase' ? <Button label="Check in the delivery" onPress={onCheckIn} testID="po-checkin" /> : null}
+      <PoActions id={id} onCheckIn={onCheckIn} />
       <Button label="Back" kind="plain" onPress={onBack} />
     </Screen>
   );

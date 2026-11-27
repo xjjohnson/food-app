@@ -64,12 +64,14 @@ interface Copy {
 
 const copyKey = (db: string) => `production/v1/${db}`;
 
-type View_ = { page: 'list' } | { page: 'plan'; tab: 'plan' | 'shop' } | { page: 'recipes'; open?: number } | { page: 'week' } | { page: 'start'; recipeId?: number } | { page: 'batch'; id: number; started?: boolean };
+type View_ = { page: 'list' } | { page: 'plan'; tab: 'plan' | 'shop' } | { page: 'recipes'; open?: number } | { page: 'week' } | { page: 'start'; recipeId?: number; productId?: number; wantQty?: number } | { page: 'batch'; id: number; started?: boolean };
 
 /** Where Production opens: `start`, `recipes`, `recipe:<id>` or `batch:<id>`, from the Make tab and the plus button. */
 function initialView(go?: string): View_ {
   if (go === 'start') return { page: 'start' };
   if (go?.startsWith('start:') && Number(go.slice(6)) > 0) return { page: 'start', recipeId: Number(go.slice(6)) };
+  const mk = /^make:(\d+):([\d.]+)$/.exec(go ?? '');
+  if (mk) return { page: 'start', productId: Number(mk[1]), wantQty: Number(mk[2]) };
   if (go === 'recipes') return { page: 'recipes' };
   if (go === 'plan') return { page: 'plan', tab: 'plan' };
   if (go === 'week') return { page: 'week' };
@@ -129,7 +131,7 @@ export function ProductionScreen({ go }: { go?: string } = {}) {
   if (view.page === 'week') return <WeekPage onBack={() => setView({ page: 'list' })} />;
   if (view.page === 'recipes') return <RecipesScreen openId={view.open} onBack={() => { setView({ page: 'list' }); load(); }} />;
   if (view.page === 'start')
-    return <StartBatch recipes={data?.recipes ?? []} recipeId={view.recipeId} onBack={() => setView({ page: 'list' })} onSaved={(id) => { setView(id ? { page: 'batch', id, started: true } : { page: 'list' }); load(); }} />;
+    return <StartBatch recipes={data?.recipes ?? []} recipeId={view.recipeId} productId={view.productId} wantQty={view.wantQty} onBack={() => setView({ page: 'list' })} onSaved={(id) => { setView(id ? { page: 'batch', id, started: true } : { page: 'list' }); load(); }} />;
   if (view.page === 'batch') {
     const known = [...(data?.open ?? []), ...(data?.done ?? [])].find((b) => b.id === view.id);
     return <BatchPage id={view.id} known={known} started={view.started} onBack={() => { setView({ page: 'list' }); load(); }} />;
@@ -168,7 +170,7 @@ const startedAt = new Map<string, number>();
 /** Forgets those times (tests start the same recipe in a fresh database each time). */
 export const forgetStarted = () => startedAt.clear();
 
-function StartBatch({ recipes, recipeId, onBack, onSaved }: { recipes: Recipe[]; recipeId?: number; onBack: () => void; onSaved: (newId?: number) => void }) {
+function StartBatch({ recipes, recipeId, productId, wantQty, onBack, onSaved }: { recipes: Recipe[]; recipeId?: number; productId?: number; wantQty?: number; onBack: () => void; onSaved: (newId?: number) => void }) {
   const { client, db, offline } = useOdoo();
   const { save } = useQueue();
   const [recipe, setRecipe] = useState<Recipe | null>(null);
@@ -187,9 +189,9 @@ function StartBatch({ recipes, recipeId, onBack, onSaved }: { recipes: Recipe[];
   const okQty = Number.isFinite(qty) && qty > 0;
   useInnerBack(recipe ? () => setRecipe(null) : null);
 
-  const pick = async (r: Recipe) => {
+  const pick = async (r: Recipe, amount?: number) => {
     setRecipe(r);
-    setQtyText(fmtQty(r.makes));
+    setQtyText(fmtQty(amount && amount > 0 ? amount : r.makes));
     setFree(null);
     setPriceCost(null);
     // Price and cost are the owner's: shown side by side from Odoo, never worked out here.
@@ -206,10 +208,10 @@ function StartBatch({ recipes, recipeId, onBack, onSaved }: { recipes: Recipe[];
   };
 
   useEffect(() => {
-    const r = recipeId ? recipes.find((x) => x.id === recipeId) : undefined;
-    if (r && !recipe) pick(r);
+    const r = recipeId ? recipes.find((x) => x.id === recipeId) : productId ? recipes.find((x) => x.productId === productId) : undefined;
+    if (r && !recipe) pick(r, wantQty);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [recipeId, recipes]);
+  }, [recipeId, productId, recipes]);
 
   if (!recipe)
     return (

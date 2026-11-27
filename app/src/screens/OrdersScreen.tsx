@@ -2,7 +2,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
 import { Body, Button, Card, Chip, ErrorText, Row, Screen, Segments } from '../components/ui';
 import { fmtQty } from '../lib/production';
-import { Checkout, handOverChanges, Handover, loadCheckout, loadFree, loadLotStock, loadOrders, loadPackLines, LotPick, oldestFirst, Order, PackLine, readyToPack, shortWords, stateWords } from '../lib/orders';
+import { router } from 'expo-router';
+import { Checkout, handOverChanges, Handover, loadCheckout, loadFree, loadLotStock, loadOrders, loadPackLines, loadToMake, LotPick, makeLink, makeShort, oldestFirst, Order, PackLine, readyToPack, shortWords, stateWords, ToMake } from '../lib/orders';
 import { DeliveryBoardScreen } from './DeliveryBoardScreen';
 import { useLeaveAtBase } from '../lib/innerBack';
 import { useOdoo } from '../lib/useOdoo';
@@ -21,6 +22,7 @@ export function OrdersScreen({ go }: { go?: string } = {}) {
   useLeaveAtBase(go === 'board', !board);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [toMake, setToMake] = useState<ToMake[]>([]);
 
   const load = useCallback(async () => {
     if (!db) return;
@@ -31,6 +33,7 @@ export function OrdersScreen({ go }: { go?: string } = {}) {
         const list = await loadOrders(client);
         setOrders(list);
         setFromPhone(false);
+        loadToMake(client, list.filter((o) => !readyToPack(o))).then(setToMake).catch(() => setToMake([]));
         await AsyncStorage.setItem(copyKey(db), JSON.stringify(list));
         return;
       } catch (e) {
@@ -79,6 +82,14 @@ export function OrdersScreen({ go }: { go?: string } = {}) {
           <Row key={o.id} title={o.customer || o.origin || o.name} detail={`${o.origin || o.name} · ${stateWords(o.state)}${o.date ? ` · ${o.date}` : ''}`} onPress={() => setOpen(o)} testID={`order-${o.id}`} />
         ))}
       </Card>
+      {toMake.length ? (
+        <Card title="What to make" testID="to-make">
+          <Body muted>Odoo is waiting on these. Tap one to start a batch with the amount filled in.</Body>
+          {toMake.map((m) => (
+            <Row key={m.productId} title={`${fmtQty(m.short)} ${m.name}`} detail={`Waiting orders need ${fmtQty(m.need)}, ${fmtQty(m.free)} free`} onPress={() => router.push(makeLink(m.productId, m.short))} testID={`tomake-${m.productId}`} />
+          ))}
+        </Card>
+      ) : null}
       <Button label="Refresh" kind="plain" onPress={load} busy={busy} />
     </Screen>
   );
@@ -150,6 +161,12 @@ function PackOrder({ order, onBack }: { order: Order; onBack: () => void }) {
             testID={`line-${line.moveId}`}
           />
         ))}
+        {!readyToPack(order)
+          ? plan?.map(({ line }) => {
+              const short = makeShort(line.qty, free.get(line.productId));
+              return short > 0 ? <Button key={line.moveId} label={`Make a batch for this: ${fmtQty(short)} ${line.name}`} kind="plain" onPress={() => router.push(makeLink(line.productId, short))} testID={`make-${line.moveId}`} /> : null;
+            })
+          : null}
       </Card>
       {checkout ? <Body>{`Chosen at checkout: ${checkout.label}`}</Body> : null}
       <Body>How does it go to the customer?</Body>

@@ -68,6 +68,6 @@ describe('pay on delivery', () => {
     await settle();
     expect(screen.getByText(/Paid with Cash/)).toBeTruthy();
     expect(odoo.tables['account.move']![0]!.payment_state).toBe('paid');
-    expect((odoo.tables['account.payment']![0]!.journal_id as number)).toBe(cash);
+    expect((odoo.tables['account.payment']![0]!.journal_id as [number, string])[0]).toBe(cash);
   });
 });
