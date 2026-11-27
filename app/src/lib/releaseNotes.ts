@@ -17,6 +17,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
       'Check out and Check in are real Odoo stock transfers to and from a Market place, batch by batch.',
       'Management, Odoo tab: a button that sets up market stock. It says exactly what it changes: turns on Storage Locations, adds the Market place, and makes the registers sell from Market. Nothing changes unless you tap it.',
       'Until that is set up, Check out and Check in stay the old note sheet.',
+      'Delivery board, Drive: stops are tighter. One short address and phone line, Navigate and Call side by side, Delivered below, and the proof photo folds away until you tap it. Stop numbers show on every delivery.',
     ],
     test: [
       'Management, Odoo: tap Set up market stock in Odoo. In Odoo check Storage Locations is on, a Market place exists, and the register operation takes from Market.',
