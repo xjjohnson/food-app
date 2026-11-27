@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.87',
+    changes: ['Recipes: Copy to a new size. Pick the new jar, how much it makes and a scale for the ingredients, then check and save.'],
+    test: ['Open a recipe, tap Copy to a new size, pick another size, scale 2, Next: amounts are doubled. Save recipe: a new recipe shows in the list and the old one is unchanged.'],
+  },
+  {
     release: '0.1.86',
     changes: ['Buy: the Shopping list row shows a red dot with how many things are on the list.'],
     test: ['Buy tab: the Shopping list dot matches the number of items on the Shopping list page.'],

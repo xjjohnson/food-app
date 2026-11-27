@@ -242,3 +242,21 @@ export async function loadKits(c: Client): Promise<KitRow[]> {
     .map((b) => ({ id: b.id as number, name: nm(b.product_tmpl_id), parts: lines.filter((l) => bomOf(l) === b.id).map((l) => `${Number(l.product_qty ?? 0)} x ${nm(l.product_id)}`) }))
     .sort((a, z) => a.name.localeCompare(z.name));
 }
+
+/** Scale a typed amount; blank or odd text stays as it was. */
+export function scaleQty(q: string, factor: number): string {
+  const v = Number(q.trim().replace(',', '.'));
+  if (!q.trim() || !Number.isFinite(v)) return q;
+  return String(Math.round(v * factor * 10000) / 10000);
+}
+
+/** A new, unsaved recipe copied from `src` for another size, with amounts scaled. Nothing goes to Odoo until it is saved. */
+export function copyRecipe(
+  src: Recipe,
+  target: { templateId: number; templateName: string; variantId: number; variantName: string; unitId: number; unit: string },
+  makes: string,
+  factor: number,
+): Recipe {
+  const again = (l: RecipeLine): RecipeLine => ({ ...l, key: newKey(), id: null, qty: scaleQty(l.qty, factor) });
+  return { ...src, ...target, id: null, makes, code: '', lines: src.lines.map(again), byproducts: src.byproducts.map(again) };
+}
