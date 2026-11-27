@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.61',
+    changes: ['Delivery board, Drive, now matches the design: a purple Next stop card on top with Navigate, Call and Delivered, then After that with slim numbered stops. Tap a stop to make it the next one, or use its arrows to move it.'],
+    test: ['Sell, Delivery board, Drive: check the Next stop card, tap another stop to bring it up, move one with the arrows, then tap Delivered.'],
+  },
+  {
     release: '0.1.60',
     changes: ['New quote moved inside Quotes and open orders (a button at the top), so the Sell page has one fewer card.', 'New quote: pick the customer and tap Next: add products. It saves the quote and opens the product lines straight away, so you no longer reopen it to add products.'],
     test: ['Sell, Quotes and open orders, New quote: pick a customer, tap Next: add products, add a product line, then open the Send tab.'],
