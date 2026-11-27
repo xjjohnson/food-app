@@ -48,7 +48,7 @@ describe('the whole app', () => {
       await fireEvent.press(screen.getByTestId(`tab-${tab}`));
       await settle();
       for (const a of areas) {
-        const id = a === 'production' ? 'make-start-batch' : a === 'ingredients' ? 'buy-bought' : a === 'orders' ? 'sell-board' : a === 'stock' ? 'make-open-jars' : `area-${a}`;
+        const id = a === 'production' ? 'make-start-batch' : a === 'ingredients' ? 'buy-bought' : a === 'orders' ? 'board-inline' : a === 'stock' ? 'make-open-jars' : `area-${a}`;
         expect(screen.getByTestId(id)).toBeTruthy();
       }
     }

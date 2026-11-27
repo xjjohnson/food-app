@@ -19,9 +19,9 @@ export function OrdersScreen({ go }: { go?: string } = {}) {
   const [open, setOpen] = useState<Order | null>(null);
   const [fromPhone, setFromPhone] = useState(false);
   const [board, setBoard] = useState(!!go && go.startsWith('board'));
-  const [waiting, setWaiting] = useState(false);
+  const [waiting, setWaiting] = useState(go === 'waiting');
   useLeaveAtBase(!!go && go.startsWith('board'), !board);
-  useInnerBack(waiting ? () => setWaiting(false) : null);
+  useInnerBack(waiting && go !== 'waiting' ? () => setWaiting(false) : null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [toMake, setToMake] = useState<ToMake[]>([]);
@@ -59,6 +59,16 @@ export function OrdersScreen({ go }: { go?: string } = {}) {
     load();
   }, [load]);
 
+  // From the Sell page: open one order's packing step straight away.
+  const packId = go && go.startsWith('pack:') ? Number(go.slice(5)) : 0;
+  useEffect(() => {
+    if (packId && orders && !open) {
+      const found = orders.find((x) => x.id === packId);
+      if (found) setOpen(found);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [packId, orders]);
+
   if (board && !waiting) return <DeliveryBoardScreen start={go?.split(':')[1]} onWaiting={() => setWaiting(true)} onBack={() => setBoard(false)} onPack={(b) => { setBoard(false); const found = orders?.find((x) => x.id === b.id); if (found) setOpen(found); }} />;
 
   if (open)
@@ -66,6 +76,10 @@ export function OrdersScreen({ go }: { go?: string } = {}) {
       <PackOrder
         order={open}
         onBack={() => {
+          if (packId) {
+            router.canGoBack() ? router.back() : router.replace('/');
+            return;
+          }
           setOpen(null);
           load();
         }}

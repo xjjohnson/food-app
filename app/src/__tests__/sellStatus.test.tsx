@@ -54,7 +54,7 @@ describe('Sell status buttons', () => {
     await fireEvent.press(screen.getByTestId('tab-sell'));
     await settle();
     expect(screen.getByTestId('status-topack')).toBeTruthy();
-    expect(screen.getByTestId('sell-board')).toBeTruthy();
+    expect(screen.getByTestId('board-inline')).toBeTruthy();
     expect(screen.queryByTestId('sell-wholesale-tab')).toBeNull();
     expect(screen.queryByTestId('sell-repeat-tab')).toBeNull();
     expect(screen.queryByTestId('sell-seg-customers')).toBeNull();

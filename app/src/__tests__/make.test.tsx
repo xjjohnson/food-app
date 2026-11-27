@@ -105,7 +105,7 @@ describe('the Buy and Sell tabs', () => {
     await open(odoo, '/', 'Owner');
     await fireEvent.press(screen.getByTestId('tab-sell'));
     await settle();
-    expect(screen.getByTestId('sell-board')).toBeTruthy();
+    expect(screen.getByTestId('board-inline')).toBeTruthy();
     expect(screen.queryByTestId('sell-seg')).toBeNull();
     await fireEvent.press(screen.getByTestId('area-market'));
     await settle();
@@ -169,18 +169,15 @@ describe('no doubles', () => {
     expect(screen.getByTestId('open-management')).toBeTruthy();
   });
 
-  test('the delivery board opens from Sell and Back returns to Sell', async () => {
+  test('the Sold board sits on the Sell page itself, with Market under it', async () => {
     const { odoo } = bakery();
     await open(odoo, '/', 'Owner');
     await fireEvent.press(screen.getByTestId('tab-sell'));
     await settle();
-    await fireEvent.press(screen.getByTestId('sell-board'));
-    await settle();
-    expect(screen.getByTestId('board-screen')).toBeTruthy();
-    await fireEvent.press(screen.getByTestId('back'));
-    await settle();
     expect(screen.getByTestId('tab-screen-sell')).toBeTruthy();
+    expect(screen.getByTestId('board-inline')).toBeTruthy();
     expect(screen.queryByTestId('board-screen')).toBeNull();
+    expect(screen.getByTestId('area-market')).toBeTruthy();
   });
 });
 
