@@ -10,7 +10,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Palette } from '../lib/palette';
 import { runInnerBack } from '../lib/innerBack';
 import { log } from '../lib/log';
+import { badgeText } from '../lib/badges';
 import { useBrand, useStyles } from '../lib/useBrand';
+import { useBadges } from '../lib/useBadges';
 
 export const TOUCH = 52;
 
@@ -31,13 +33,13 @@ export const PAPER = { page: '#FFFBEF', card: '#FFFDF6', edge: '#C9A66B' };
 const makeStyles = (c: Palette) =>
   StyleSheet.create({
     page: { flex: 1, backgroundColor: c.bg },
-    head: { backgroundColor: c.head, paddingHorizontal: 16, paddingVertical: 12, flexDirection: 'row', alignItems: 'center', gap: 12 },
+    head: { backgroundColor: c.head, paddingHorizontal: 16, paddingTop: 12, paddingBottom: 24, borderBottomLeftRadius: 28, borderBottomRightRadius: 28, overflow: 'hidden', flexDirection: 'row', alignItems: 'center', gap: 12 },
     headTitle: { flex: 1, color: c.onHead, fontSize: 22, fontWeight: '800' },
     headBack: { minHeight: TOUCH, minWidth: TOUCH, justifyContent: 'center' },
     headBackText: { color: c.onHead, fontSize: 18, fontWeight: '700' },
     logo: { width: 40, height: 40, borderRadius: 8, backgroundColor: '#FFFFFF' },
     scroll: { padding: 16, gap: 16, paddingBottom: 120 },
-    card: { backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.line, padding: 16, gap: 12 },
+    card: { backgroundColor: c.card, borderRadius: 20, borderWidth: 0, padding: 16, gap: 12, shadowColor: '#1E143C', shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4 },
     cardTitle: { fontSize: 20, fontWeight: '800', color: c.text },
     body: { fontSize: 17, color: c.text, lineHeight: 24 },
     muted: { fontSize: 15, color: c.muted, lineHeight: 21 },
@@ -47,13 +49,13 @@ const makeStyles = (c: Palette) =>
     plainText: { color: c.text },
     danger: { backgroundColor: c.stop },
     dangerText: { color: c.onStop },
-    pressed: { opacity: 0.75 },
+    pressed: { opacity: 0.8, transform: [{ scale: 0.98 }] },
     disabled: { opacity: 0.45 },
     row: { minHeight: TOUCH, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 },
     rowText: { flex: 1, gap: 2 },
-    navCard: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.line, paddingHorizontal: 14, paddingVertical: 10 },
-    tile: { width: 38, height: 38, borderRadius: 10, backgroundColor: c.tint, alignItems: 'center', justifyContent: 'center' },
-    tileText: { fontSize: 16, fontWeight: '800', color: c.text },
+    navCard: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.card, borderRadius: 20, borderWidth: 0, paddingHorizontal: 14, paddingVertical: 10, shadowColor: '#1E143C', shadowOpacity: 0.12, shadowRadius: 18, shadowOffset: { width: 0, height: 8 }, elevation: 4 },
+    tile: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.accent, alignItems: 'center', justifyContent: 'center' },
+    tileText: { fontSize: 16, fontWeight: '800', color: c.onAccent },
     rowTextWithValue: { flexGrow: 1, flexShrink: 0, flexBasis: '45%', gap: 2 },
     rowTitle: { fontSize: 18, fontWeight: '700', color: c.text },
     rowValue: { fontSize: 16, color: c.muted, flexShrink: 1, textAlign: 'right' },
@@ -87,6 +89,7 @@ export function Screen({ title, subtitle, back = true, children, right, testID, 
   return (
     <SafeAreaView style={[s.page, paper && { backgroundColor: PAPER.page }]} edges={['top', 'left', 'right']} testID={testID}>
       <View style={s.head}>
+        <View pointerEvents="none" style={{ position: 'absolute', right: -50, top: -70, width: 190, height: 190, borderRadius: 95, backgroundColor: '#FFFFFF', opacity: 0.1 }} />
         {back ? (
           <Pressable onPress={() => {
               if (!runInnerBack()) router.canGoBack() ? router.back() : router.replace('/');
@@ -151,6 +154,21 @@ export function Card({ title, children, testID }: { title?: string; children: Re
   );
 }
 
+/** A small red count dot. Nothing for zero. */
+export function Badge({ count, testID, style }: { count?: number; testID?: string; style?: object }) {
+  const { colors } = useBrand();
+  if (!count || count < 1) return null;
+  return (
+    <View
+      accessibilityLabel={`${count} waiting`}
+      testID={testID}
+      style={[{ minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.stop }, style]}
+    >
+      <Text style={{ color: colors.onStop, fontSize: 12, fontWeight: '800' }}>{badgeText(count)}</Text>
+    </View>
+  );
+}
+
 /** A small label above a group of rows on the bare page. */
 export function SectionLabel({ children }: { children: ReactNode }) {
   const s = useUi();
@@ -196,8 +214,10 @@ export function Button({ label, onPress, kind = 'main', disabled, busy, testID }
 }
 
 /** A row with a title, optional detail under it, and a value or control on the right. */
-export function Row({ title, detail, value, onPress, right, testID }: { title: string; detail?: string; value?: string; onPress?: () => void; right?: ReactNode; testID?: string }) {
+export function Row({ title, detail, value, onPress, right, testID, badge }: { title: string; detail?: string; value?: string; onPress?: () => void; right?: ReactNode; testID?: string; badge?: number }) {
   const s = useUi();
+  const fromTabs = useBadges().rows;
+  const count = badge ?? (testID ? fromTabs[testID] : undefined);
   const inCard = useContext(InCard);
   if (!inCard) {
     const body = (
@@ -205,6 +225,7 @@ export function Row({ title, detail, value, onPress, right, testID }: { title: s
         {onPress && value === undefined && !right ? (
           <View style={s.tile}>
             <Text style={s.tileText}>{title.charAt(0).toUpperCase()}</Text>
+            <Badge count={count} testID={testID ? `${testID}-badge` : undefined} style={{ position: 'absolute', top: -7, right: -7 }} />
           </View>
         ) : null}
         <View style={value !== undefined ? s.rowTextWithValue : s.rowText}>
@@ -236,6 +257,7 @@ export function Row({ title, detail, value, onPress, right, testID }: { title: s
       </View>
       {value !== undefined ? <Text style={s.rowValue}>{value}</Text> : null}
       {right}
+      {count ? <Badge count={count} testID={testID ? `${testID}-badge` : undefined} /> : null}
       {onPress ? <Text style={s.rowValue}>›</Text> : null}
     </>
   );
