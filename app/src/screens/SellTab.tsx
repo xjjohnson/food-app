@@ -37,7 +37,7 @@ export function SellTab() {
               items={[
                 { label: 'Packed', count: orders ? orders.packed : null, tone: 'good', onPress: () => setPick((p) => ({ n: p.n + 1, start: 'packed' })), testID: 'status-packed' },
                 { label: 'To pack', count: orders ? orders.toPack : null, tone: 'warn', onPress: () => setPick((p) => ({ n: p.n + 1, start: 'pack' })), testID: 'status-topack' },
-                { label: 'Late', count: orders ? orders.late : null, tone: 'bad', onPress: () => setPick((p) => ({ n: p.n + 1, start: 'late' })), testID: 'status-late' },
+                { label: 'Waiting for stock', count: orders ? orders.needs : null, tone: 'bad', onPress: () => open('orders', 'waiting'), testID: 'status-waiting' },
               ]}
             />
           ) : null}
