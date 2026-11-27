@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.65',
+    changes: ['Make is a kitchen home now: Start a batch, how many are planned, cooking and ready to finish, then Batches, Recipes and Jars in stock as their own pages.', 'Batches shows stage tabs and a card for each batch with a progress bar.', 'Recipes are one card per product with the sizes listed inside. Jars in stock shows each size as a chip, empty sizes faded.'],
+    test: ['Make: check the counts, open Batches, Recipes and Jars in stock and go Back from each. Start a batch and find it under Batches.'],
+  },
+  {
     release: '0.1.64',
     changes: ['Market is one page now, with no Before, Selling and After buttons. A purple card on top shows the register and sales so far, then Get ready, Today and Close up.', 'Cash drawer and Price sheet are gone from Market; the Odoo Point of Sale handles both.'],
     test: ['Sell, Market: open the register from the top card, check sales show under Today, then try Check out, Check in, Day totals and Results.'],

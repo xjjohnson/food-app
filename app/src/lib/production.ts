@@ -376,3 +376,24 @@ export function finishBatchChanges(batch: Pick<Batch, 'id' | 'name' | 'productId
     { label: `Finish batch ${batch.name}`, model: 'mrp.production', method: 'button_mark_done', args: [[batch.id]], kwargs: { context: { skip_consumption: true, skip_backorder: true } }, already },
   ];
 }
+
+/** One product's recipes, one per size: "Apricot Freezer Jam (4 oz, Quilted)" and "(8 oz, Quilted)" are one product. */
+export interface RecipeGroup {
+  name: string;
+  recipes: { recipe: Recipe; size: string }[];
+}
+
+/** Group recipes by product, A to Z, so the product name is not repeated down the list. */
+export function groupRecipes(recipes: Recipe[], text = ''): RecipeGroup[] {
+  const q = text.trim().toLowerCase();
+  const map = new Map<string, RecipeGroup>();
+  for (const r of recipes) {
+    if (q && !r.name.toLowerCase().includes(q)) continue;
+    const m = r.name.match(/^(.*?)\s*\(([^()]*)\)\s*$/);
+    const name = m && m[1] ? m[1] : r.name;
+    const g = map.get(name) ?? { name, recipes: [] };
+    g.recipes.push({ recipe: r, size: m && m[1] ? (m[2] ?? '') : '' });
+    map.set(name, g);
+  }
+  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
