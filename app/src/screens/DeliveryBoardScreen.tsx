@@ -243,12 +243,7 @@ export function DeliveryBoardScreen({ onBack: _onBack, onPack, onWaiting, start 
         return (
           <View key={o.id} style={{ gap: 12 }}>
             {o.pickup && idx === stops.length && stops.length ? <SectionLabel>Pickups</SectionLabel> : null}
-          <Card title={o.customer || o.origin || o.name} testID={`board-${o.id}`}>
-            {isWaiting ? <Body muted>{`${o.pickup ? 'Picked up' : 'Delivered'} (waiting to send)`}</Body> : null}
-            <Body muted>{`${o.origin || o.name}${o.date ? ` · ${o.date.slice(0, 10)}` : ''}`}</Body>
-            {o.saleId ? <PaymentCard order={o} /> : null}
-            {o.saleId && !o.pickup ? <ProofToggle o={o} /> : null}
-          </Card>
+          <DoneRow o={o} waitingToSend={isWaiting} />
           </View>
         );
       }) : null}
@@ -364,6 +359,50 @@ function PaymentCard({ order }: { order: BoardOrder }) {
       ) : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
       {note ? <Body>{note}</Body> : null}
+    </Card>
+  );
+}
+
+/** Is the order's invoice paid? true / false from Odoo, or null when it can't be asked (no signal, no invoice yet). */
+function usePaid(saleId: number): boolean | null {
+  const { client, offline } = useOdoo();
+  const [paid, setPaid] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (!client || offline || !saleId) return;
+    (async () => {
+      const r = (await client.call('sale.order', 'read', [[saleId]], { fields: ['invoice_ids'] })) as { invoice_ids?: number[] }[];
+      const ids = r[0]?.invoice_ids ?? [];
+      if (!ids.length) return;
+      const moves = (await client.call('account.move', 'read', [ids], { fields: ['payment_state', 'state'] })) as { payment_state?: string; state?: string }[];
+      const live = moves.filter((m) => m.state !== 'cancel');
+      if (live.length) setPaid(live.every((m) => m.payment_state === 'paid' || m.payment_state === 'in_payment'));
+    })().catch(() => undefined);
+  }, [client, offline, saleId]);
+  return paid;
+}
+
+/** A finished delivery or pickup as one slim card: name, order, date, and Paid or Not paid. Payment is recorded only when asked for. */
+function DoneRow({ o, waitingToSend }: { o: BoardOrder; waitingToSend: boolean }) {
+  const { colors } = useBrand();
+  const paid = usePaid(o.saleId);
+  const [paying, setPaying] = useState(false);
+  return (
+    <Card testID={`board-${o.id}`}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: 18, fontWeight: '800', color: colors.text }}>{o.customer || o.origin || o.name}</Text>
+          <Text style={{ fontSize: 14, color: colors.muted }}>{`${o.origin || o.name}${o.date ? ` · ${o.date.slice(0, 10)}` : ''}`}</Text>
+        </View>
+        {paid !== null ? (
+          <Text style={{ fontSize: 15, fontWeight: '800', color: paid ? '#2F7D52' : '#C26A0E' }} testID={`board-paid-${o.id}`}>
+            {paid ? 'Paid' : 'Not paid'}
+          </Text>
+        ) : null}
+      </View>
+      {waitingToSend ? <Body muted>{`${o.pickup ? 'Picked up' : 'Delivered'} (waiting to send)`}</Body> : null}
+      {o.saleId && paid !== true && !paying ? <Button label="Record payment" kind="plain" onPress={() => setPaying(true)} testID={`board-record-${o.id}`} /> : null}
+      {o.saleId && paying ? <PaymentCard order={o} /> : null}
+      {o.saleId && !o.pickup ? <ProofToggle o={o} /> : null}
     </Card>
   );
 }
