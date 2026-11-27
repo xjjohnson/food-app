@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.79',
+    changes: ['Sell is one page: the Sold board (To pack, Ready, Done and its cards) sits right on the page under SOLD. Market, Quotes and open orders are under SELL. The Packed, To pack and Late buttons jump the board to that side.'],
+    test: ['Sell: check the Sold board shows on the page with its three tabs. Tap Pack it on a card and Waiting for stock. Tap the Packed, To pack and Late buttons. Check Market is under SELL.'],
+  },
+  {
     release: '0.1.78',
     changes: ['The To pack list no longer shows the delivery charge (or any other service line) to tick off. Only products to pack are listed.'],
     test: ['Sell, Sold board, To pack: an order with a delivery charge should list only the products.'],

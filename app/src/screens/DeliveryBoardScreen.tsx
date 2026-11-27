@@ -19,7 +19,7 @@ const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const copyKey = (db: string) => `board/v1/${db}`;
 
 /** Today's deliveries and pickups: where each goes, its step, and a Delivered tick. */
-export function DeliveryBoardScreen({ onBack: _onBack, onPack, onWaiting, start }: { onBack: () => void; onPack: (o: BoardOrder) => void; onWaiting?: () => void; start?: string }) {
+export function DeliveryBoardScreen({ onBack: _onBack, onPack, onWaiting, start, inline }: { onBack: () => void; onPack: (o: BoardOrder) => void; onWaiting?: () => void; start?: string; inline?: boolean }) {
   const { colors } = useBrand();
   const { client, db, offline } = useOdoo();
   const { save, items } = useQueue();
@@ -185,8 +185,8 @@ export function DeliveryBoardScreen({ onBack: _onBack, onPack, onWaiting, start 
     );
   };
 
-  return (
-    <Screen title="Sold board" testID="board-screen">
+  const content = (
+    <>
       {closedToday ? <Body>Today is marked as a closed day. This is only a warning.</Body> : null}
       {fromPhone ? <Body muted>No signal. Showing what the phone saw last.</Body> : null}
       {error ? <ErrorText>{error}</ErrorText> : null}
@@ -251,6 +251,13 @@ export function DeliveryBoardScreen({ onBack: _onBack, onPack, onWaiting, start 
       <Pressable onPress={load} accessibilityRole="button" accessibilityLabel="Refresh" style={{ alignItems: 'center', padding: 12 }}>
         <Text style={{ fontSize: 15, color: colors.muted }}>{busy ? 'Refreshing…' : 'Refresh'}</Text>
       </Pressable>
+    </>
+  );
+  // On the Sell page the board sits inline; on its own it is a full screen.
+  if (inline) return <View style={{ gap: 12 }} testID="board-inline">{content}</View>;
+  return (
+    <Screen title="Sold board" testID="board-screen">
+      {content}
     </Screen>
   );
 }
