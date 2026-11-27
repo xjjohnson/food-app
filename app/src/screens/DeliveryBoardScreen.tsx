@@ -111,7 +111,7 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
         const step = isWaiting ? 'delivered' : o.step;
         return (
           <Card key={o.id} title={o.customer || o.origin || o.name} testID={`board-${o.id}`}>
-            <Chip label={isWaiting ? 'Delivered (waiting to send)' : STEP_WORDS[step]} testID={`board-step-${o.id}`} />
+            <Chip label={isWaiting ? `${o.pickup ? 'Picked up' : 'Delivered'} (waiting to send)` : o.pickup && step === 'delivered' ? 'Picked up' : STEP_WORDS[step]} testID={`board-step-${o.id}`} />
             <Body muted>{`${o.origin || o.name}${o.date ? ` · ${o.date.slice(0, 10)}` : ''}`}</Body>
             {ordered && ordered.length > 1 ? (
               <>
@@ -127,7 +127,7 @@ export function DeliveryBoardScreen({ onBack, onPack }: { onBack: () => void; on
             {step === 'delivered' && o.saleId && !isWaiting ? <FeedbackBox orderId={o.saleId} orderName={o.origin || o.name} /> : null}
             {step === 'pack' ? <Button label="Pack it" kind="plain" onPress={onPack} testID={`board-pack-${o.id}`} /> : null}
             {o.saleId ? <PhotosCard model="sale.order" resId={o.saleId} recordName={o.origin || o.name} title="Delivery proof" about="Delivery proof" button="Take a proof photo" testID={`board-photos-${o.id}`} /> : null}
-            {step === 'packed' && o.saleId ? <Button label="Move to Delivered ›" onPress={() => delivered(o)} testID={`board-delivered-${o.id}`} /> : null}
+            {step === 'packed' && o.saleId ? <Button label={o.pickup ? 'Picked up ›' : 'Delivered ›'} onPress={() => delivered(o)} testID={`board-delivered-${o.id}`} /> : null}
           </Card>
         );
       })}

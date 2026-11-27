@@ -123,13 +123,17 @@ export const samePicks = (current: PackLine['current'], picks: LotPick[]) =>
 
 export type Handover = 'delivery' | 'pickup';
 
+/** True when a delivery method is a pickup: Odoo's "on site" type, or a name like "Pick up". */
+export const carrierIsPickup = (label: string, deliveryType?: unknown) => deliveryType === 'onsite' || /pick\s?-?up/i.test(label);
+
 /**
- * The changes that pack and hand over one delivery, in order: switch each
- * line to the batches picked (only where they differ from what Odoo set aside),
- * leave a note saying delivered or picked up, then validate the delivery.
- * Each is skipped if the delivery is already done in Odoo.
+ * The changes that pack one delivery, in order: switch each line to the
+ * batches picked (only where they differ from what Odoo set aside), leave a
+ * note saying packed, then validate the delivery. Each is skipped if the
+ * delivery is already done in Odoo. Delivered or picked up is a later step on
+ * the delivery board; whether it is a delivery or a pickup comes from Odoo.
  */
-export function handOverChanges(order: Order, lines: { line: PackLine; picks: LotPick[] }[], how: Handover): NewChange[] {
+export function handOverChanges(order: Order, lines: { line: PackLine; picks: LotPick[] }[]): NewChange[] {
   const already = { model: 'stock.picking', domain: [['id', '=', order.id], ['state', '=', 'done']] };
   const out: NewChange[] = [];
   for (const { line, picks } of lines) {
@@ -143,14 +147,14 @@ export function handOverChanges(order: Order, lines: { line: PackLine; picks: Lo
     });
   }
   out.push({
-    label: `Note on ${order.name}: ${how === 'pickup' ? 'picked up' : 'delivered'}`,
+    label: `Note on ${order.name}: packed`,
     model: 'stock.picking',
     method: 'message_post',
     args: [[order.id]],
-    kwargs: { body: how === 'pickup' ? 'Picked up by the customer (food app).' : 'Delivered to the customer (food app).', message_type: 'comment', subtype_xmlid: 'mail.mt_note' },
+    kwargs: { body: 'Packed (food app).', message_type: 'comment', subtype_xmlid: 'mail.mt_note' },
     already,
   });
-  out.push({ label: `Hand over ${order.name}`, model: 'stock.picking', method: 'button_validate', args: [[order.id]], kwargs: { context: { skip_backorder: true, skip_sms: true, skip_immediate: true } }, already });
+  out.push({ label: `Pack ${order.name}`, model: 'stock.picking', method: 'button_validate', args: [[order.id]], kwargs: { context: { skip_backorder: true, skip_sms: true, skip_immediate: true } }, already });
   return out;
 }
 
@@ -172,7 +176,7 @@ export async function loadCheckout(c: Client, pickingId: number): Promise<Checko
     if (!carrierId) return null;
     const [car] = (await c.call('delivery.carrier', 'read', [[carrierId]], { fields: ['name', 'delivery_type'] })) as Record<string, unknown>[];
     const label = nameOf(o?.carrier_id) || String(car?.name ?? '');
-    return { label, how: car?.delivery_type === 'onsite' || /pick\s?-?up/i.test(label) ? 'pickup' : 'delivery' };
+    return { label, how: carrierIsPickup(label, car?.delivery_type) ? 'pickup' : 'delivery' };
   } catch {
     return null;
   }

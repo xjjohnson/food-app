@@ -11,6 +11,17 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.50',
+    changes: [
+      'The pack screen has one button, Pack. The Delivery / Pickup choice is gone: delivery or pickup is what the order says in Odoo, shown as "Delivery (set in Odoo): ...".',
+      'Delivered or picked up is now its own step on the delivery board. Orders whose Odoo delivery method is a pickup show Picked up instead of Delivered.',
+    ],
+    test: [
+      'Sell, Orders, open an order that is ready: there should be no Delivery / Pickup choice, and the button should say Pack.',
+      'After packing, open the Delivery board: the order is under Packed. A pickup order has a Picked up button; a delivery order has Delivered.',
+    ],
+  },
+  {
     release: '0.1.49',
     changes: ['A Take a photo of the bill button on a purchase order (after the delivery is in) and on every bill in Purchase history. The picture is kept on the bill in Odoo and waits on the phone without signal.'],
     test: ['Ingredients, Purchase orders, open an order, Lines tab, Bill and payment: tap Take a photo of the bill.', 'Ingredients, Purchase history, open a bill: the photo shows there too, and in Odoo on the bill.'],

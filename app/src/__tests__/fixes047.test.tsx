@@ -54,14 +54,14 @@ describe('delivery or pickup comes from the order', () => {
     expect(shortWords(3, undefined)).toBe('');
   });
 
-  test('the pack screen starts on Pickup and says what was chosen at checkout; a waiting line says how short it is', async () => {
+  test('the pack screen says what Odoo has for delivery or pickup, with no choice to make; a waiting line says how short it is', async () => {
     const { odoo } = bakery();
     const a = order(odoo, 'onsite', 'Pickup at the shop', 'confirmed');
     await open(odoo, '/area/orders', 'Shipping & Packaging');
     await fireEvent.press(await screen.findByTestId(`order-${a.pick}`));
     await settle();
-    expect(screen.getByText('Chosen at checkout: Pickup at the shop')).toBeTruthy();
-    expect(screen.getByTestId('how-pickup').props.accessibilityState.selected).toBe(true);
+    expect(screen.getByText('Pickup (set in Odoo): Pickup at the shop')).toBeTruthy();
+    expect(screen.queryByTestId('how-pickup')).toBeNull();
     expect(screen.getByTestId(`line-${odoo.tables['stock.move']![0]!.id}`)).toHaveTextContent(/Short by 2: need 3, 1 free/);
   });
 });
@@ -84,5 +84,23 @@ describe('tasting from a batch', () => {
     await open(odoo, `/area/production?go=batch:${id}`, 'Production');
     expect(await screen.findByTestId('batch-taste')).toBeTruthy();
     expect(screen.getByTestId('batch-shelf')).toBeTruthy();
+  });
+});
+
+describe('pack, then delivered or picked up, as Odoo says', () => {
+  test('a packed pickup order shows Picked up on the board; a delivery order shows Delivered', async () => {
+    const { odoo } = bakery();
+    const today = new Date().toISOString().slice(0, 10);
+    const mk = (name: string, type: string, label: string) => {
+      const car = odoo.create('delivery.carrier', { name: label, delivery_type: type });
+      const sale = odoo.create('sale.order', { name, carrier_id: [car, label] });
+      return odoo.create('stock.picking', { name: `WH/${name}`, origin: name, partner_id: [7, 'Pat'], state: 'done', picking_type_code: 'outgoing', sale_id: [sale, name], scheduled_date: `${today} 08:00:00`, date_done: `${today} 09:00:00` });
+    };
+    const pickup = mk('S0001', 'onsite', 'Pick up');
+    const ship = mk('S0002', 'fixed', 'Local delivery');
+    await open(odoo, '/area/orders?go=board', 'Shipping & Packaging');
+    await fireEvent.press(await screen.findByText(/Packed \(2\)/));
+    expect(await screen.findByTestId(`board-delivered-${pickup}`)).toHaveTextContent('Picked up ›');
+    expect(screen.getByTestId(`board-delivered-${ship}`)).toHaveTextContent('Delivered ›');
   });
 });

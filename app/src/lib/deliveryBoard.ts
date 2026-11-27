@@ -5,6 +5,7 @@
  * from the app, because Odoo has no step for it). Read only except that note.
  */
 import { m2oId, type OdooClient } from './odoo';
+import { carrierIsPickup } from './orders';
 import { partnerFields } from './partnerFields';
 import type { NewChange } from './queue';
 
@@ -25,6 +26,8 @@ export interface BoardOrder {
   notes: string;
   date: string;
   step: Step;
+  /** The order's delivery method in Odoo is a pickup. */
+  pickup?: boolean;
 }
 
 export const STEP_WORDS: Record<Step, string> = { pack: 'To pack', packed: 'Packed', delivered: 'Delivered' };
@@ -48,6 +51,7 @@ export async function loadBoard(c: Client, now = new Date()): Promise<BoardOrder
   const saleIds = rows.map((r) => m2oId(r.sale_id)).filter(Boolean);
   const done = saleIds.length ? ((await c.call('mail.message', 'search_read', [[['model', '=', 'sale.order'], ['res_id', 'in', saleIds], ['body', 'ilike', DELIVERED_TAG]]], { fields: ['res_id'] })) as { res_id: number }[]) : [];
   const delivered = new Set(done.map((m) => m.res_id));
+  const pickups = await pickupSales(c, saleIds);
   return rows
     .map((r) => {
       const p = partners.find((x) => x.id === m2oId(r.partner_id)) ?? {};
@@ -67,8 +71,26 @@ export async function loadBoard(c: Client, now = new Date()): Promise<BoardOrder
         notes: str(p.comment).replace(/<[^>]+>/g, ' ').trim(),
         date: str(r.scheduled_date),
         step,
+        ...(pickups.has(saleId) ? { pickup: true } : {}),
       };
     });
+}
+
+/** Sale orders whose delivery method in Odoo is a pickup. Empty if Odoo has no delivery methods. */
+async function pickupSales(c: Client, saleIds: number[]): Promise<Set<number>> {
+  const out = new Set<number>();
+  if (!saleIds.length) return out;
+  try {
+    const sales = (await c.call('sale.order', 'read', [saleIds], { fields: ['carrier_id'] })) as Record<string, unknown>[];
+    const carrierIds = [...new Set(sales.map((s) => m2oId(s.carrier_id)).filter(Boolean))];
+    if (!carrierIds.length) return out;
+    const cars = (await c.call('delivery.carrier', 'read', [carrierIds], { fields: ['name', 'delivery_type'] })) as Record<string, unknown>[];
+    const isPickup = new Set(cars.filter((x) => carrierIsPickup(String(x.name ?? ''), x.delivery_type)).map((x) => x.id as number));
+    for (const s of sales) if (isPickup.has(m2oId(s.carrier_id))) out.add(s.id as number);
+  } catch {
+    // No delivery methods: everything is a delivery.
+  }
+  return out;
 }
 
 export const mapLink = (address: string) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
@@ -76,10 +98,10 @@ export const mapLink = (address: string) => `https://www.google.com/maps/search/
 /** Saves "Delivered" as a note on the sale order, once, through the queue. */
 export function deliveredChange(o: BoardOrder): NewChange {
   return {
-    label: `Delivered: ${o.customer || o.origin || o.name}`,
+    label: `${o.pickup ? 'Picked up' : 'Delivered'}: ${o.customer || o.origin || o.name}`,
     model: 'sale.order',
     method: 'message_post',
     args: [],
-    step: { kind: 'note', model: 'sale.order', resId: o.saleId, tag: DELIVERED_TAG, body: 'Delivered' },
+    step: { kind: 'note', model: 'sale.order', resId: o.saleId, tag: DELIVERED_TAG, body: o.pickup ? 'Picked up' : 'Delivered' },
   };
 }

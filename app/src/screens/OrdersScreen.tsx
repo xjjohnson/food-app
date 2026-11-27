@@ -1,9 +1,9 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
-import { Body, Button, Card, Chip, ErrorText, Row, Screen, Segments } from '../components/ui';
+import { Body, Button, Card, Chip, ErrorText, Row, Screen } from '../components/ui';
 import { fmtQty } from '../lib/production';
 import { router } from 'expo-router';
-import { Checkout, handOverChanges, Handover, loadCheckout, loadFree, loadLotStock, loadOrders, loadPackLines, loadToMake, LotPick, makeLink, makeShort, oldestFirst, Order, PackLine, readyToPack, shortWords, stateWords, ToMake } from '../lib/orders';
+import { Checkout, handOverChanges, loadCheckout, loadFree, loadLotStock, loadOrders, loadPackLines, loadToMake, LotPick, makeLink, makeShort, oldestFirst, Order, PackLine, readyToPack, shortWords, stateWords, ToMake } from '../lib/orders';
 import { DeliveryBoardScreen } from './DeliveryBoardScreen';
 import { useLeaveAtBase } from '../lib/innerBack';
 import { useOdoo } from '../lib/useOdoo';
@@ -105,7 +105,6 @@ function PackOrder({ order, onBack }: { order: Order; onBack: () => void }) {
   const { client, offline } = useOdoo();
   const { save } = useQueue();
   const [plan, setPlan] = useState<Planned[] | null>(null);
-  const [how, setHow] = useState<Handover>('delivery');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
@@ -114,11 +113,8 @@ function PackOrder({ order, onBack }: { order: Order; onBack: () => void }) {
 
   useEffect(() => {
     if (!client || offline) return;
-    // The delivery method chosen at checkout starts the Delivery / Pickup choice.
-    loadCheckout(client, order.id).then((c) => {
-      setCheckout(c);
-      if (c) setHow(c.how);
-    });
+    // Delivery or pickup is whatever the order says in Odoo.
+    loadCheckout(client, order.id).then(setCheckout);
     (async () => {
       try {
         const lines = await loadPackLines(client, order.id);
@@ -168,12 +164,10 @@ function PackOrder({ order, onBack }: { order: Order; onBack: () => void }) {
             })
           : null}
       </Card>
-      {checkout ? <Body>{`Chosen at checkout: ${checkout.label}`}</Body> : null}
-      <Body>How does it go to the customer?</Body>
-      <Segoptions how={how} setHow={setHow} />
+      {checkout ? <Body>{`${checkout.how === 'pickup' ? 'Pickup' : 'Delivery'} (set in Odoo): ${checkout.label}`}</Body> : null}
       {note ? <Body>{note}</Body> : null}
       <Button
-        label={how === 'pickup' ? 'Packed and picked up' : 'Packed and delivered'}
+        label="Pack"
         disabled={!ready || plan.some((p) => p.short > 0)}
         busy={busy}
         testID="hand-over"
@@ -183,7 +177,7 @@ function PackOrder({ order, onBack }: { order: Order; onBack: () => void }) {
           setError('');
           try {
             let queued = false;
-            for (const change of handOverChanges(order, plan, how)) if ((await save(change)).status === 'queued') queued = true;
+            for (const change of handOverChanges(order, plan)) if ((await save(change)).status === 'queued') queued = true;
             if (queued) {
               setNote('Saved on the phone. It goes to Odoo when signal is back.');
               setTimeout(onBack, 1500);
@@ -197,19 +191,5 @@ function PackOrder({ order, onBack }: { order: Order; onBack: () => void }) {
       />
       <Button label="Back to orders" kind="plain" onPress={onBack} />
     </Screen>
-  );
-}
-
-function Segoptions({ how, setHow }: { how: Handover; setHow: (h: Handover) => void }) {
-  return (
-    <Segments
-      options={[
-        { id: 'delivery', label: 'Delivery' },
-        { id: 'pickup', label: 'Pickup' },
-      ]}
-      value={how}
-      onChange={setHow}
-      testID="how"
-    />
   );
 }
