@@ -10,7 +10,9 @@
  * Kept free of React; the client is passed in, so tests use a fake.
  */
 import { m2oId, type OdooClient } from './odoo';
+import { planBatchChange } from './plan';
 import type { NewChange } from './queue';
+import { loadRecipes } from './production';
 
 type Client = Pick<OdooClient, 'call'>;
 
@@ -26,6 +28,8 @@ export interface Order {
   date: string;
   /** The order's delivery method in Odoo is a pickup. */
   pickup?: boolean;
+  /** Needs product: Odoo is waiting for stock, or a stocked line has less on hand than the order asks for. */
+  short?: boolean;
 }
 
 export interface PackLine {
@@ -58,7 +62,7 @@ export interface LotPick {
 
 const nameOf = (v: unknown): string => (Array.isArray(v) && typeof v[1] === 'string' ? v[1] : '');
 
-export const readyToPack = (o: Order) => o.state === 'assigned';
+export const readyToPack = (o: Order) => o.state === 'assigned' && !o.short;
 
 export function stateWords(state: string): string {
   return state === 'assigned' ? 'Ready to pack' : 'Waiting for stock';
@@ -72,7 +76,8 @@ export async function loadOrders(c: Client): Promise<Order[]> {
     limit: 100,
   })) as Record<string, unknown>[];
   const pickups = await pickupSales(c, rows.map((r) => m2oId(r.sale_id)).filter(Boolean));
-  return rows.map((r) => ({ id: r.id as number, name: String(r.name ?? ''), origin: String(r.origin || ''), customer: nameOf(r.partner_id), state: String(r.state), date: typeof r.scheduled_date === 'string' ? r.scheduled_date.slice(0, 10) : '', ...(pickups.has(m2oId(r.sale_id)) ? { pickup: true } : {}) }));
+  const short = await needsProduct(c, rows.map((r) => ({ id: r.id as number, state: String(r.state) })));
+  return rows.map((r) => ({ id: r.id as number, name: String(r.name ?? ''), origin: String(r.origin || ''), customer: nameOf(r.partner_id), state: String(r.state), date: typeof r.scheduled_date === 'string' ? r.scheduled_date.slice(0, 10) : '', ...(pickups.has(m2oId(r.sale_id)) ? { pickup: true } : {}), ...(short.has(r.id as number) ? { short: true } : {}) }));
 }
 
 export async function loadPackLines(c: Client, pickingId: number): Promise<PackLine[]> {
@@ -202,6 +207,39 @@ export async function pickupSales(c: Client, saleIds: number[]): Promise<Set<num
   return out;
 }
 
+/**
+ * Which deliveries need product. A delivery Odoo is still waiting on does. So
+ * does one Odoo calls ready when a line is for a stocked product and there is
+ * less on hand than the order asks for. Products Odoo does not count stock
+ * for are never called short, and a part Odoo cannot answer is skipped.
+ */
+export async function needsProduct(c: Client, pickings: { id: number; state: string }[]): Promise<Set<number>> {
+  const out = new Set<number>(pickings.filter((p) => p.state !== 'assigned' && p.state !== 'done').map((p) => p.id));
+  const ready = pickings.filter((p) => p.state === 'assigned').map((p) => p.id);
+  if (!ready.length) return out;
+  try {
+    const moves = (await c.call('stock.move', 'search_read', [[['picking_id', 'in', ready]]], { fields: ['picking_id', 'product_id', 'product_uom_qty'] })) as Record<string, unknown>[];
+    const productIds = [...new Set(moves.map((m) => m2oId(m.product_id)).filter(Boolean))];
+    if (!productIds.length) return out;
+    const prods = (await c.call('product.product', 'read', [productIds], { fields: ['qty_available', 'is_storable'] })) as Record<string, unknown>[];
+    const onHand = new Map<number, number>();
+    for (const p of prods) if (p.is_storable === true) onHand.set(p.id as number, Number(p.qty_available ?? 0));
+    const need = new Map<string, number>();
+    for (const m of moves) {
+      const key = `${m2oId(m.picking_id)}:${m2oId(m.product_id)}`;
+      need.set(key, (need.get(key) ?? 0) + Number(m.product_uom_qty ?? 0));
+    }
+    for (const [key, qty] of need) {
+      const [pick, prod] = key.split(':').map(Number);
+      const have = onHand.get(prod!);
+      if (have !== undefined && have < qty) out.add(pick!);
+    }
+  } catch {
+    // Not readable: trust Odoo's own step.
+  }
+  return out;
+}
+
 /** How many of each product Odoo has free to promise right now. */
 export async function loadFree(c: Client, productIds: number[]): Promise<Map<number, number>> {
   const out = new Map<number, number>();
@@ -261,4 +299,10 @@ export async function loadToMake(c: Client, waiting: Order[]): Promise<ToMake[]>
     if (short > 0) out.push({ productId, name: n.name, need: n.qty, free: Math.max(0, f ?? 0), short });
   }
   return out.sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Plans a batch for something short: a draft batch from the product's recipe, like the Plan page saves. Null when the product has no recipe. */
+export async function planMakeChange(c: Client, productId: number, qty: number): Promise<NewChange | null> {
+  const recipe = (await loadRecipes(c)).find((r) => r.productId === productId);
+  return recipe ? planBatchChange(recipe, qty) : null;
 }

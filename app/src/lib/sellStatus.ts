@@ -12,6 +12,8 @@ type Client = Pick<OdooClient, 'call'>;
 export interface OrderStatus {
   packed: number;
   toPack: number;
+  /** Orders that need product first, so they wait in Waiting for stock. */
+  needs: number;
   late: number;
 }
 
@@ -30,7 +32,8 @@ export async function loadOrderStatus(c: Client, now = new Date()): Promise<Orde
   const open = rows.filter((r) => r.step !== 'delivered');
   return {
     packed: rows.filter((r) => r.step === 'packed').length,
-    toPack: rows.filter((r) => r.step === 'pack').length,
+    toPack: rows.filter((r) => r.step === 'pack' && !r.short).length,
+    needs: rows.filter((r) => r.step === 'pack' && r.short).length,
     late: open.filter((r) => r.date.slice(0, 10) < today).length,
   };
 }
