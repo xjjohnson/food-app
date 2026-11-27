@@ -57,6 +57,7 @@ describe('jars in stock', () => {
     expect(groupJars(rows, { text: 'apple' }).map((g) => g.name)).toEqual(['Apple Butter']);
   });
 });
+<<<<<<< HEAD
 
 import { parseSettings, writeSettings } from '../lib/appSettings';
 import { RULES_KEY, rulesList, toLine } from '../lib/records';
@@ -90,3 +91,5 @@ describe('changes list', () => {
     expect(lines[0]!.text).toBe('Total: 5 → 9');
   });
 });
+=======
+>>>>>>> origin/main
