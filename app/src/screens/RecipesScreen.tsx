@@ -9,7 +9,7 @@ import { ProductForm } from './ProductForm';
 import { loadUnits } from '../lib/ingredientList';
 import { fmtQty, loadRecipes, Recipe as RecipeRow } from '../lib/production';
 import { KitRow, loadKits } from '../lib/recipe';
-import { blankRecipe, BomType, loadRecipe, loadVariants, moveLine, newKey, newRecipeChange, productInfo, Recipe, recipeChanges, RecipeLine, recipeProblems, Unit } from '../lib/recipe';
+import { blankRecipe, BomType, copyRecipe, loadRecipe, loadVariants, isPositive, moveLine, newKey, newRecipeChange, productInfo, Recipe, recipeChanges, RecipeLine, recipeProblems, Unit } from '../lib/recipe';
 import { ProductRow, searchProducts } from '../lib/stock';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
@@ -88,6 +88,7 @@ function RecipesInner({ onBack, openId }: { onBack: () => void; openId?: number 
   const [list, setList] = useState<RecipeRow[] | null>(null);
   const [open, setOpen] = useState<number | 'new' | 'newkit' | null>(openId ?? null);
   const [product, setProduct] = useState<number | null>(null);
+  const [copied, setCopied] = useState<Recipe | null>(null);
   const [view, setView] = useState<'recipes' | 'kits'>('recipes');
   const [tests, setTests] = useState(false);
   const { roles } = useRoles();
@@ -111,9 +112,12 @@ function RecipesInner({ onBack, openId }: { onBack: () => void; openId?: number 
 
   if (product !== null) return <ProductForm templateId={product} onBack={() => setProduct(null)} onRecipe={() => setProduct(null)} />;
   if (tests) return <TestsPage onBack={() => setTests(false)} />;
+  if (copied)
+    return <RecipeForm key="copy" id={null} initial={copied} onBack={() => { setCopied(null); setOpen(null); load(); }} />;
   if (open !== null)
     return (
       <RecipeForm
+        onCopy={setCopied}
         id={open === 'new' || open === 'newkit' ? null : open}
         kit={open === 'newkit'}
         onProduct={setProduct}
@@ -152,27 +156,31 @@ function RecipesInner({ onBack, openId }: { onBack: () => void; openId?: number 
 }
 
 type Section = 'lines' | 'byproducts';
-type Picking = null | { k: 'product' } | { k: 'variant' } | { k: 'unit' } | { k: 'lineUnit'; section: Section; key: string } | { k: 'add'; section: Section };
+type Picking = null | { k: 'copyProduct' } | { k: 'product' } | { k: 'variant' } | { k: 'unit' } | { k: 'lineUnit'; section: Section; key: string } | { k: 'add'; section: Section };
 
-function RecipeForm({ id, kit, onBack, onProduct }: { id: number | null; kit?: boolean; onBack: () => void; onProduct?: (templateId: number) => void }) {
+function RecipeForm({ id, kit, initial, onCopy, onBack, onProduct }: { id: number | null; kit?: boolean; initial?: Recipe; onCopy?: (r: Recipe) => void; onBack: () => void; onProduct?: (templateId: number) => void }) {
   const { client, offline } = useOdoo();
   const { save } = useQueue();
   const [before, setBefore] = useState<Recipe | null>(null);
-  const [draft, setDraft] = useState<Recipe>(kit ? { ...blankRecipe(), type: 'phantom' } : blankRecipe());
+  const [draft, setDraft] = useState<Recipe>(initial ?? (kit ? { ...blankRecipe(), type: 'phantom' } : blankRecipe()));
   const [units, setUnits] = useState<Unit[]>([]);
   const [variants, setVariants] = useState<Unit[]>([]);
-  const [picking, setPicking] = useState<Picking>(id ? null : { k: 'product' });
+  const [picking, setPicking] = useState<Picking>(id || initial ? null : { k: 'product' });
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [versioning, setVersioning] = useState(false);
+  const [copying, setCopying] = useState<{ templateId: number; templateName: string; variantId: number; variantName: string; unitId: number; unit: string } | null>(null);
+  const [copyMakes, setCopyMakes] = useState('');
+  const [copyScale, setCopyScale] = useState('1');
   const { roles: formRoles } = useRoles();
-  useInnerBack(picking && draft.templateId ? () => setPicking(null) : null);
+  useInnerBack(picking && draft.templateId ? () => setPicking(null) : copying && !picking ? () => setCopying(null) : null);
 
   const load = useCallback(async () => {
     if (!client || offline) return;
     try {
       setUnits(await loadUnits(client));
+      if (initial) setVariants(await loadVariants(client, initial.templateId));
       if (id) {
         const r = await loadRecipe(client, id);
         if (r) {
@@ -209,6 +217,39 @@ function RecipeForm({ id, kit, onBack, onProduct }: { id: number | null; kit?: b
         }}
       />
     );
+  if (picking?.k === 'copyProduct')
+    return (
+      <ProductPicker
+        title="Which size is the copy for?"
+        markRecipes
+        onBack={() => setPicking(null)}
+        onPick={async (p) => {
+          if (!client) return;
+          const info = await productInfo(client, p.id);
+          setCopying({ templateId: info.templateId, templateName: info.templateName, variantId: p.id, variantName: info.name, unitId: info.unit.id, unit: info.unit.name });
+          setCopyMakes(before?.makes ?? '1');
+          setCopyScale('1');
+          setPicking(null);
+        }}
+      />
+    );
+  if (copying && before) {
+    const factor = Number(copyScale.replace(',', '.'));
+    const ok = isPositive(copyMakes) && isPositive(copyScale);
+    return (
+      <Screen title="Copy recipe" testID="copy-recipe">
+        <Card>
+          <Row title="Copy from" value={before.variantName || before.templateName} />
+          <Row title="New size" value={copying.variantName || copying.templateName} onPress={() => setPicking({ k: 'copyProduct' })} testID="copy-target" />
+          <Field label={`Makes (was ${before.makes})`} value={copyMakes} onChangeText={setCopyMakes} keyboardType="decimal-pad" testID="copy-makes" />
+          <Field label="Scale ingredients by (2 = double)" value={copyScale} onChangeText={setCopyScale} keyboardType="decimal-pad" testID="copy-scale" />
+        </Card>
+        <Body muted>You can change every amount on the next page.</Body>
+        <Button label="Next" disabled={!ok} onPress={() => onCopy?.(copyRecipe(before, copying, copyMakes, factor))} testID="copy-next" />
+        <Button label="Back" kind="plain" onPress={() => setCopying(null)} />
+      </Screen>
+    );
+  }
   if (picking?.k === 'add')
     return (
       <ProductPicker
@@ -282,6 +323,7 @@ function RecipeForm({ id, kit, onBack, onProduct }: { id: number | null; kit?: b
   return (
     <Screen title={draft.variantName || draft.templateName || 'New recipe'} testID="recipe-editor">
       {id && draft.templateId && onProduct ? <Row title="Product page" detail="Price, photos, stock and shop switches" onPress={() => onProduct(draft.templateId)} testID="recipe-product-page" /> : null}
+      {id && !kit && onCopy ? <Button label="Copy to a new size" kind="plain" onPress={() => setPicking({ k: 'copyProduct' })} testID="recipe-copy" /> : null}
       {id && !kit ? <Button label="Cook a batch" onPress={() => router.push(`/area/production?go=start:${id}`)} testID="recipe-cook" /> : null}
       <Row title="Product" value={draft.templateName || 'Choose'} onPress={id ? undefined : () => setPicking({ k: 'product' })} testID="recipe-product" />
       {variants.length > 1 || draft.variantId ? <Row title="Product variant" value={draft.variantName || 'Any variant'} onPress={() => setPicking({ k: 'variant' })} testID="recipe-variant" /> : null}

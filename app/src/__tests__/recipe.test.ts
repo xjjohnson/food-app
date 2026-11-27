@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { OdooClient } from '../lib/odoo';
 import { loadQueue, saveOrQueue, sendQueue } from '../lib/queue';
-import { blankRecipe, loadRecipe, moveLine, newRecipeChange, recipeChanges, recipeProblems, type Recipe } from '../lib/recipe';
+import { blankRecipe, copyRecipe, scaleQty, loadRecipe, moveLine, newRecipeChange, recipeChanges, recipeProblems, type Recipe } from '../lib/recipe';
 import { bakery, FakeOdoo, URL } from '../testing/fakeOdoo';
 
 const DB = 'https://test.food.example.com|food-test';
@@ -89,5 +89,26 @@ describe('recipe form', () => {
     const l = [{ key: 'a' }, { key: 'b' }] as never[];
     expect(moveLine(l, 0, -1)).toBe(l);
     expect(moveLine(l, 0, 1).map((x: { key: string }) => x.key)).toEqual(['b', 'a']);
+  });
+});
+
+describe('copy recipe to a new size', () => {
+  test('scales amounts, makes new unsaved lines, creates a new recipe', async () => {
+    const { odoo } = bakery();
+    const k = kitchen(odoo);
+    await k.make(k.flour, 3, 10);
+    await k.make(k.sugar, 1.5, 20);
+    const src = await load(odoo, k.bom);
+    const target = { templateId: 21, templateName: 'Cookies big', variantId: 99, variantName: 'Big', unitId: 1, unit: 'Units' };
+    const c = copyRecipe(src, target, '24', 2);
+    expect(c.id).toBeNull();
+    expect(c.code).toBe('');
+    expect(c.lines.map((l) => l.qty)).toEqual(['6', '3']);
+    expect(c.lines.every((l) => l.id === null)).toBe(true);
+    expect(src.lines.map((l) => l.qty)).toEqual(['3', '1.5']);
+    expect(scaleQty('', 2)).toBe('');
+    const ch = newRecipeChange(c, 1);
+    expect(ch.method).toBe('create');
+    expect((ch.args[0] as { product_tmpl_id: number }).product_tmpl_id).toBe(21);
   });
 });
