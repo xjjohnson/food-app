@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
-import { Body, Button, Card, ErrorText, Field, Row, Screen, SwitchRow } from '../components/ui';
+import { Pressable, Text, TextInput, View } from 'react-native';
+import { Body, Button, Card, ErrorText, Field, Row, Screen, SectionLabel, useUi } from '../components/ui';
+import { useBrand } from '../lib/useBrand';
 import { boughtChanges, Choice, Journal, loadChoices, loadJournals, lastPricePaid, searchSuppliers, Supplier } from '../lib/ingredients';
 import { useInnerBack } from '../lib/innerBack';
 import type { Rel } from '../lib/odooForm';
@@ -41,7 +43,7 @@ interface Line {
   uom: Rel | null;
 }
 
-type View = 'main' | 'supplier' | 'ingredient' | 'unit' | 'check';
+type Page = 'main' | 'supplier' | 'ingredient' | 'unit' | 'edit' | 'check';
 
 /**
  * Bought ingredients: one screen for a shopping trip. Who from, what was
@@ -51,11 +53,14 @@ type View = 'main' | 'supplier' | 'ingredient' | 'unit' | 'check';
 export function BoughtScreen({ onBack }: { onBack: () => void }) {
   const { client, offline } = useOdoo();
   const { save } = useQueue();
-  const [view, setView] = useState<View>('main');
+  const [view, setView] = useState<Page>('main');
+  const [editKey, setEditKey] = useState<number | null>(null);
+  const [picked, setPicked] = useState<Choice[]>([]);
+  const ui = useUi();
+  const { colors } = useBrand();
   const [supplier, setSupplier] = useState<Supplier | null>(null);
   const [date, setDate] = useState(ymd(new Date()));
   const [lines, setLines] = useState<Line[]>([]);
-  const [unitFor, setUnitFor] = useState<number | null>(null);
   const [journals, setJournals] = useState<Journal[]>([]);
   const [journal, setJournal] = useState<number | null | undefined>(undefined);
   const [text, setText] = useState('');
@@ -66,7 +71,7 @@ export function BoughtScreen({ onBack }: { onBack: () => void }) {
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
-  useInnerBack(view !== 'main' ? () => setView(view === 'unit' ? 'main' : view === 'check' ? 'main' : 'main') : null);
+  useInnerBack(view !== 'main' ? () => setView(view === 'unit' ? 'edit' : 'main') : null);
 
   // Ways to pay, and the last one used.
   useEffect(() => {
@@ -126,22 +131,28 @@ export function BoughtScreen({ onBack }: { onBack: () => void }) {
     };
   }, [view, text, all, client, offline]);
 
-  const addLine = async (c: Choice) => {
-    const key = Date.now() + lines.length;
-    let price = '';
-    let useBy = '';
-    if (client && !offline) {
-      const p = await lastPricePaid(client, c.id);
-      if (p !== null) price = fmtQty(p);
-      if (c.tracked) {
-        const days = await shelfLifeDays(client, c.id);
-        if (days) useBy = addDays(new Date(), days);
+  const addLines = async (list: Choice[]) => {
+    const made: Line[] = [];
+    for (const c of list) {
+      const key = Date.now() + lines.length + made.length;
+      let price = '';
+      let useBy = '';
+      if (client && !offline) {
+        const p = await lastPricePaid(client, c.id);
+        if (p !== null) price = fmtQty(p);
+        if (c.tracked) {
+          const days = await shelfLifeDays(client, c.id);
+          if (days) useBy = addDays(new Date(), days);
+        }
       }
+      made.push({ key, choice: c, qty: '1', price, total: price ? price : '', lot: '', useBy, uom: null });
     }
-    setLines((ls) => [...ls, { key, choice: c, qty: '1', price, total: price ? price : '', lot: '', useBy, uom: null }]);
+    setLines((ls) => [...ls, ...made]);
+    setPicked([]);
     setText('');
     setView('main');
   };
+  const money = (l: Line) => fmtQty(round((toNum(l.qty) || 0) * (toNum(l.price) || 0), 2));
   const change = (key: number, patch: Partial<Line>) => setLines((ls) => ls.map((l) => (l.key === key ? { ...l, ...patch } : l)));
   const setQty = (l: Line, v: string) => {
     const q = toNum(v);
@@ -173,9 +184,9 @@ export function BoughtScreen({ onBack }: { onBack: () => void }) {
     if (l.useBy && !isDate(l.useBy)) problems.push(`${l.choice.name}: use-by dates look like 2027-01-31.`);
   }
 
-  if (view === 'unit' && unitFor !== null) {
-    const l = lines.find((x) => x.key === unitFor);
-    return <RelationPicker def={{ name: 'uom', label: 'Unit', kind: 'one', relation: 'uom.uom' }} selected={l?.uom ?? null} onChange={(v) => change(unitFor, { uom: v as Rel | null })} onBack={() => setView('main')} />;
+  if (view === 'unit' && editKey !== null) {
+    const l = lines.find((x) => x.key === editKey);
+    return <RelationPicker def={{ name: 'uom', label: 'Unit', kind: 'one', relation: 'uom.uom' }} selected={l?.uom ?? null} onChange={(v) => change(editKey, { uom: v as Rel | null })} onBack={() => setView('edit')} />;
   }
 
   if (view === 'supplier')
@@ -183,9 +194,13 @@ export function BoughtScreen({ onBack }: { onBack: () => void }) {
       <Screen title="Bought from" testID="bought-supplier">
         <Field label="Find a store or supplier" value={text} onChangeText={setText} testID="bought-supplier-search" />
         {offline ? <Body muted>No signal. These are the ones from the last time you were online.</Body> : null}
-        {suppliers.map((s) => (
-          <Row key={s.id} title={s.name} onPress={() => { setSupplier(s); setText(''); setView('main'); }} testID={`bought-supplier-${s.id}`} />
-        ))}
+        {suppliers.length ? (
+          <Card>
+            {suppliers.map((s) => (
+              <Row key={s.id} title={s.name} onPress={() => { setSupplier(s); setText(''); setView('main'); }} testID={`bought-supplier-${s.id}`} />
+            ))}
+          </Card>
+        ) : null}
         {!suppliers.length ? <Body muted>Nothing found. Add a new supplier from Ordering ahead, then it shows here.</Body> : null}
         <Button label="Back" kind="plain" onPress={() => setView('main')} />
       </Screen>
@@ -195,27 +210,78 @@ export function BoughtScreen({ onBack }: { onBack: () => void }) {
     return (
       <Screen title="What did you buy?" testID="bought-ingredient">
         <Field label="Find an ingredient" value={text} onChangeText={setText} testID="bought-ingredient-search" />
-        <SwitchRow title="Show all products" detail="Jars, labels and boxes too" value={all} onChange={setAll} testID="bought-all" />
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {[{ id: false, label: 'Ingredients' }, { id: true, label: 'All products' }].map((o) => (
+            <Pressable key={o.label} onPress={() => setAll(o.id)} accessibilityRole="button" accessibilityLabel={o.label} testID={o.id ? 'bought-all' : 'bought-ingredients-only'} style={[ui.segItem, all === o.id && ui.segOn]}>
+              <Text style={[ui.segText, all === o.id && ui.segTextOn]}>{o.label}</Text>
+            </Pressable>
+          ))}
+        </View>
         {offline ? <Body muted>No signal. These are the ones from the last time you were online.</Body> : null}
-        {choices.map((c) => (
-          <Row key={c.id} title={c.name} detail={c.unit} onPress={() => addLine(c)} testID={`bought-pick-${c.id}`} />
-        ))}
-        {!choices.length ? <Body muted>Nothing found.</Body> : null}
+        {choices.length ? (
+          <Card>
+            {choices.map((c) => {
+              const on = picked.some((x) => x.id === c.id);
+              return (
+                <Row
+                  key={c.id}
+                  title={c.name}
+                  detail={c.unit}
+                  onPress={() => setPicked((p) => (on ? p.filter((x) => x.id !== c.id) : [...p, c]))}
+                  right={<Text style={{ fontSize: 20, fontWeight: '800', color: on ? colors.accent : colors.line }}>{on ? '✓' : '○'}</Text>}
+                  testID={`bought-pick-${c.id}`}
+                />
+              );
+            })}
+          </Card>
+        ) : (
+          <Body muted>Nothing found.</Body>
+        )}
+        <Button label={picked.length ? `Add ${picked.length} ${picked.length === 1 ? 'item' : 'items'}` : 'Add'} disabled={!picked.length} onPress={() => addLines(picked)} testID="bought-add-picked" />
         <Button label="Back" kind="plain" onPress={() => setView('main')} />
       </Screen>
     );
+
+  if (view === 'edit') {
+    const l = lines.find((x) => x.key === editKey);
+    if (!l) return null;
+    return (
+      <Screen title={l.choice.name} testID="bought-edit">
+        <Card>
+          <Field label={`How many (${l.uom?.name || l.choice.unit || 'units'})`} value={l.qty} onChangeText={(v) => setQty(l, v)} keyboardType="decimal-pad" testID={`bought-qty-${l.key}`} />
+          <Field label="Price each" value={l.price} onChangeText={(v) => setPrice(l, v)} keyboardType="decimal-pad" testID={`bought-price-${l.key}`} />
+          <Field label="Total paid for this line" value={l.total} onChangeText={(v) => setTotal(l, v)} keyboardType="decimal-pad" testID={`bought-total-${l.key}`} />
+          {l.choice.tracked ? (
+            <>
+              <Field label="Batch number" value={l.lot} onChangeText={(v) => change(l.key, { lot: v })} autoCapitalize="characters" testID={`bought-lot-${l.key}`} />
+              <Field label="Use by (year-month-day, optional)" value={l.useBy} onChangeText={(v) => change(l.key, { useBy: v })} placeholder="2027-01-31" testID={`bought-useby-${l.key}`} />
+            </>
+          ) : null}
+          {!offline ? <Row title="Unit" value={l.uom?.name || l.choice.unit || 'own'} onPress={() => setView('unit')} testID={`bought-unit-${l.key}`} /> : null}
+        </Card>
+        <Button label="Done" onPress={() => setView('main')} testID="bought-done" />
+        <Pressable onPress={() => { setLines((ls) => ls.filter((x) => x.key !== l.key)); setView('main'); }} accessibilityRole="button" accessibilityLabel="Remove" testID={`bought-remove-${l.key}`} style={{ alignItems: 'center', padding: 12 }}>
+          <Text style={{ color: colors.stop, fontSize: 16, fontWeight: '800' }}>Remove this item</Text>
+        </Pressable>
+      </Screen>
+    );
+  }
 
   const total = round(lines.reduce((a, l) => a + (toNum(l.qty) || 0) * (toNum(l.price) || 0), 0), 2);
 
   if (view === 'check')
     return (
       <Screen title="Check and save" testID="bought-check">
-        <Row title="Bought from" value={supplier?.name ?? ''} />
-        <Row title="Date" value={date} />
-        {lines.map((l) => (
-          <Row key={l.key} title={l.choice.name} detail={`${l.qty} ${l.uom?.name || l.choice.unit} at ${l.price} each`} value={fmtQty(round((toNum(l.qty) || 0) * (toNum(l.price) || 0), 2))} testID={`bought-check-${l.key}`} />
-        ))}
-        <Row title="Total as typed" value={fmtQty(total)} testID="bought-total" />
+        <Card>
+          <Row title="Bought from" value={supplier?.name ?? ''} />
+          <Row title="Date" value={date} />
+        </Card>
+        <Card>
+          {lines.map((l) => (
+            <Row key={l.key} title={l.choice.name} detail={`${l.qty} ${l.uom?.name || l.choice.unit} at ${l.price} each`} value={money(l)} testID={`bought-check-${l.key}`} />
+          ))}
+          <Row title="Total as typed" value={fmtQty(total)} testID="bought-total" />
+        </Card>
         {billing ? (
           <Card title="How was it paid?">
             {journals.map((j) => (
@@ -265,30 +331,48 @@ export function BoughtScreen({ onBack }: { onBack: () => void }) {
       </Screen>
     );
 
+  const today = ymd(new Date());
+  const hair = { height: 1, backgroundColor: colors.line };
   return (
     <Screen title="Bought ingredients" testID="bought-screen">
-      <Body muted>Shopped, and now writing down what you bought and paid. Saving receives it into stock.</Body>
-      <Row title="Bought from" value={supplier?.name ?? 'Pick'} onPress={() => setView('supplier')} testID="bought-pick-supplier" />
-      <Field label="Date" value={date} onChangeText={setDate} testID="bought-date" />
-      {lines.map((l) => (
-        <Card key={l.key} title={l.choice.name} testID={`bought-line-${l.key}`}>
-          <Field label={`How many (${l.uom?.name || l.choice.unit || 'units'})`} value={l.qty} onChangeText={(v) => setQty(l, v)} keyboardType="decimal-pad" testID={`bought-qty-${l.key}`} />
-          <Field label="Price each" value={l.price} onChangeText={(v) => setPrice(l, v)} keyboardType="decimal-pad" testID={`bought-price-${l.key}`} />
-          <Field label="Total paid for this line" value={l.total} onChangeText={(v) => setTotal(l, v)} keyboardType="decimal-pad" testID={`bought-total-${l.key}`} />
-          {l.choice.tracked ? (
-            <>
-              <Field label="Batch number" value={l.lot} onChangeText={(v) => change(l.key, { lot: v })} autoCapitalize="characters" testID={`bought-lot-${l.key}`} />
-              <Field label="Use by (year-month-day, optional)" value={l.useBy} onChangeText={(v) => change(l.key, { useBy: v })} placeholder="2027-01-31" testID={`bought-useby-${l.key}`} />
-            </>
-          ) : null}
-          {!offline ? <Button label={`Change the unit (${l.uom?.name || l.choice.unit || 'own'})`} kind="plain" onPress={() => { setUnitFor(l.key); setView('unit'); }} testID={`bought-unit-${l.key}`} /> : null}
-          <Button label="Remove" kind="danger" onPress={() => setLines((ls) => ls.filter((x) => x.key !== l.key))} testID={`bought-remove-${l.key}`} />
-        </Card>
-      ))}
-      <Button label="Add what you bought" kind="plain" onPress={() => setView('ingredient')} testID="bought-add" />
-      {problems.map((p) => (
-        <Body key={p} muted>{p}</Body>
-      ))}
+      <Card>
+        <Row title="From" value={supplier?.name ?? 'Pick'} onPress={() => setView('supplier')} testID="bought-pick-supplier" />
+        <View style={hair} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 }}>
+          <Text style={ui.rowTitle}>Date{date === today ? ' (today)' : ''}</Text>
+          <TextInput value={date} onChangeText={setDate} style={[ui.rowValue, { minWidth: 120, paddingVertical: 6 }]} accessibilityLabel="Date" testID="bought-date" autoCorrect={false} />
+        </View>
+      </Card>
+      <SectionLabel>What you bought</SectionLabel>
+      <Card>
+        {lines.map((l, i) => (
+          <View key={l.key}>
+            {i > 0 ? <View style={hair} /> : null}
+            <Pressable onPress={() => { setEditKey(l.key); setView('edit'); }} accessibilityRole="button" accessibilityLabel={`Edit ${l.choice.name}`} testID={`bought-line-${l.key}`} style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={ui.rowTitle} numberOfLines={1}>{l.choice.name}</Text>
+                <Text style={ui.muted} numberOfLines={1}>{`${l.qty} × ${l.uom?.name || l.choice.unit || 'unit'}${l.price ? ` · ${l.price} each` : ''}`}</Text>
+              </View>
+              <Text style={[ui.rowTitle, { fontVariant: ['tabular-nums'] }]}>{l.price ? money(l) : '?'}</Text>
+              <Text style={ui.rowValue}>›</Text>
+            </Pressable>
+          </View>
+        ))}
+        {lines.length ? <View style={hair} /> : null}
+        <Pressable onPress={() => setView('ingredient')} accessibilityRole="button" accessibilityLabel="Add an item" testID="bought-add" style={{ minHeight: 44, justifyContent: 'center' }}>
+          <Text style={{ color: colors.accent, fontSize: 17, fontWeight: '800' }}>+ Add an item</Text>
+        </Pressable>
+        {lines.length ? (
+          <>
+            <View style={hair} />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={ui.rowTitle}>Total</Text>
+              <Text style={ui.rowTitle} testID="bought-running-total">{fmtQty(total)}</Text>
+            </View>
+          </>
+        ) : null}
+      </Card>
+      {problems.length ? <Body muted>{problems[0]}{problems.length > 1 ? ` (and ${problems.length - 1} more)` : ''}</Body> : null}
       <Button label="Check and save" disabled={problems.length > 0} onPress={() => setView('check')} testID="bought-next" />
       <Button label="Back" kind="plain" onPress={onBack} />
     </Screen>
