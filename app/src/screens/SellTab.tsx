@@ -70,7 +70,8 @@ export function SellTab() {
           <Button label="Open register" onPress={() => open('market')} testID="area-market" />
           <SectionLabel>Before and after</SectionLabel>
           <Row title="Day sheet" detail="What sold, what is in stock" onPress={() => open('market', 'sheet')} testID="market-tile-sheet" />
-          <Row title="Check out and in" detail="What you took and brought back" onPress={() => open('market', 'take')} testID="market-tile-take" />
+          <Row title="Check out" detail="Move what you take to Market" onPress={() => open('market', 'take')} testID="market-tile-take" />
+          <Row title="Check in" detail="Move what came back" onPress={() => open('market', 'checkin')} testID="market-tile-checkin" />
           <Row title="Price sheet" detail="Big list to share" onPress={() => open('market', 'price')} testID="market-tile-price" />
           <SectionLabel>Money</SectionLabel>
           <Row title="Cash drawer" detail="Count bills and coins" onPress={() => open('market', 'drawer')} testID="market-tile-drawer" />

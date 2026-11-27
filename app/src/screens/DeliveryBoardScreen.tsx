@@ -137,7 +137,7 @@ export function DeliveryBoardScreen({ onBack, onPack, start }: { onBack: () => v
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <View style={{ flex: 1, gap: 6 }}>
                 {isWaiting ? <Chip label={`${o.pickup ? 'Picked up' : 'Delivered'} (waiting to send)`} testID={`board-step-${o.id}`} /> : null}
-                {n >= 0 && stops.length > 1 && mode === 'packed' ? <Chip label={`Stop ${n + 1}`} testID={`stop-${o.id}`} /> : null}
+                {n >= 0 && mode === 'packed' ? <Chip label={`Stop ${n + 1}`} testID={`stop-${o.id}`} /> : null}
                 <Body muted>{`${o.origin || o.name}${o.date ? ` · ${o.date.slice(0, 10)}` : ''}${isLate(o) ? ' · Late' : ''}`}</Body>
               </View>
               {n >= 0 && stops.length > 1 && mode === 'packed' ? (
@@ -161,14 +161,27 @@ export function DeliveryBoardScreen({ onBack, onPack, start }: { onBack: () => v
                 </View>
               ) : null}
             </View>
-            {o.pickup ? null : o.address ? <Row title="Address" detail={o.address} onPress={() => Linking.openURL(mapLink(o.address))} testID={`board-map-${o.id}`} /> : <Body muted>No address on the contact.</Body>}
-            {o.phone ? <Row title="Phone" detail={o.phone} onPress={() => Linking.openURL(`tel:${o.phone}`)} /> : null}
+            <Body muted>{[o.pickup ? 'Pickup' : o.address || 'No address on the contact', o.phone].filter(Boolean).join(' · ')}</Body>
+            {mode === 'packed' && ((!o.pickup && o.address) || o.phone) ? (
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                {!o.pickup && o.address ? (
+                  <View style={{ flex: 1 }}>
+                    <Button label="Navigate" kind="plain" onPress={() => Linking.openURL(mapLink(o.address))} testID={`board-map-${o.id}`} />
+                  </View>
+                ) : null}
+                {o.phone ? (
+                  <View style={{ flex: 1 }}>
+                    <Button label="Call" kind="plain" onPress={() => Linking.openURL(`tel:${o.phone}`)} testID={`board-call-${o.id}`} />
+                  </View>
+                ) : null}
+              </View>
+            ) : null}
             {o.notes ? <Body>{`Notes: ${o.notes}`}</Body> : null}
             {step === 'delivered' && o.saleId ? <PaymentCard order={o} /> : null}
             {step === 'delivered' && o.saleId && !isWaiting ? <FeedbackBox orderId={o.saleId} orderName={o.origin || o.name} /> : null}
             {step === 'pack' ? <Button label="Pack it" kind="plain" onPress={onPack} testID={`board-pack-${o.id}`} /> : null}
-            {o.saleId && !o.pickup ? <PhotosCard model="sale.order" resId={o.saleId} recordName={o.origin || o.name} title="Delivery proof" about="Delivery proof" button="Take a proof photo" testID={`board-photos-${o.id}`} /> : null}
             {step === 'packed' && o.saleId ? <Button label={o.pickup ? 'Picked up ›' : 'Delivered ›'} onPress={() => delivered(o)} testID={`board-delivered-${o.id}`} /> : null}
+            {o.saleId && !o.pickup && mode !== 'pack' ? <ProofToggle o={o} /> : null}
           </Card>
         );
       })}
@@ -176,6 +189,13 @@ export function DeliveryBoardScreen({ onBack, onPack, start }: { onBack: () => v
       <Button label="Back" kind="plain" onPress={onBack} />
     </Screen>
   );
+}
+
+/** Proof photo is tucked away until it is wanted. */
+function ProofToggle({ o }: { o: BoardOrder }) {
+  const [open, setOpen] = useState(false);
+  if (!open) return <Button label="Proof photo" kind="plain" onPress={() => setOpen(true)} testID={`board-proof-${o.id}`} />;
+  return <PhotosCard model="sale.order" resId={o.saleId} recordName={o.origin || o.name} title="Delivery proof" about="Delivery proof" button="Take a proof photo" testID={`board-photos-${o.id}`} />;
 }
 
 const journalKey = (db: string) => `money/journals/${db}`;
