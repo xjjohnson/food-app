@@ -51,12 +51,9 @@ const makeStyles = (c: Palette) =>
     disabled: { opacity: 0.45 },
     row: { minHeight: TOUCH, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 },
     rowText: { flex: 1, gap: 2 },
-<<<<<<< HEAD
     navCard: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.line, paddingHorizontal: 14, paddingVertical: 10 },
     tile: { width: 38, height: 38, borderRadius: 10, backgroundColor: c.tint, alignItems: 'center', justifyContent: 'center' },
     tileText: { fontSize: 16, fontWeight: '800', color: c.text },
-=======
->>>>>>> origin/main
     rowTextWithValue: { flexGrow: 1, flexShrink: 0, flexBasis: '45%', gap: 2 },
     rowTitle: { fontSize: 18, fontWeight: '700', color: c.text },
     rowValue: { fontSize: 16, color: c.muted, flexShrink: 1, textAlign: 'right' },
