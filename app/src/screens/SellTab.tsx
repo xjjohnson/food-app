@@ -53,8 +53,7 @@ export function SellTab() {
           {has('sell') ? (
             <>
               <SectionLabel>Sell</SectionLabel>
-              <Row title="New quote" detail="Pick a customer, then add products" onPress={() => open('sell', 'quote')} testID="sell-quote" />
-              <Row title="Quotes and open orders" detail="Open, confirm, share, invoice" onPress={() => open('sell', 'list')} testID="sell-list-tab" />
+              <Row title="Quotes and open orders" detail="New quote, open, confirm, share, invoice" onPress={() => open('sell', 'list')} testID="sell-list-tab" />
             </>
           ) : null}
           {has('invoices') ? (
