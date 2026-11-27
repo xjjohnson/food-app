@@ -1,12 +1,12 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react';
 import { ShareCsv } from './MoneyPages';
 import { moneyCells } from '../lib/packet';
-import { Body, Button, Card, Chip, ErrorText, Field, ListRow, Row, Screen, Segments } from '../components/ui';
+import { Body, Button, Card, Chip, ErrorText, Field, ListRow, Row, Screen, SectionLabel, Segments } from '../components/ui';
 import { Journal, loadJournals } from '../lib/ingredients';
 import { useInnerBack } from '../lib/innerBack';
 import { currencySymbol } from '../lib/lookup';
-import { filterMoney, loadMoney, loadMoneyLines, MoneyKind, MoneyLine, MoneyRow, payChange, Show, stateWords } from '../lib/money';
+import { filterMoney, loadBillItems, loadMoney, loadMoneyLines, MoneyKind, MoneyLine, MoneyRow, payChange, Show, stateWords } from '../lib/money';
 import { fmtQty, ymd } from '../lib/production';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
@@ -15,11 +15,29 @@ import { loadBillPayments, type BillPayment } from '../lib/poBill';
 
 const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
 const copyKey = (kind: MoneyKind, db: string, partnerId?: number) => `money/${kind}/${db}${partnerId ? `/${partnerId}` : ''}`;
+const itemsKey = (db: string, partnerId?: number) => `money/items/${db}${partnerId ? `/${partnerId}` : ''}`;
 const journalKey = (db: string) => `money/journals/${db}`;
 
 const WORDS: Record<MoneyKind, { title: string; empty: string; who: string; owed: string; paid: string }> = {
   out: { title: 'Invoices', empty: 'No invoices yet.', who: 'Customer', owed: 'Who owes you', paid: 'Paid' },
   in: { title: 'Purchase history', empty: 'No purchases yet.', who: 'Store', owed: 'Not paid yet', paid: 'Paid' },
+};
+
+/** The first three items on a bill, one per line, e.g. "2 × Flour". */
+const billLines = (l: MoneyLine[] | undefined): string[] | undefined => {
+  if (!l || !l.length) return undefined;
+  const out = l.slice(0, 3).map((x) => `${fmtQty(x.qty)} × ${x.name}`);
+  if (l.length > 3) out.push(`+${l.length - 3} more`);
+  return out;
+};
+
+/** "2026-11-27" as "Nov 27"; the year only when it is not this year. */
+const dayLabel = (d: string) => {
+  if (!d) return 'No date';
+  const [y, m, day] = d.split('-').map(Number);
+  if (!y || !m || !day) return d;
+  const mon = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][m - 1];
+  return `${mon} ${day}${y === new Date().getFullYear() ? '' : `, ${y}`}`;
 };
 
 /** Past its due date and still unpaid. */
@@ -38,7 +56,8 @@ export function MoneyScreen({ kind, onBack, partnerId, title }: { kind: MoneyKin
   const w = WORDS[kind];
   const [rows, setRows] = useState<MoneyRow[] | null>(null);
   const [fromPhone, setFromPhone] = useState(false);
-  const [show, setShow] = useState<Show>('owed');
+  const [show, setShow] = useState<Show>(kind === 'in' ? 'all' : 'owed');
+  const [billItems, setBillItems] = useState<Record<number, MoneyLine[]>>({});
   const [text, setText] = useState('');
   const [open, setOpen] = useState<MoneyRow | null>(null);
   const [error, setError] = useState('');
@@ -57,6 +76,15 @@ export function MoneyScreen({ kind, onBack, partnerId, title }: { kind: MoneyKin
         setRows(list);
         setFromPhone(false);
         await AsyncStorage.setItem(copyKey(kind, db, partnerId), JSON.stringify(list));
+        if (kind === 'in') {
+          try {
+            const got = await loadBillItems(client, list.map((r) => r.id));
+            setBillItems(got);
+            await AsyncStorage.setItem(itemsKey(db, partnerId), JSON.stringify(got));
+          } catch {
+            // Items are a nice extra; the list still shows without them.
+          }
+        }
         setSymbol(await currencySymbol(client, client.session.companyId));
         return;
       } catch (e) {
@@ -70,6 +98,8 @@ export function MoneyScreen({ kind, onBack, partnerId, title }: { kind: MoneyKin
       if (raw) {
         setRows(JSON.parse(raw) as MoneyRow[]);
         setFromPhone(true);
+        const rawItems = kind === 'in' ? await AsyncStorage.getItem(itemsKey(db, partnerId)) : null;
+        if (rawItems) setBillItems(JSON.parse(rawItems) as Record<number, MoneyLine[]>);
       }
     } catch {
       // No copy yet.
@@ -97,18 +127,23 @@ export function MoneyScreen({ kind, onBack, partnerId, title }: { kind: MoneyKin
       <Field label="Search" placeholder={`${w.who} or number`} value={text} onChangeText={setText} testID="money-search" />
       {!rows ? <Body muted>{busy ? 'Loading…' : 'Nothing to show yet. Connect to Odoo to load this.'}</Body> : null}
       {rows && !shown.length ? <Body muted>{text.trim() ? 'Nothing matches. Try fewer letters.' : rows.length && show === 'owed' && kind === 'out' ? 'Nothing owed. Everyone has paid.' : rows.length ? 'Nothing here.' : w.empty}</Body> : null}
-      {shown.map((r) => {
+      {shown.map((r, i) => {
         const late = isLate(r, today);
+        const day = kind === 'in' && (i === 0 || shown[i - 1]!.date !== r.date) ? <SectionLabel key={`d${r.id}`}>{dayLabel(r.date)}</SectionLabel> : null;
+        const bought = kind === 'in' ? billLines(billItems[r.id]) : undefined;
         return (
-          <ListRow
-            key={r.id}
-            title={r.who || 'No name'}
-            detail={`${r.name} · ${r.date || 'No date'}${waiting.has(r.id) ? ' · Payment waiting to send' : r.due && !r.paid ? ` · due ${r.due}` : ''}`}
-            amount={money(r.paid ? r.total : r.left || r.total)}
-            tag={{ label: late ? 'Overdue' : stateWords(r), tone: late ? 'bad' : r.state === 'draft' ? 'plain' : r.paid ? 'good' : 'warn' }}
-            onPress={() => setOpen(r)}
-            testID={`money-${r.id}`}
-          />
+          <Fragment key={r.id}>
+            {day}
+            <ListRow
+              title={r.who || 'No name'}
+              detail={`${r.name}${kind === 'in' ? '' : ` · ${r.date || 'No date'}`}${waiting.has(r.id) ? ' · Payment waiting to send' : r.due && !r.paid ? ` · due ${r.due}` : ''}`}
+              lines={bought}
+              amount={money(r.paid ? r.total : r.left || r.total)}
+              tag={{ label: late ? 'Overdue' : stateWords(r), tone: late ? 'bad' : r.state === 'draft' ? 'plain' : r.paid ? 'good' : 'warn' }}
+              onPress={() => setOpen(r)}
+              testID={`money-${r.id}`}
+            />
+          </Fragment>
         );
       })}
       {shown.length ? <ShareCsv name={kind === 'out' ? 'invoices' : 'purchase-history'} cells={moneyCells(shown)} /> : null}
