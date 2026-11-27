@@ -23,7 +23,7 @@ const why = (e: unknown) => (e instanceof Error ? e.message : String(e));
  * lists raw materials only, with a switch for every product and a button to
  * add an ingredient that isn't there yet.
  */
-function ProductPicker({ title, onPick, onBack, markRecipes, raw }: { title: string; onPick: (p: ProductRow) => void; onBack: () => void; markRecipes?: boolean; raw?: boolean }) {
+function ProductPicker({ title, onPick, onBack, markRecipes, raw, templateId }: { title: string; onPick: (p: ProductRow) => void; onBack: () => void; markRecipes?: boolean; raw?: boolean; templateId?: number }) {
   const { client, offline } = useOdoo();
   const [text, setText] = useState('');
   const [found, setFound] = useState<ProductRow[]>([]);
@@ -34,12 +34,12 @@ function ProductPicker({ title, onPick, onBack, markRecipes, raw }: { title: str
   useEffect(() => {
     if (!client || offline) return;
     const t = setTimeout(() => {
-      searchProducts(client, text, markRecipes, !!raw && !everything)
+      searchProducts(client, text, markRecipes, !!raw && !everything, templateId)
         .then(setFound)
         .catch(() => undefined);
     }, 250);
     return () => clearTimeout(t);
-  }, [client, offline, text, markRecipes, raw, everything]);
+  }, [client, offline, text, markRecipes, raw, everything, templateId]);
   const some = found.some((p) => p.hasRecipe);
 
   if (adding)
@@ -222,6 +222,7 @@ function RecipeForm({ id, kit, initial, onCopy, onBack, onProduct }: { id: numbe
       <ProductPicker
         title="Which size is the copy for?"
         markRecipes
+        templateId={before?.templateId}
         onBack={() => setPicking(null)}
         onPick={async (p) => {
           if (!client) return;
