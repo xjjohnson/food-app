@@ -184,7 +184,7 @@ export async function loadHistory(c: Client, model: string, resId: number): Prom
   let tracks: Record<string, unknown>[] = [];
   if (ids.length) {
     try {
-      tracks = (await c.call('mail.tracking.value', 'read', [ids], { fields: ['field_id', 'old_value_char', 'new_value_char', 'mail_message_id'] })) as Record<string, unknown>[];
+      tracks = (await c.call('mail.tracking.value', 'read', [ids], { fields: ['field_id', 'old_value_char', 'new_value_char', 'old_value_float', 'new_value_float', 'old_value_integer', 'new_value_integer', 'mail_message_id'] })) as Record<string, unknown>[];
     } catch {
       tracks = [];
     }
@@ -193,7 +193,17 @@ export async function loadHistory(c: Client, model: string, resId: number): Prom
   return msgs
     .map((m) => {
       const mine = tracks.filter((t) => (Array.isArray(t.mail_message_id) ? t.mail_message_id[0] : t.mail_message_id) === m.id);
-      const changes = mine.map((t) => `${field(t)}: ${String(t.old_value_char || 'empty')} → ${String(t.new_value_char || 'empty')}`);
+      // Skip changes where nothing really changed (Odoo re-counts totals and tracks them as empty to empty).
+      const val = (t: Record<string, unknown>, w: 'old' | 'new') => {
+        const c = t[`${w}_value_char`];
+        if (c) return String(c);
+        const f = t[`${w}_value_float`];
+        if (typeof f === 'number' && f !== 0) return String(f);
+        const i = t[`${w}_value_integer`];
+        if (typeof i === 'number' && i !== 0) return String(i);
+        return '';
+      };
+      const changes = mine.filter((t) => val(t, 'old') !== val(t, 'new')).map((t) => `${field(t)}: ${val(t, 'old') || 'empty'} → ${val(t, 'new') || 'empty'}`);
       const text = changes.length ? changes.join('; ') : strip(m.body);
       return { id: m.id as number, date: String(m.date || ''), who: Array.isArray(m.author_id) ? String(m.author_id[1] ?? '') : '', text };
     })

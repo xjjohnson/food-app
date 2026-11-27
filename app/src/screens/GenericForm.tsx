@@ -34,6 +34,8 @@ export interface GenericFormProps {
   noun: string;
   /** Extra read-only tabs for a record that exists. */
   extraTabs?: ExtraTab[];
+  /** Called with the new record's id right after it is made in Odoo (not when it is only saved on the phone). */
+  onCreated?: (id: number) => void;
   /** Called after the first field loads, for the screen to learn the draft. */
   onBack: () => void;
   testID?: string;
@@ -43,7 +45,7 @@ export interface GenericFormProps {
  * Any Odoo form: tabs of fields, one Save that sends only what changed, and
  * pickers for linked records. Fields this Odoo doesn't have are left out.
  */
-export function GenericForm({ model, recordId, title, sections: all, required = [], uniqueField = 'name', defaults = {}, noun, extraTabs = [], onBack, testID }: GenericFormProps) {
+export function GenericForm({ model, recordId, title, sections: all, required = [], uniqueField = 'name', defaults = {}, noun, extraTabs = [], onCreated, onBack, testID }: GenericFormProps) {
   const { client, offline } = useOdoo();
   const { save } = useQueue();
   const [sections, setSections] = useState<Section[]>([]);
@@ -136,7 +138,9 @@ export function GenericForm({ model, recordId, title, sections: all, required = 
         : { label: `New ${noun.toLowerCase()}: ${label}`, model, method: 'create', args: [vals], ...(typeof uniq === 'string' ? { already: { model, domain: [[uniqueField, '=', uniq]] } } : {}) };
       const r = await save(change);
       setNote(r.status === 'queued' ? 'Saved on the phone. It goes to Odoo when signal is back.' : 'Saved in Odoo.');
-      setTimeout(onBack, 1000);
+      const madeId = !recordId && r.status === 'saved' ? (r as { result?: unknown }).result : undefined;
+      if (onCreated && typeof madeId === 'number') setTimeout(() => onCreated(madeId), 600);
+      else setTimeout(onBack, 1000);
     } catch (e) {
       setError(`Odoo said no: ${why(e)}`);
     } finally {

@@ -9,6 +9,11 @@ import { PRODUCT_SECTIONS } from '../lib/productForm';
 import { deviceSecrets } from '../lib/secrets';
 import { bakery, FakeOdoo, URL } from '../testing/fakeOdoo';
 
+// The calendar opens on this month, so the tests pick days of this month.
+const monthPrefix = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`;
+const firstOfMonth = `${monthPrefix}-01`;
+const twentyFifth = `${monthPrefix}-25`;
+
 const client = (odoo: FakeOdoo) => OdooClient.signIn(odoo.fetch, { url: URL, db: 'food-test', login: 'baker@example.com' }, 'key');
 
 function jam(odoo: FakeOdoo) {
@@ -117,10 +122,11 @@ describe('other screens', () => {
     await fireEvent.press(await screen.findByTestId(`po-${po}`));
     await settle();
     await fireEvent.changeText(await screen.findByTestId('f-partner_ref'), 'INV-9');
-    await fireEvent.changeText(screen.getByTestId('f-date_planned'), '2026-12-01');
+    await fireEvent.press(screen.getByTestId('f-date_planned'));
+    await fireEvent.press(screen.getByTestId('date-day-1'));
     await fireEvent.press(screen.getByTestId('save-form'));
     await settle();
-    expect(odoo.tables['purchase.order']![0]).toMatchObject({ partner_ref: 'INV-9', date_planned: '2026-12-01 12:00:00' });
+    expect(odoo.tables['purchase.order']![0]).toMatchObject({ partner_ref: 'INV-9', date_planned: `${firstOfMonth} 12:00:00` });
   });
 
   test('a batch can be added with its dates from Find a batch', async () => {
@@ -133,12 +139,13 @@ describe('other screens', () => {
     await fireEvent.press(await screen.findByTestId('new-lot'));
     await settle();
     await fireEvent.changeText(await screen.findByTestId('f-name'), '261125-01');
-    await fireEvent.changeText(screen.getByTestId('f-expiration_date'), '2027-03-25');
+    await fireEvent.press(screen.getByTestId('f-expiration_date'));
+    await fireEvent.press(screen.getByTestId('date-day-25'));
     await fireEvent.press(screen.getByTestId('f-product_id'));
     await settle();
     await fireEvent.press(await screen.findByTestId(`relation-${p}`));
     await fireEvent.press(screen.getByTestId('save-form'));
     await settle();
-    expect(odoo.tables['stock.lot']![0]).toMatchObject({ name: '261125-01', product_id: p, expiration_date: '2027-03-25 12:00:00' });
+    expect(odoo.tables['stock.lot']![0]).toMatchObject({ name: '261125-01', product_id: p, expiration_date: `${twentyFifth} 12:00:00` });
   });
 });

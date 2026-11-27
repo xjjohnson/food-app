@@ -105,4 +105,36 @@ describe('order lines screen', () => {
     await settle();
     expect(odoo.tables['purchase.order.line']!.find((x) => x.id === l)).toMatchObject({ product_qty: 9, price_unit: 2.75 });
   });
+
+  test('a new order opens its lines right after it is saved, and Confirm order makes the delivery', async () => {
+    await AsyncStorage.clear();
+    const { odoo } = bakery();
+    const k = pantry(odoo);
+    const vendor = odoo.create('res.partner', { name: 'Farm Supply' });
+    odoo.addEmployee('Ivy', odoo.addUser({ login: 'inv@example.com' }).id, ['Inventory']);
+    odoo.declared['purchase.order'] = ['partner_id', 'partner_ref', 'date_order', 'date_planned', 'notes', 'origin'];
+    globalThis.fetch = ((u: string, i: never) => odoo.fetch(u, i)) as never;
+    const login = { url: URL, db: 'food-test', login: 'inv@example.com' };
+    await AsyncStorage.setItem(ODOO_STORAGE_KEY, JSON.stringify(login));
+    await deviceSecrets().set('odoo.secret', 'key');
+    await setDbKind(AsyncStorage, login, 'test');
+    await renderRouter('src/app', { initialUrl: '/area/ingredients' });
+    await settle();
+    await fireEvent.press(screen.getByTestId('ing-pos'));
+    await settle();
+    await fireEvent.press(await screen.findByTestId('new-po'));
+    await settle();
+    await fireEvent.press(await screen.findByTestId('f-partner_id'));
+    await settle();
+    await fireEvent.press(await screen.findByTestId(`relation-${vendor}`));
+    await fireEvent.press(screen.getByTestId('save-form'));
+    await settle();
+    expect(await screen.findByText(/Order saved. Add what you are ordering/, {}, { timeout: 4000 })).toBeTruthy();
+    const po = odoo.tables['purchase.order']![0]!;
+    odoo.create('purchase.order.line', { order_id: po.id, product_id: [k.flour, 'Flour'], product_qty: 5, product_uom_id: [2, 'g'], price_unit: 2 });
+    await fireEvent.press(screen.getByTestId('po-confirm'));
+    await settle();
+    expect(po.state).toBe('purchase');
+    expect(odoo.tables['stock.picking']).toHaveLength(1);
+  });
 });

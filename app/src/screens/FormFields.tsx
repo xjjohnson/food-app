@@ -4,6 +4,7 @@ import { Body, Button, Card, Field, Row, Screen, Segments, SwitchRow } from '../
 import type { Draft, FieldDef, Rel, Section, Val } from '../lib/odooForm';
 import { COLOR_NAMES, ODOO_COLORS, searchRelation } from '../lib/odooForm';
 import { useOdoo } from '../lib/useOdoo';
+import { DatePicker } from '../components/DatePicker';
 
 /** Picks from an Odoo list by name: one record, or several for a "many" field. */
 export function RelationPicker({ def, selected, onChange, onBack }: { def: FieldDef; selected: Val; onChange: (v: Val) => void; onBack: () => void }) {
@@ -105,6 +106,7 @@ export function FormFields({ section, draft, setValue, pick }: { section: Sectio
             </Card>
           );
         }
+        if (d.kind === 'date' && !d.readOnly) return <DatePicker key={d.name} label={d.label.replace(/ \(year-month-day\)/, '')} value={String(v ?? '')} onChange={(x) => setValue(d.name, x)} testID={id} clearable />;
         const multi = d.kind === 'long' || d.kind === 'html';
         return (
           <Field

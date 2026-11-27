@@ -57,3 +57,36 @@ describe('jars in stock', () => {
     expect(groupJars(rows, { text: 'apple' }).map((g) => g.name)).toEqual(['Apple Butter']);
   });
 });
+
+import { parseSettings, writeSettings } from '../lib/appSettings';
+import { RULES_KEY, rulesList, toLine } from '../lib/records';
+import { TEXAS_RULES } from '../lib/texasRules';
+
+describe('Texas cottage-food rules', () => {
+  test('the list keeps every rule, and the exact label line, through the one-line storage', () => {
+    const stored = writeSettings({ [RULES_KEY]: toLine(TEXAS_RULES.join('\n')) });
+    const back = rulesList(parseSettings(stored));
+    expect(back).toHaveLength(TEXAS_RULES.length);
+    expect(back.some((r) => r.includes('THIS PRODUCT WAS PRODUCED IN A PRIVATE RESIDENCE THAT IS NOT SUBJECT TO GOVERNMENTAL LICENSING OR INSPECTION.'))).toBe(true);
+    expect(back.some((r) => r.includes('$150,000'))).toBe(true);
+  });
+});
+
+import { loadHistory } from '../lib/activities';
+
+describe('changes list', () => {
+  test('an empty-to-empty change is hidden, a real one shows with its numbers', async () => {
+    const c = {
+      call: async (model: string) => {
+        if (model === 'mail.message') return [{ id: 1, date: '2026-11-27 10:00:00', author_id: [1, 'Justin'], body: '', tracking_value_ids: [10, 11] }];
+        return [
+          { id: 10, field_id: [1, 'Untaxed Amount'], old_value_char: false, new_value_char: false, old_value_float: 0, new_value_float: 0, mail_message_id: [1, 'm'] },
+          { id: 11, field_id: [2, 'Total'], old_value_char: false, new_value_char: false, old_value_float: 5, new_value_float: 9, mail_message_id: [1, 'm'] },
+        ];
+      },
+    };
+    const lines = await loadHistory(c as never, 'purchase.order', 1);
+    expect(lines).toHaveLength(1);
+    expect(lines[0]!.text).toBe('Total: 5 → 9');
+  });
+});
