@@ -79,7 +79,7 @@ export function OrdersScreen({ go }: { go?: string } = {}) {
         {!orders ? <Body muted>{busy ? 'Loading…' : 'Nothing to show yet. Connect to Odoo to load orders.'}</Body> : null}
         {orders && !orders.length ? <Body muted>No website orders waiting.</Body> : null}
         {orders?.map((o) => (
-          <Row key={o.id} title={o.customer || o.origin || o.name} detail={`${o.origin || o.name} · ${stateWords(o.state)}${o.date ? ` · ${o.date}` : ''}`} onPress={() => setOpen(o)} testID={`order-${o.id}`} />
+          <Row key={o.id} title={o.customer || o.origin || o.name} detail={`${o.origin || o.name} · ${stateWords(o.state)} · ${o.pickup ? 'Pickup' : 'Delivery'}${o.date ? ` · ${o.date}` : ''}`} onPress={() => setOpen(o)} testID={`order-${o.id}`} />
         ))}
       </Card>
       {toMake.length ? (

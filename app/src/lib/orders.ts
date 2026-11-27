@@ -24,6 +24,8 @@ export interface Order {
   /** assigned = ready to pack, confirmed/waiting = Odoo is waiting for stock. */
   state: string;
   date: string;
+  /** The order's delivery method in Odoo is a pickup. */
+  pickup?: boolean;
 }
 
 export interface PackLine {
@@ -65,11 +67,12 @@ export function stateWords(state: string): string {
 /** Website deliveries not yet handed over, oldest first. */
 export async function loadOrders(c: Client): Promise<Order[]> {
   const rows = (await c.call('stock.picking', 'search_read', [[['picking_type_code', '=', 'outgoing'], ['state', 'in', ['assigned', 'confirmed', 'waiting']], ['sale_id.website_id', '!=', false]]], {
-    fields: ['name', 'origin', 'partner_id', 'state', 'scheduled_date'],
+    fields: ['name', 'origin', 'partner_id', 'state', 'scheduled_date', 'sale_id'],
     order: 'scheduled_date asc, id asc',
     limit: 100,
   })) as Record<string, unknown>[];
-  return rows.map((r) => ({ id: r.id as number, name: String(r.name ?? ''), origin: String(r.origin || ''), customer: nameOf(r.partner_id), state: String(r.state), date: typeof r.scheduled_date === 'string' ? r.scheduled_date.slice(0, 10) : '' }));
+  const pickups = await pickupSales(c, rows.map((r) => m2oId(r.sale_id)).filter(Boolean));
+  return rows.map((r) => ({ id: r.id as number, name: String(r.name ?? ''), origin: String(r.origin || ''), customer: nameOf(r.partner_id), state: String(r.state), date: typeof r.scheduled_date === 'string' ? r.scheduled_date.slice(0, 10) : '', ...(pickups.has(m2oId(r.sale_id)) ? { pickup: true } : {}) }));
 }
 
 export async function loadPackLines(c: Client, pickingId: number): Promise<PackLine[]> {
@@ -180,6 +183,23 @@ export async function loadCheckout(c: Client, pickingId: number): Promise<Checko
   } catch {
     return null;
   }
+}
+
+/** Sale orders whose delivery method in Odoo is a pickup. Empty if Odoo has no delivery methods. */
+export async function pickupSales(c: Client, saleIds: number[]): Promise<Set<number>> {
+  const out = new Set<number>();
+  if (!saleIds.length) return out;
+  try {
+    const sales = (await c.call('sale.order', 'read', [saleIds], { fields: ['carrier_id'] })) as Record<string, unknown>[];
+    const carrierIds = [...new Set(sales.map((s) => m2oId(s.carrier_id)).filter(Boolean))];
+    if (!carrierIds.length) return out;
+    const cars = (await c.call('delivery.carrier', 'read', [carrierIds], { fields: ['name', 'delivery_type'] })) as Record<string, unknown>[];
+    const isPickup = new Set(cars.filter((x) => carrierIsPickup(String(x.name ?? ''), x.delivery_type)).map((x) => x.id as number));
+    for (const s of sales) if (isPickup.has(m2oId(s.carrier_id))) out.add(s.id as number);
+  } catch {
+    // No delivery methods: everything is a delivery.
+  }
+  return out;
 }
 
 /** How many of each product Odoo has free to promise right now. */
