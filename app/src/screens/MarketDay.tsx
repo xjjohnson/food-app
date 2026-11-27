@@ -1,9 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback, useEffect, useState } from 'react';
-import { Share } from 'react-native';
 import { Body, Button, Card, ErrorText, Field, Row, Screen, SwitchRow } from '../components/ui';
 import { loadSettings, settingChange } from '../lib/appSettings';
-import { DaySheetRow, DENOMS, drawerKey, drawerTotal, drawerWords, loadDaySheet, loadPriceSheet, loadResults, loadSessions, marketKey, PriceRow, priceSheetText, Session, SessionResults, takeFromLine, takeToLine, TakeRow, totalsFromLine, totalsKey, totalsMatch, totalsToLine, sellThrough } from '../lib/marketDay';
+import { DaySheetRow, loadDaySheet, loadResults, loadSessions, marketKey, Session, SessionResults, takeFromLine, takeToLine, TakeRow, totalsFromLine, totalsKey, totalsMatch, totalsToLine, sellThrough } from '../lib/marketDay';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 import { useProductSearch } from './StockExtras';
@@ -192,87 +191,6 @@ async function loadDaySheetSold(c: NonNullable<ReturnType<typeof useOdoo>['clien
     }
   }
   return out;
-}
-
-export function PricePage({ onBack }: { onBack: () => void }) {
-  const { client, offline } = useOdoo();
-  const [rows, setRows] = useState<PriceRow[] | null>(null);
-  const [error, setError] = useState('');
-  useEffect(() => {
-    if (client && !offline) loadPriceSheet(client).then(setRows).catch((e) => setError(`Couldn’t read the prices. ${why(e)}`));
-  }, [client, offline]);
-  return (
-    <Page title="Price sheet" onBack={onBack} testID="price-page">
-      <Body muted>Prices are the list prices in Odoo. Tax is as Odoo has it; nothing is worked out here.</Body>
-      {error ? <ErrorText>{error}</ErrorText> : null}
-      {rows?.map((r) => (
-        <Row key={r.id} title={r.name} value={money(r.price)} />
-      ))}
-      {rows?.length ? <Button label="Share the price list" kind="plain" testID="price-share" onPress={() => Share.share({ message: priceSheetText(rows, 'Price list') })} /> : null}
-    </Page>
-  );
-}
-
-function Drawer({ date, when }: { date: string; when: 'open' | 'close' }) {
-  const { value, put } = useTyped(drawerKey(date, when));
-  const [counts, setCounts] = useState<Record<string, string>>({});
-  const [note, setNote] = useState('');
-  useEffect(() => {
-    if (value === undefined) return;
-    const c: Record<string, string> = {};
-    for (const p of value.split(';')) {
-      const [k, v] = p.split(':');
-      if (k && v) c[k] = v;
-    }
-    setCounts(c);
-  }, [value]);
-  const total = drawerTotal(counts);
-  return (
-    <Card title={when === 'open' ? 'Count at opening' : 'Count at closing'}>
-      {DENOMS.map((d) => (
-        <Field key={d.id} label={d.label} value={counts[d.id] ?? ''} onChangeText={(v) => setCounts({ ...counts, [d.id]: v })} keyboardType="number-pad" testID={`drawer-${when}-${d.id}`} />
-      ))}
-      <Body>{`Counted ${money(total)}`}</Body>
-      {note ? <Body>{note}</Body> : null}
-      <Button
-        label="Save count"
-        kind="plain"
-        testID={`drawer-save-${when}`}
-        onPress={async () => {
-          const r = await put(Object.entries(counts).filter(([, v]) => v).map(([k, v]) => `${k}:${v}`).join(';'));
-          setNote(r.status === 'queued' ? 'Saved on the phone.' : 'Saved in Odoo.');
-        }}
-      />
-    </Card>
-  );
-}
-
-export function DrawerPage({ onBack }: { onBack: () => void }) {
-  const { client, offline } = useOdoo();
-  const [date, setDate] = useState(today());
-  const [session, setSession] = useState<Session | null>(null);
-  useEffect(() => {
-    if (client && !offline) loadSessions(client, 40).then((l) => setSession(l.find((s) => (s.stop || s.start).slice(0, 10) === date) ?? null)).catch(() => undefined);
-  }, [client, offline, date]);
-  const open = useTyped(drawerKey(date, 'open'));
-  const close = useTyped(drawerKey(date, 'close'));
-  const sum = (v: string | undefined) => drawerTotal(Object.fromEntries((v ?? '').split(';').map((p) => p.split(':')).filter((p) => p[0] && p[1]).map((p) => [p[0]!, p[1]!])));
-  return (
-    <Page title="Cash drawer" onBack={onBack} testID="drawer-page">
-      <Body muted>Count the bills and coins. The count is kept here and in Odoo’s notes; it is never put into the Point of Sale.</Body>
-      <Field label="Market day (year-month-day)" value={date} onChangeText={setDate} testID="drawer-date" />
-      {session ? (
-        <Card title="What Odoo says">
-          <Row title="Opening cash" value={money(session.cashStart)} />
-          <Row title="Closing cash counted in Odoo" value={session.state === 'closed' ? money(session.cashEnd) : 'not closed yet'} />
-          {open.value ? <Body>{`Opening: ${drawerWords(sum(open.value), session.cashStart)}`}</Body> : null}
-          {close.value && session.state === 'closed' ? <Body>{`Closing: ${drawerWords(sum(close.value), session.cashEnd)}`}</Body> : null}
-        </Card>
-      ) : null}
-      <Drawer date={date} when="open" />
-      <Drawer date={date} when="close" />
-    </Page>
-  );
 }
 
 export function TotalsPage({ onBack }: { onBack: () => void }) {

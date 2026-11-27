@@ -40,12 +40,12 @@ describe('market', () => {
     await settle();
     await fireEvent.press(screen.getByTestId(`open-pos-${reg}`));
     expect(open).toHaveBeenCalledWith(`${URL}/pos/ui?config_id=${reg}`);
-    // Before has the get-ready jobs; After has the close-up jobs.
+    // One page: get-ready and close-up jobs are all there; cash drawer and price sheet are not.
     expect(screen.getByTestId('market-take')).toBeTruthy();
-    expect(screen.queryByTestId('market-checkin')).toBeNull();
-    await fireEvent.press(screen.getByTestId('market-part-after'));
     expect(screen.getByTestId('market-checkin')).toBeTruthy();
     expect(screen.getByTestId('market-results')).toBeTruthy();
-    expect(screen.queryByTestId('market-take')).toBeNull();
+    expect(screen.queryByTestId('market-part')).toBeNull();
+    expect(screen.queryByTestId('market-drawer')).toBeNull();
+    expect(screen.queryByTestId('market-price')).toBeNull();
   });
 });

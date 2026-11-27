@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.64',
+    changes: ['Market is one page now, with no Before, Selling and After buttons. A purple card on top shows the register and sales so far, then Get ready, Today and Close up.', 'Cash drawer and Price sheet are gone from Market; the Odoo Point of Sale handles both.'],
+    test: ['Sell, Market: open the register from the top card, check sales show under Today, then try Check out, Check in, Day totals and Results.'],
+  },
+  {
     release: '0.1.63',
     changes: ['Sell is one page now: no Orders and Market buttons. Market is a row on that page.', 'Market now matches the design: Before, Selling and After bar with numbered step cards.', 'Delivery board is now called Sold board.', 'Sold board keeps Deliveries and Pickups in separate spaces, with no Pickup tag bubbles.'],
     test: ['Sell: open Market from its row and walk Before, Selling and After. Then Sold board: check Pack and Drive show Deliveries and Pickups apart.'],
