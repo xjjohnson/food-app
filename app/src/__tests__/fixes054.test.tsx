@@ -70,4 +70,20 @@ describe('more page redesign', () => {
     await settle();
     expect(await loadAppearance()).toBe('light');
   });
+
+  test('the Online shop and Money menus still open their pages with the new card rows', async () => {
+    const { odoo } = bakery();
+    await open(odoo, '/shop', 'owner');
+    expect(screen.getByTestId('shop-orders')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('shop-specials'));
+    await settle();
+    expect(screen.getByTestId('specials-page')).toBeTruthy();
+  });
+
+  test('the Money menu lists its reports as rows', async () => {
+    const { odoo } = bakery();
+    await open(odoo, '/reports', 'owner');
+    expect(screen.getByTestId('rep-sales')).toBeTruthy();
+    expect(screen.getByTestId('rep-packet')).toBeTruthy();
+  });
 });

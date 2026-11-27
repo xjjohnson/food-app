@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { useBrand } from '../lib/useBrand';
-import { Body, Card, ErrorText, Field, Row, Screen, Segments, useUi } from '../components/ui';
+import { Body, Card, ErrorText, Field, Row, Screen, SectionLabel, Segments, useUi } from '../components/ui';
 import { Button } from '../components/ui';
 import { useInnerBack } from '../lib/innerBack';
 import { BreakEvenProduct, bestFirst, breakEvenUnits, findForBreakEven, loadSold, loadStockValue, loadYears, Range, RANGES, rangeDays, slowest, SoldRow, StockValue } from '../lib/reports';
@@ -73,22 +73,20 @@ export function ReportsScreen() {
     return (
       <Screen title="Money and reports" testID="reports-screen">
         <NumbersFirst rows={best} range={range} />
-        <Card title="Reports">
+        <SectionLabel>Reports</SectionLabel>
           <Row title="Sales" detail="Best and slowest sellers" onPress={() => setTab('sales')} testID="rep-sales" />
           <Row title="Profit" detail="Sold, units and cost side by side" onPress={() => setTab('profit')} testID="rep-profit" />
           <Row title="Stock value" detail="What is on the shelves" onPress={() => setTab('stock')} testID="rep-stock" />
           <Row title="Year against last year" onPress={() => setTab('years')} testID="rep-years" />
           <Row title="Break-even" detail="Units to cover a cost" onPress={() => setTab('even')} testID="rep-even" />
           <Row title="Month goal" detail="Your goal and how far along" onPress={() => setTab('goal')} testID="rep-goal" />
-        </Card>
-        <Card title="Money">
+        <SectionLabel>Money</SectionLabel>
           <Row title="Bills due" detail="Unpaid bills, late ones marked" onPress={() => setTab('bills')} testID="rep-bills" />
           <Row title="Cash in and out" onPress={() => setTab('cash')} testID="rep-cash" />
           <Row title="Sales tax" detail="As Odoo booked it" onPress={() => setTab('tax')} testID="rep-tax" />
           <Row title="Budget" detail="Spent against what you set, by category" onPress={() => setTab('budget')} testID="rep-budget" />
           <Row title="Add an expense" detail="With a receipt photo" onPress={() => setTab('expense')} testID="rep-expense" />
           <Row title="Accountant packet" detail="One file for the month" onPress={() => setTab('packet')} testID="rep-packet" />
-        </Card>
       </Screen>
     );
   return (

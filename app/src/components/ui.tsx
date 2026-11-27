@@ -17,6 +17,8 @@ export const TOUCH = 52;
 /** The page look: clean everywhere, "cookbook" (paper, dashed cards, serif titles) on recipe pages. */
 export type Look = 'clean' | 'cookbook';
 const LookContext = createContext<Look>('clean');
+/** True inside a Card: rows there stay flat. A tappable row on the bare page becomes its own card with a small tile. */
+const InCard = createContext(false);
 export const useLook = () => useContext(LookContext);
 /** Wrap recipe pages in this to give them the cookbook look. */
 export function LookScope({ look, children }: { look: Look; children: ReactNode }) {
@@ -49,6 +51,9 @@ const makeStyles = (c: Palette) =>
     disabled: { opacity: 0.45 },
     row: { minHeight: TOUCH, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 6 },
     rowText: { flex: 1, gap: 2 },
+    navCard: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: c.card, borderRadius: 16, borderWidth: 1, borderColor: c.line, paddingHorizontal: 14, paddingVertical: 10 },
+    tile: { width: 38, height: 38, borderRadius: 10, backgroundColor: c.tint, alignItems: 'center', justifyContent: 'center' },
+    tileText: { fontSize: 16, fontWeight: '800', color: c.text },
     rowTextWithValue: { flexGrow: 1, flexShrink: 0, flexBasis: '45%', gap: 2 },
     rowTitle: { fontSize: 18, fontWeight: '700', color: c.text },
     rowValue: { fontSize: 16, color: c.muted, flexShrink: 1, textAlign: 'right' },
@@ -114,9 +119,15 @@ export function Card({ title, children, testID }: { title?: string; children: Re
           {title}
         </Text>
       ) : null}
-      {children}
+      <InCard.Provider value>{children}</InCard.Provider>
     </View>
   );
+}
+
+/** A small label above a group of rows on the bare page. */
+export function SectionLabel({ children }: { children: ReactNode }) {
+  const s = useUi();
+  return <Text style={[s.label, { textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 4 }]}>{children}</Text>;
 }
 
 export function Body({ children, muted }: { children: ReactNode; muted?: boolean }) {
@@ -160,6 +171,36 @@ export function Button({ label, onPress, kind = 'main', disabled, busy, testID }
 /** A row with a title, optional detail under it, and a value or control on the right. */
 export function Row({ title, detail, value, onPress, right, testID }: { title: string; detail?: string; value?: string; onPress?: () => void; right?: ReactNode; testID?: string }) {
   const s = useUi();
+  const inCard = useContext(InCard);
+  if (!inCard) {
+    const body = (
+      <>
+        {onPress && value === undefined && !right ? (
+          <View style={s.tile}>
+            <Text style={s.tileText}>{title.charAt(0).toUpperCase()}</Text>
+          </View>
+        ) : null}
+        <View style={value !== undefined ? s.rowTextWithValue : s.rowText}>
+          <Text style={s.rowTitle}>{title}</Text>
+          {detail ? <Text style={s.muted}>{detail}</Text> : null}
+        </View>
+        {value !== undefined ? <Text style={s.rowValue}>{value}</Text> : null}
+        {right}
+        {onPress ? <Text style={s.rowValue}>›</Text> : null}
+      </>
+    );
+    if (!onPress)
+      return (
+        <View style={s.navCard} testID={testID}>
+          {body}
+        </View>
+      );
+    return (
+      <Pressable onPress={onPress} style={({ pressed }) => [s.navCard, pressed && s.pressed]} accessibilityRole="button" accessibilityLabel={title} testID={testID}>
+        {body}
+      </Pressable>
+    );
+  }
   const inner = (
     <>
       <View style={value !== undefined ? s.rowTextWithValue : s.rowText}>
