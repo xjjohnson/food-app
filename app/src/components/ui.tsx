@@ -4,8 +4,8 @@
  * buttons stay big, so they work with floury hands and in a busy market.
  */
 import { router } from 'expo-router';
-import { createContext, ReactNode, useContext, useEffect } from 'react';
-import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, TextInputProps, View } from 'react-native';
+import { createContext, ReactNode, useContext, useEffect, useState } from 'react';
+import { ActivityIndicator, Image, Platform, Pressable, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, TextInputProps, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { Palette } from '../lib/palette';
 import { runInnerBack } from '../lib/innerBack';
@@ -74,11 +74,12 @@ export function useUi() {
 }
 
 /** A page with the brand header. `back` shows a Back button (full pages); the home screen has none. */
-export function Screen({ title, back = true, children, right, testID }: { title: string; back?: boolean; children: ReactNode; right?: ReactNode; testID?: string }) {
+export function Screen({ title, back = true, children, right, testID, onRefresh }: { title: string; back?: boolean; children: ReactNode; right?: ReactNode; testID?: string; onRefresh?: () => Promise<unknown> | void }) {
   const s = useUi();
   const { brand, dark } = useBrand();
   const look = useLook();
   const paper = look === 'cookbook' && !dark;
+  const [refreshing, setRefreshing] = useState(false);
   // A trail of screens in the log: the id of the screen, not what is on it.
   useEffect(() => {
     log.info('screen', testID ?? title);
@@ -100,7 +101,22 @@ export function Screen({ title, back = true, children, right, testID }: { title:
         </Text>
         {right}
       </View>
-      <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        contentContainerStyle={s.scroll}
+        keyboardShouldPersistTaps="handled"
+        testID={testID ? `${testID}-scroll` : undefined}
+        refreshControl={
+          onRefresh ? (
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                Promise.resolve(onRefresh()).finally(() => setRefreshing(false));
+              }}
+            />
+          ) : undefined
+        }
+      >
         {children}
       </ScrollView>
     </SafeAreaView>
@@ -297,7 +313,7 @@ export function StatusButtons({ items, testID }: { items: { label: string; count
 }
 
 /** One list card for Sell lists: name first, number and date under it, a small colored tag, the amount big on the right. */
-export function ListRow({ title, detail, tag, amount, onPress, testID }: { title: string; detail?: string; tag?: { label: string; tone: 'good' | 'warn' | 'bad' | 'plain' }; amount?: string; onPress?: () => void; testID?: string }) {
+export function ListRow({ title, detail, lines, tag, amount, onPress, testID }: { title: string; detail?: string; lines?: string[]; tag?: { label: string; tone: 'good' | 'warn' | 'bad' | 'plain' }; amount?: string; onPress?: () => void; testID?: string }) {
   const s = useUi();
   const { colors } = useBrand();
   const bg = tag ? { good: '#2F7D52', warn: '#C26A0E', bad: colors.stop, plain: '#6B7280' }[tag.tone] : '';
@@ -306,6 +322,9 @@ export function ListRow({ title, detail, tag, amount, onPress, testID }: { title
       <View style={{ flex: 1, gap: 3 }}>
         <Text style={s.rowTitle}>{title}</Text>
         {detail ? <Text style={s.muted}>{detail}</Text> : null}
+        {lines?.map((l, i) => (
+          <Text key={i} style={s.muted}>{l}</Text>
+        ))}
       </View>
       <View style={{ alignItems: 'flex-end', gap: 4 }}>
         {amount ? <Text style={[s.rowTitle, { fontSize: 18 }]}>{amount}</Text> : null}

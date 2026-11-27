@@ -11,6 +11,21 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.70',
+    changes: ['Today numbers now update every time you open the Today tab, and when you pull the page down.'],
+    test: ['Pack or add a website order, then open Today and check the tiles. Pull down on Today to refresh.'],
+  },
+  {
+    release: '0.1.69',
+    changes: ['Purchase history opens on All, grouped by day, and each bill lists what was bought (the first three items, then "+ more").', 'Tap a bill to see every line as before.'],
+    test: ['Buy, Purchase history: check it shows All, day headings and items on each bill. Turn airplane mode on and open it again; the items should still show.'],
+  },
+  {
+    release: '0.1.68',
+    changes: ['Today has four quick buttons on top: I bought something, Start a batch, New order and Add task. The round + button no longer shows on Today.', 'Big tiles show Tasks, New website orders, Close to use-by date and Orders to pack. Only rows that are not zero are listed; the rest are named in one All clear line, with Show all.'],
+    test: ['Today: tap each quick button and go Back. Tap each tile. Tap Show all and then Hide the empty ones.'],
+  },
+  {
     release: '0.1.67',
     changes: ['Recipes now use the same clean cards as the rest of the app: no dashed paper cards or serif titles on the recipe list or the recipe pages.'],
     test: ['Make, Recipes: check the list, then open a recipe, edit it and go Back.'],
