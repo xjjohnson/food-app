@@ -23,6 +23,7 @@ import { PriceHistoryScreen } from './PriceHistoryScreen';
 import { ProductForm } from './ProductForm';
 import { fmtQty } from '../lib/production';
 import type { NewChange } from '../lib/queue';
+import { useCachedLoad } from '../lib/useCachedLoad';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 
@@ -47,36 +48,31 @@ export function Choose({ title, items, onPick, onBack }: { title: string; items:
 /** The ingredient list: products Odoo can buy, in a category. Open one to change it, or add a new one. */
 export function IngredientListScreen({ onBack }: { onBack: () => void }) {
   const { client, offline } = useOdoo();
-  const [cats, setCats] = useState<Named[]>([]);
   const [cat, setCat] = useState<Named | null | undefined>(undefined);
   const [choosing, setChoosing] = useState(false);
   const [text, setText] = useState('');
-  const [list, setList] = useState<IngredientRow[]>([]);
   const [open, setOpen] = useState<number | 'new' | null>(null);
   const [tick, setTick] = useState(0);
-  const [error, setError] = useState('');
   useInnerBack(open !== null ? () => { setOpen(null); setTick((n) => n + 1); } : choosing ? () => setChoosing(false) : null);
 
+  // The last categories and list show at once; Odoo is read behind them.
+  const catsLoad = useCachedLoad<Named[]>('ingredients/categories', () => loadCategories(client!), [client], { enabled: !!client && !offline });
+  const cats: Named[] = catsLoad.data ?? [];
   useEffect(() => {
-    if (!client || offline) return;
-    loadCategories(client)
-      .then((cs) => {
-        setCats(cs);
-        // Start on the category Odoo calls raw material, if it has one; the person can change it.
-        setCat((cur) => (cur === undefined ? cs.find((c) => /raw material/i.test(c.name)) ?? null : cur));
-      })
-      .catch(() => setCat((cur) => (cur === undefined ? null : cur)));
-  }, [client, offline]);
+    if (catsLoad.data) {
+      // Start on the category Odoo calls raw material, if it has one; the person can change it.
+      setCat((cur) => (cur === undefined ? catsLoad.data!.find((c) => /raw material/i.test(c.name)) ?? null : cur));
+    } else if (catsLoad.error) setCat((cur) => (cur === undefined ? null : cur));
+  }, [catsLoad.data, catsLoad.error]);
 
+  const [q, setQ] = useState('');
   useEffect(() => {
-    if (!client || offline || cat === undefined) return;
-    const t = setTimeout(() => {
-      loadIngredients(client, cat?.id ?? null, text)
-        .then(setList)
-        .catch((e) => setError(`Couldn’t read ingredients from Odoo. ${why(e)}`));
-    }, 250);
+    const t = setTimeout(() => setQ(text), 250);
     return () => clearTimeout(t);
-  }, [client, offline, cat, text, tick]);
+  }, [text]);
+  const listLoad = useCachedLoad<IngredientRow[]>(`ingredients/list/${cat?.id ?? 'all'}/${q.trim().toLowerCase()}`, () => loadIngredients(client!, cat?.id ?? null, q), [client, cat, q, tick], { enabled: !!client && !offline && cat !== undefined });
+  const list: IngredientRow[] = listLoad.data ?? [];
+  const error = listLoad.error ? `Couldn’t read ingredients from Odoo. ${why(listLoad.error)}` : '';
 
   if (choosing)
     return (

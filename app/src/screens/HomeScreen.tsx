@@ -1,10 +1,12 @@
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Body, Card, Chip, Row, Screen, SectionLabel, useUi } from '../components/ui';
 import { hasAnyRole, roleNames } from '../lib/roles';
 import { plusChoices } from '../lib/tabs';
-import { loadToday, TodayItem } from '../lib/today';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { readCache, writeCache } from '../lib/dataCache';
+import { loadTodayShared, TodayItem } from '../lib/today';
 import { useBrand } from '../lib/useBrand';
 import { useOdoo } from '../lib/useOdoo';
 import { useRoles } from '../lib/useRoles';
@@ -38,10 +40,24 @@ export function HomeScreen() {
   const first = client?.session.name.split(' ')[0] ?? '';
   const [today, setToday] = useState<TodayItem[]>([]);
   // The counts are read again each time Today comes into view, and on pull down.
+  // The last counts show at once (even with no signal); Odoo is read behind them.
+  const cacheWho = client ? { db: client.session.db, uid: client.session.uid } : null;
+  const cdb = cacheWho?.db;
+  const cuid = cacheWho?.uid;
+  useEffect(() => {
+    if (!cdb || !cuid) return;
+    let alive = true;
+    readCache<TodayItem[]>(AsyncStorage, { db: cdb, uid: cuid }, 'today').then((c) => alive && c && setToday((cur) => (cur.length ? cur : c)));
+    return () => {
+      alive = false;
+    };
+  }, [cdb, cuid]);
   const reload = useCallback(async () => {
     if (!client || offline || !hasAnyRole(roles)) return;
     try {
-      setToday(await loadToday(client, roles));
+      const fresh = await loadTodayShared(client, roles);
+      setToday(fresh);
+      void writeCache(AsyncStorage, { db: client.session.db, uid: client.session.uid }, 'today', fresh);
     } catch {
       // Keep the last numbers.
     }

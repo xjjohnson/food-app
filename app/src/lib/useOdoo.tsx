@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { clearCache } from './dataCache';
 import { claimIfUnowned, dataMatches, dbId, resumeSwitch, SECRET_KEY } from './dbSwitch';
 import { deviceSnapshots } from './dbSnapshots';
 import { log } from './log';
@@ -138,6 +139,8 @@ export function OdooProvider({ children, fetchFn, secrets: givenSecrets }: { chi
     setStatus('signedOut');
     setError(null);
     secrets.remove(SECRET_KEY);
+    // Saved copies of Odoo's answers go too, so the next person on this phone never sees them.
+    void clearCache(AsyncStorage);
   }, [secrets]);
 
   const refresh = useCallback(async () => {
