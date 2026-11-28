@@ -13,6 +13,7 @@ import { InStockRow, loadInStock, StockKind, BatchTrace, CountLine, countChange,
 import { loadSettings, useByDays } from '../lib/appSettings';
 import { Recall, recallLot, recallText } from '../lib/recall';
 import { PhotosCard } from './PhotosCard';
+import { useCachedLoad } from '../lib/useCachedLoad';
 import { useOdoo } from '../lib/useOdoo';
 import { useQueue } from '../lib/useQueue';
 import { GenericForm } from './GenericForm';
@@ -58,20 +59,17 @@ function InStock({ onBack }: { onBack: () => void }) {
   const { client, offline } = useOdoo();
   const [text, setText] = useState('');
   const [kind, setKind] = useState<StockKind>('all');
-  const [rows, setRows] = useState<InStockRow[] | null>(null);
+  const [q, setQ] = useState('');
   const [open, setOpen] = useState<number | null>(null);
   const [batches, setBatches] = useState<LotStock[] | null>(null);
-  const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!client || offline) return;
-    const t = setTimeout(() => {
-      loadInStock(client, text, kind)
-        .then(setRows)
-        .catch((e) => setError(`Couldn’t read stock from Odoo. ${why(e)}`));
-    }, 250);
+    const t = setTimeout(() => setQ(text), 250);
     return () => clearTimeout(t);
-  }, [client, offline, text, kind]);
+  }, [text]);
+  // The last list shows at once; Odoo is read behind it.
+  const { data: rows, error: loadError } = useCachedLoad<InStockRow[]>(`stock/in/${kind}/${q.trim().toLowerCase()}`, () => loadInStock(client!, q, kind), [client, q, kind], { enabled: !!client && !offline });
+  const error = loadError ? `Couldn’t read stock from Odoo. ${why(loadError)}` : '';
 
   const show = async (r: InStockRow) => {
     if (open === r.id) return setOpen(null);

@@ -239,10 +239,21 @@ export interface InStockRow {
 }
 
 /** What is on the shelves: every counted product with how much there is, in Odoo's own unit. */
+const storableMemo = new WeakMap<object, Promise<boolean>>();
+/** Whether this Odoo has the Track Inventory switch. Asked once per sign-in: reading every field is slow. */
+function hasStorable(c: Client): Promise<boolean> {
+  let p = storableMemo.get(c);
+  if (!p) {
+    p = (c.call('product.product', 'fields_get', [], { attributes: ['string'] }) as Promise<Record<string, unknown>>).then((f) => 'is_storable' in f);
+    p.catch(() => storableMemo.delete(c));
+    storableMemo.set(c, p);
+  }
+  return p;
+}
+
 export async function loadInStock(c: Client, text: string, kind: StockKind): Promise<InStockRow[]> {
   const domain: unknown[] = text.trim() ? [['name', 'ilike', text.trim()]] : [];
-  const fields = (await c.call('product.product', 'fields_get', [], { attributes: ['string'] })) as Record<string, unknown>;
-  if ('is_storable' in fields) domain.push(['is_storable', '=', true]);
+  if (await hasStorable(c)) domain.push(['is_storable', '=', true]);
   if (kind !== 'all') {
     const roots = (await c.call('product.category', 'search', [[['name', 'ilike', 'raw material']]], {})) as number[];
     if (roots.length) {

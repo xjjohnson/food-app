@@ -132,7 +132,8 @@ export async function hasSavedSecret(secrets: SecretStore, t: Pick<DbTarget, 'ur
 }
 
 async function snapshotOf(storage: KeyValueStore): Promise<Record<string, string>> {
-  const keys = (await storage.getAllKeys()).filter((k) => !isShared(k));
+  // Saved copies of Odoo's answers (cache/) are not snapshotted: they are read again from Odoo.
+  const keys = (await storage.getAllKeys()).filter((k) => !isShared(k) && !k.startsWith('cache/'));
   const out: Record<string, string> = {};
   for (const [k, v] of await storage.multiGet(keys)) if (v !== null) out[k] = v;
   return out;

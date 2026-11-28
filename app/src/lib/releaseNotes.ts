@@ -11,6 +11,15 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.95',
+    changes: ['Faster loading. Home, the tab dots, What’s in stock and the Ingredient list now show what the phone saved last time right away, then update from Odoo behind it. Home counts are read all at once instead of one by one. Saved copies are wiped when you sign out or switch database.'],
+    test: [
+      'Open the app, go to Home, close the app and open it again: the counts and Also today show at once, then update.',
+      'Buy, Ingredient list, and Make, What’s in stock: open them twice. The second time the list shows straight away.',
+      'Sign out and sign in as someone else: nothing from the first person shows.',
+    ],
+  },
+  {
     release: '0.1.94',
     changes: ['Copy a recipe to a new size now lists only that product’s own sizes, not every product.'],
     test: ['Recipes, open a recipe, Copy to a new size, tap New size. Only the other sizes of the same product show.'],

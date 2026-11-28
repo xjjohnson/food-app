@@ -1,6 +1,8 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { Badges, buildBadges } from './badges';
-import { loadToday } from './today';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { readCache, writeCache } from './dataCache';
+import { loadTodayShared } from './today';
 import { useAppForeground } from './useAppForeground';
 import { useOdoo } from './useOdoo';
 import { useQueue } from './useQueue';
@@ -17,7 +19,7 @@ export function BadgeProvider({ children }: { children: ReactNode }) {
   const { client, offline, status } = useOdoo();
   const { roles } = useRoles();
   const { items: queued } = useQueue();
-  const [today, setToday] = useState<Awaited<ReturnType<typeof loadToday>>>([]);
+  const [today, setToday] = useState<Awaited<ReturnType<typeof loadTodayShared>>>([]);
   const [tick, setTick] = useState(0);
   const stuck = queued.filter((x) => x.state === 'stuck').length;
 
@@ -29,8 +31,15 @@ export function BadgeProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!client || offline || status !== 'signedIn') return;
     let alive = true;
-    loadToday(client, roles)
-      .then((r) => alive && setToday(r))
+    const who = { db: client.session.db, uid: client.session.uid };
+    // The last counts show at once; the fresh ones replace them.
+    readCache<typeof today>(AsyncStorage, who, 'today').then((c) => alive && c && setToday((cur) => (cur.length ? cur : c)));
+    loadTodayShared(client, roles)
+      .then((r) => {
+        if (!alive) return;
+        setToday(r);
+        void writeCache(AsyncStorage, who, 'today', r);
+      })
       .catch(() => undefined);
     return () => {
       alive = false;
