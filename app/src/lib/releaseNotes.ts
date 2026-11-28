@@ -11,6 +11,11 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    release: '0.1.95',
+    changes: ['Shopping list, Make draft orders: only the items you ticked go in (all of them if none are ticked), each in its own unit, and an Open my orders button shows the drafts.'],
+    test: ['Plan a short batch, Shopping list, tick two items, Make draft orders per supplier, then Open my orders. The draft has just those lines, in grams or ounces as shown.'],
+  },
+  {
     release: '0.1.94',
     changes: ['Copy a recipe to a new size now lists only that product’s own sizes, not every product.'],
     test: ['Recipes, open a recipe, Copy to a new size, tap New size. Only the other sizes of the same product show.'],

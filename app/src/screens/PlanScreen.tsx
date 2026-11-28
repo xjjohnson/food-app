@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { draftOrderChanges } from '../lib/buying';
+import { useRouter } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Body, Button, Card, ErrorText, Field, Row, Screen, Segments, SwitchRow } from '../components/ui';
 import { loadNeedRows, loadPlanned, loadShoppingList, NeedRow, planBatchChange, planNeeds, PlanLine, ShopRow } from '../lib/plan';
@@ -118,6 +119,8 @@ function Shopping({ recipes, tab, setTab, onBack }: TabProps) {
   const [error, setError] = useState('');
   const [msg, setMsg] = useState('');
   const { save } = useQueue();
+  const router = useRouter();
+  const [made, setMade] = useState(false);
 
   useEffect(() => {
     if (!client || offline) return;
@@ -160,11 +163,13 @@ function Shopping({ recipes, tab, setTab, onBack }: TabProps) {
           testID="make-drafts"
           onPress={async () => {
             setMsg('');
-            const changes = draftOrderChanges(list.map((r) => ({ productId: r.productId, name: r.name, qty: r.buy, supplierId: r.supplierId ?? 0, supplier: r.supplier })), new Date().toISOString().slice(0, 10));
+            const chosen = list.some((r) => ticked.includes(r.productId)) ? list.filter((r) => ticked.includes(r.productId)) : list;
+            const changes = draftOrderChanges(chosen.map((r) => ({ productId: r.productId, name: r.name, qty: r.buy, supplierId: r.supplierId ?? 0, supplier: r.supplier, uomId: r.uomId })), new Date().toISOString().slice(0, 10));
             if (!changes.length) return setMsg('No item has a usual supplier yet, so there is nothing to order.');
             try {
               let queued = false;
               for (const ch of changes) if ((await save(ch)).status === 'queued') queued = true;
+              setMade(true);
               setMsg(`${queued ? 'Saved on the phone.' : 'Saved in Odoo.'} ${changes.length} draft ${changes.length === 1 ? 'order' : 'orders'}. Nothing is confirmed; check each one before you send it.`);
             } catch (e) {
               setError(`Odoo said no: ${why(e)}`);
@@ -173,6 +178,7 @@ function Shopping({ recipes, tab, setTab, onBack }: TabProps) {
         />
       ) : null}
       {msg ? <Body>{msg}</Body> : null}
+      {made ? <Button label="Open my orders" kind="plain" onPress={() => router.push('/area/ingredients?go=pos' as never)} testID="open-orders" /> : null}
       <Body muted>Ticks stay on this phone. When you buy, use Bought ingredients under Ingredients.</Body>
       <Button label="Back" kind="plain" onPress={onBack} />
     </Screen>

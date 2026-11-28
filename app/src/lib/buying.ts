@@ -63,6 +63,8 @@ export interface BuyLine {
   qty: number;
   supplierId: number;
   supplier: string;
+  /** The product's own unit in Odoo, so the amount is read in the unit shown. */
+  uomId?: number;
 }
 
 /** One draft purchase order per supplier, once a day. Lines without a usual supplier are left out. */
@@ -75,7 +77,7 @@ export function draftOrderChanges(rows: BuyLine[], today: string): NewChange[] {
       label: `Draft order: ${lines[0]!.supplier} (${lines.length} ${lines.length === 1 ? 'item' : 'items'})`,
       model: 'purchase.order',
       method: 'create',
-      args: [{ partner_id: supplierId, origin: token, order_line: lines.map((l) => [0, 0, { product_id: l.productId, product_qty: l.qty }]) }],
+      args: [{ partner_id: supplierId, origin: token, order_line: lines.map((l) => [0, 0, { product_id: l.productId, product_qty: l.qty, ...(l.uomId ? { product_uom_id: l.uomId } : {}) }]) }],
       already: { model: 'purchase.order', domain: [['origin', '=', token]] },
     };
   });

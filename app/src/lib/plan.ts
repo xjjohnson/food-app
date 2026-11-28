@@ -93,6 +93,8 @@ export interface ShopRow {
   why: string;
   supplier: string;
   supplierId?: number;
+  /** The product's own unit id in Odoo. */
+  uomId?: number;
 }
 
 /**
@@ -111,6 +113,16 @@ export async function loadShoppingList(c: Client, planned: NeedRow[]): Promise<S
     }
   } catch {
     // No reorder rules readable: the plan alone makes the list.
+  }
+  try {
+    const ids = [...out.keys()];
+    const prods = ids.length ? ((await c.call('product.product', 'read', [ids], { fields: ['uom_id'] })) as Record<string, unknown>[]) : [];
+    for (const pr of prods) {
+      const row = out.get(Number(pr.id));
+      if (row) row.uomId = m2oId(pr.uom_id) || undefined;
+    }
+  } catch {
+    // Units not readable: Odoo uses the product's own unit.
   }
   for (const row of out.values()) {
     try {

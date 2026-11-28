@@ -28,6 +28,14 @@ describe('draft orders', () => {
   });
 });
 
+describe('draft order lines', () => {
+  test('each line carries the product unit', () => {
+    const [ch] = draftOrderChanges([{ productId: 1, name: 'Sugar', qty: 2.74, supplierId: 5, supplier: 'Acme', uomId: 9 }], '2026-12-01');
+    const lines = (ch!.args[0] as { order_line: [number, number, Record<string, unknown>][] }).order_line;
+    expect(lines[0]![2]).toMatchObject({ product_id: 1, product_qty: 2.74, product_uom_id: 9 });
+  });
+});
+
 describe('route', () => {
   const stops = [
     { id: 1, address: '1 A St', zip: '90' },
